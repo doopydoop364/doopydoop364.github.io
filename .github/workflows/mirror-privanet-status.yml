@@ -1,0 +1,75 @@
+name: Mirror PrivaNet crawler status
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mirror-privanet-status
+  cancel-in-progress: true
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Fetch PrivaNet crawler status
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          SOURCE_URL="https://privanet.pcenthusiast.blog/crawling/api/status"
+          mkdir -p privanet/crawling/history
+
+          tmp="$(mktemp)"
+          curl \
+            --fail \
+            --silent \
+            --show-error \
+            --location \
+            --retry 3 \
+            --retry-delay 5 \
+            --connect-timeout 15 \
+            --max-time 60 \
+            -H 'Accept: application/json' \
+            "$SOURCE_URL" \
+            -o "$tmp"
+
+          python3 - "$tmp" <<'PY'
+          import json
+          import pathlib
+          import sys
+
+          source = pathlib.Path(sys.argv[1])
+          payload = json.loads(source.read_text(encoding="utf-8"))
+          rendered = json.dumps(payload, indent=2, sort_keys=True) + "\n"
+          pathlib.Path("privanet/crawling/status.json").write_text(rendered, encoding="utf-8")
+          pathlib.Path("privanet/crawling/history/latest.json").write_text(rendered, encoding="utf-8")
+          PY
+
+          day="$(date -u +%F)"
+          cp privanet/crawling/status.json "privanet/crawling/history/${day}.json"
+
+      - name: Commit updated snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git add privanet/crawling/status.json privanet/crawling/history/
+
+          if git diff --cached --quiet; then
+            echo "No status changes to commit."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore: mirror PrivaNet crawler status"
+          git push
