@@ -29,18 +29,41 @@ jobs:
           mkdir -p privanet/crawling/history
 
           tmp="$(mktemp)"
-          curl \
-            --fail \
+          headers="$(mktemp)"
+
+          status="$({ curl \
             --silent \
             --show-error \
             --location \
+            --compressed \
             --retry 3 \
             --retry-delay 5 \
             --connect-timeout 15 \
             --max-time 60 \
-            -H 'Accept: application/json' \
-            "$SOURCE_URL" \
-            -o "$tmp"
+            --dump-header "$headers" \
+            --output "$tmp" \
+            --write-out '%{http_code}' \
+            -H 'Accept: application/json, text/plain, */*' \
+            -H 'Accept-Language: en-US,en;q=0.9' \
+            -H 'Cache-Control: no-cache' \
+            -H 'Pragma: no-cache' \
+            -H 'Referer: https://privanet.pcenthusiast.blog/crawling' \
+            -A 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36' \
+            "$SOURCE_URL"; } 2>&1)" || {
+              echo "curl itself failed"
+              cat "$headers" || true
+              exit 1
+            }
+
+          if [[ "$status" != "200" ]]; then
+            echo "PrivaNet status endpoint returned HTTP $status"
+            echo '--- response headers ---'
+            cat "$headers" || true
+            echo '--- response body (first 4000 bytes) ---'
+            head -c 4000 "$tmp" || true
+            echo
+            exit 1
+          fi
 
           python3 - "$tmp" <<'PY'
           import json
