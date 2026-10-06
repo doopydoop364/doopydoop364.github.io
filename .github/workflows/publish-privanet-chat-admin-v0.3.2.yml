@@ -1,0 +1,42 @@
+name: Publish PrivaNet Chat Admin v0.3.2
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-privanet-chat-admin-v0.3.2.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Reconstruct and verify release
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api "repos/${GITHUB_REPOSITORY}/git/blobs/81be070cb31b44bb5d74614a7af5e89b5d59af12" --jq '.content'             | tr -d '\n'             | base64 -d > privanet-chat-admin-v0.3.2.zip
+          echo '9135d8a0f069f2058a65f09dd08b4e56a793096cf31826504d841945b855945c  privanet-chat-admin-v0.3.2.zip' | sha256sum -c -
+          unzip -t privanet-chat-admin-v0.3.2.zip
+          cat > privanet-chat-admin-latest.json <<'JSON'
+          {
+            "version": "0.3.2",
+            "url": "https://doopydoop364.github.io/privanet-chat-admin-v0.3.2.zip",
+            "sha256": "9135d8a0f069f2058a65f09dd08b4e56a793096cf31826504d841945b855945c"
+          }
+          JSON
+      - name: Publish and remove one-shot workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add privanet-chat-admin-v0.3.2.zip privanet-chat-admin-latest.json
+          git rm -f .github/workflows/publish-privanet-chat-admin-v0.3.2.yml
+          git commit -m 'Publish PrivaNet Chat Admin v0.3.2'
+          git push
