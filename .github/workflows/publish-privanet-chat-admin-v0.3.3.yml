@@ -1,0 +1,86 @@
+name: Publish PrivaNet Chat Admin v0.3.3
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-privanet-chat-admin-v0.3.3.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+
+      - name: Fetch exact merged Admin source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --filter=blob:none https://github.com/doopydoop364/Privanet-admin-panel.git /tmp/admin-src
+          git -C /tmp/admin-src checkout 51d0a942b07d7abb18df5ff860c34954bdd20eb2
+          test "$(git -C /tmp/admin-src rev-parse HEAD)" = "51d0a942b07d7abb18df5ff860c34954bdd20eb2"
+
+      - name: Validate source
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/admin-src
+          python -m pip install --disable-pip-version-check -e '.[test]'
+          python -m compileall -q agent authorize.py twofactor.py
+          python -m pytest -q
+          bash -n deploy.sh
+          bash -n update.sh
+          python -m json.tool plugin/plugin.json >/dev/null
+          python -m json.tool agent/config.example.json >/dev/null
+          if grep -R -nE 'shell=True|os\.system\(|NOPASSWD|sudo ALL|context\.elicit|\.elicit\(' agent authorize.py twofactor.py deploy.sh update.sh plugin; then
+            echo "Security regression scan failed." >&2
+            exit 1
+          fi
+
+      - name: Build release archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/release
+          mkdir -p /tmp/release/privanet-chat-admin
+          rsync -a             --exclude '.git'             --exclude '.github'             --exclude '__pycache__'             --exclude '.pytest_cache'             --exclude '*.pyc'             /tmp/admin-src/ /tmp/release/privanet-chat-admin/
+          find /tmp/release -type d \( -name __pycache__ -o -name .pytest_cache \) -prune -exec rm -rf {} +
+          find /tmp/release -type f \( -name '*.pyc' -o -name '*.bak' \) -delete
+          cd /tmp/release
+          zip -X -qr "$GITHUB_WORKSPACE/privanet-chat-admin-v0.3.3.zip" privanet-chat-admin
+          unzip -t "$GITHUB_WORKSPACE/privanet-chat-admin-v0.3.3.zip" >/dev/null
+          SHA="$(sha256sum "$GITHUB_WORKSPACE/privanet-chat-admin-v0.3.3.zip" | awk '{print $1}')"
+          SIZE="$(stat -c '%s' "$GITHUB_WORKSPACE/privanet-chat-admin-v0.3.3.zip")"
+          echo "release_sha=$SHA" >> "$GITHUB_ENV"
+          echo "release_size=$SIZE" >> "$GITHUB_ENV"
+          echo "Built $SIZE bytes, sha256=$SHA"
+
+      - name: Publish update channel
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > privanet-chat-admin-latest.json <<EOF
+          {
+            "version": "0.3.3",
+            "url": "https://doopydoop364.github.io/privanet-chat-admin-v0.3.3.zip",
+            "sha256": "$release_sha",
+            "sourceRepository": "doopydoop364/Privanet-admin-panel",
+            "sourceCommit": "51d0a942b07d7abb18df5ff860c34954bdd20eb2",
+            "size": $release_size
+          }
+          EOF
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add privanet-chat-admin-v0.3.3.zip privanet-chat-admin-latest.json
+          git rm .github/workflows/publish-privanet-chat-admin-v0.3.3.yml
+          git commit -m 'Publish PrivaNet Chat Admin v0.3.3'
+          git push
