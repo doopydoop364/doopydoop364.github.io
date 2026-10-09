@@ -1,0 +1,8 @@
+AR84 1
+name hello
+version 1.0
+desc Prints a greeting: the first package installed over the internet
+D	/usr/bin
+F	/usr/bin/hello	104	8f74-2483
++	echo Hello from the Arch84 repository!\necho This package came over the internet, through the PC bridge.\n
+END	2	256b-5470

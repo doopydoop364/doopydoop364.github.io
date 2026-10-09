@@ -1,0 +1,8 @@
+AR84 1
+name cowsay
+version 1.0
+desc A talking cow: cowsay "words"
+D	/usr/bin
+F	/usr/bin/cowsay	218	4d1d-30e6
++	echo ' ______________'\necho "< $1 >"\necho ' --------------'\necho '        \\   ^__^'\necho '         \\  (oo)\\_______'\necho '            (__)\\       )\\/\\'\necho '                ||----w |'\necho '                ||     ||'\n
+END	2	5cd6-5b22

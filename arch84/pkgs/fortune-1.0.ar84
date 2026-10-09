@@ -1,0 +1,12 @@
+AR84 1
+name fortune
+version 1.0
+desc Prints a saying: fortune, or fortune N for the Nth one
+D	/usr/bin
+D	/usr/share
+D	/usr/share/fortune
+F	/usr/bin/fortune	117	2f65-244d
++	test -z "$1" && head -n 1 /usr/share/fortune/quotes\ntest -n "$1" && head -n $1 /usr/share/fortune/quotes | tail -n 1\n
+F	/usr/share/fortune/quotes	240	a8e5-54bd
++	The best RAM is the RAM you did not need.\nA calculator is just a very small, very patient computer.\nFree memory is a fragmentation of your imagination.\nUnmount your doubts before you sync.\nThere is no cloud, only somebody else's USB cable.\n
+END	5	acb-c320

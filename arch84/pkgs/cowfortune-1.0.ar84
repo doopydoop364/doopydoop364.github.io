@@ -1,0 +1,9 @@
+AR84 1
+name cowfortune
+version 1.0
+desc A cow with a saying (depends on cowsay and fortune)
+depends cowsay fortune
+D	/usr/bin
+F	/usr/bin/cowfortune	21	5573-76b
++	fortune 2\ncowsay moo\n
+END	2	ea7e-3e69

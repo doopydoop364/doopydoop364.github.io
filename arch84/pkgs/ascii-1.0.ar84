@@ -1,0 +1,12 @@
+AR84 1
+name ascii
+version 1.0
+desc The printable ASCII table: ascii
+D	/usr/bin
+D	/usr/share
+D	/usr/share/ascii
+F	/usr/bin/ascii	27	8854-99d
++	cat /usr/share/ascii/table\n
+F	/usr/share/ascii/table	200	3ad8-3618
++	ASCII (printable)\n  hex  chars\n  20    !"#$%&'()*+,-./\n  30   0123456789:;<=>?\n  40   @ABCDEFGHIJKLMNO\n  50   PQRSTUVWXYZ[\\]^_\n  60   `abcdefghijklmno\n  70   pqrstuvwxyz{|}~\n(95 printable characters)\n
+END	5	38f0-7edb
