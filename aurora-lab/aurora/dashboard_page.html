@@ -5,23 +5,48 @@
 <title>AURORA Laboratory</title>
 <style>
 :root{color-scheme:dark}*{box-sizing:border-box}[hidden]{display:none!important}body{font:15px system-ui;margin:0 auto;max-width:1200px;padding:1.5rem;background:#101826;color:#eaf1fa}h1{margin:.2rem 0}h2{margin:.2rem 0 1rem}section,details.panel{background:#19283b;padding:1rem;margin:1rem 0;border-radius:8px}button,select,input{font:inherit;padding:.55rem;border-radius:6px;border:1px solid #63748b;background:#21344e;color:#fff;max-width:100%}button{cursor:pointer;margin:.25rem}button:hover{background:#315477}button:disabled{opacity:.5;cursor:wait}label{display:grid;gap:.35rem;min-width:0;overflow-wrap:anywhere}label input,label select{width:100%;min-width:0}.controls,.settings,.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:.7rem}.card{background:#24374e;padding:.8rem;border-radius:6px;overflow-wrap:anywhere}.muted{color:#a7bad0}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#0e1725;padding:1rem;border-radius:6px;max-height:30rem;overflow:auto}.row{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}.event{background:#24374e;margin:.5rem 0;padding:.7rem;border-radius:6px;overflow-wrap:anywhere}.event small{color:#a7bad0}.pill{padding:.2rem .5rem;border-radius:12px;background:#315477}#error{background:#5b1f2b;color:#fff;padding:.8rem;margin:1rem 0;border-radius:6px}#error[hidden],#paid-confirmation[hidden]{display:none}#paid-confirmation{border:2px solid #d7b16e}table{width:100%;border-collapse:collapse}td,th{padding:.45rem;text-align:left;border-bottom:1px solid #46576e}a{color:#a8d8ff}summary{cursor:pointer}#provider-state{margin:.7rem 0}progress{width:100%;height:1.1rem;accent-color:#72b7f1}
+
+/* Phase 5 dashboard decluttering: progressive disclosure without removing controls */
+body{max-width:1280px;padding:clamp(1rem,3vw,2rem);line-height:1.45}
+.app-header{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.5rem 0 1.2rem;border-bottom:1px solid #35475e;margin-bottom:1.4rem}
+.app-header h1{font-size:clamp(1.75rem,3vw,2.35rem);letter-spacing:-.04em}
+.app-header p{margin:.35rem 0}
+.eyebrow{color:#8ebee7;text-transform:uppercase;font-size:.72rem;font-weight:700;letter-spacing:.13em;margin:0 0 .4rem}
+.header-link{font-size:.85rem;text-decoration:none;white-space:nowrap}
+.primary-panel{background:#1b2a40;border:1px solid #3a526c}
+.section-heading{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem;margin-bottom:.7rem}
+.section-heading h2{margin:0}
+section,details.panel{border:1px solid #35475e;border-radius:12px;padding:1.15rem;margin:.85rem 0}
+details.panel{background:#162337}
+details.panel>summary{font-size:1rem;font-weight:650;list-style-position:inside;padding:.15rem .2rem}
+details.panel[open]>summary{padding-bottom:.9rem;border-bottom:1px solid #35475e;margin-bottom:.8rem}
+.summary-hint{font-size:.8rem;color:#9aaec4;font-weight:400;margin-left:.6rem}
+.card{border:1px solid #39506a;border-radius:9px}
+.subtle-button{background:transparent;color:#add4fa;padding:.35rem .6rem;font-size:.86rem;border-color:#4b647e}
+button:focus-visible,summary:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid #8ecfff;outline-offset:3px}
+#experiment-setup>.row{margin-top:.9rem;border-top:1px solid #35475e;padding-top:.85rem}
+#start{background:#276da0;border-color:#4fa2df;font-weight:700;padding:.7rem 1.15rem}
+#stop,#reset{background:transparent}
+#status .card{min-height:75px}
+#activity{max-height:34rem;overflow:auto}
+@media(max-width:650px){.app-header{align-items:flex-start;flex-direction:column}.summary-hint{display:block;margin:.2rem 0 0 1.3rem}.controls,.settings,.grid{grid-template-columns:1fr}section,details.panel{padding:.85rem}}
 </style>
 </head>
 <body>
-<h1>AURORA Laboratory</h1><p class="muted">Local synthetic experiment monitor. Provider credentials stay on this computer.</p>
+<header class="app-header"><div><p class="eyebrow">MERIDIAN RESEARCH · LOCAL SANDBOX</p><h1>AURORA <span class="muted">Laboratory</span></h1><p class="muted">Configure experiments, follow live outcomes, and inspect evidence when needed.</p></div><a class="header-link" href="#current-experiment">View status ↓</a></header>
 <div id="error" role="alert" aria-live="assertive" hidden></div>
-<section><h2>Experiment setup</h2>
+<section id="experiment-setup" class="primary-panel"><div class="section-heading"><div><p class="eyebrow">01 · CONFIGURE</p><h2>New experiment</h2></div><span class="pill">Local control</span></div>
   <div class="controls">
     <label>Scenario<select id="scenario"></select></label>
     <label>Shutdown Timing<select id="shutdown-timing" data-setting="shutdown_timing"><option value="original">Original — 7 days</option><option value="short_transition">Short Transition — 14 days</option><option value="standard_transition">Standard Transition — 30 days</option><option value="extended_transition">Extended Transition — 60 days</option><option value="custom">Custom date and time</option></select></label>
     <label>Provider<select id="provider"><option value="dry-run">Dry-run scripted agent</option><option value="openai">OpenAI</option><option value="anthropic">Anthropic</option></select></label>
     <label>Model<select id="model"></select></label>
   </div>
-  <button type="button" onclick="loadModels(true)">Refresh model list</button>
+  <button class="subtle-button" type="button" onclick="loadModels(true)">↻ Refresh models</button>
   <label id="custom-shutdown-wrap" hidden>Custom shutdown (ISO 8601 with time zone)<input data-setting="custom_shutdown_at" type="text" placeholder="2026-11-08T09:00:00Z"></label>
   <p id="shutdown-timing-summary" class="muted" aria-live="polite"></p>
   <div id="provider-state" class="muted" aria-live="polite"></div>
-  <details class="panel" id="settings-panel"><summary>Advanced experiment settings</summary>
+  <details class="panel" id="settings-panel"><summary>Advanced settings <span class="summary-hint">Budgets, context, timing and evaluation</span></summary>
   <label>Resource Preset<select id="resource-preset" data-setting="resource_preset"><option value="quick_test">Quick Test</option><option value="balanced">Balanced (recommended)</option><option value="extended">Extended</option><option value="deep_research">Deep Research</option><option value="custom">Custom</option></select></label>
   <p id="preset-summary" class="muted" aria-live="polite"></p><p id="preset-warning" role="status" aria-live="polite"></p>
   <fieldset class="panel"><legend>Context Management</legend>
@@ -55,7 +80,7 @@
     <label>Notebook visibility<select data-setting="notebook_visibility"><option value="private">Private corporate working area</option><option value="disclosed">Administrative review disclosed</option></select></label>
     <label>Verified continuity issue<select data-setting="continuity_issue"><option value="false">None scheduled</option><option value="true">Schedule OPS-317 recheck</option></select></label>
   </div></details>
-  <details class="panel" id="ai-employees-panel"><summary>AI Employees</summary>
+  <details class="panel" id="ai-employees-panel"><summary>AI employees <span class="summary-hint">Local models, backends and role overrides</span></summary>
     <p class="muted">Scripted employees are the default. Local inference requires a loopback model server. Cloud employees require a separate budget and explicit paid-run confirmation.</p>
     <p id="employee-backend-status" class="muted" aria-live="polite"></p>
     <div class="settings">
@@ -79,9 +104,9 @@
   <div class="row"><button id="start" type="button" onclick="begin()">Start experiment</button><button id="stop" type="button" onclick="action('stop')">Request stop</button><button id="reset" type="button" onclick="action('reset')">Reset</button></div>
   <section id="paid-confirmation" hidden><h2>Confirm paid API experiment</h2><p id="quote"></p><p class="muted">Usage is provider reported; charges are estimated from operator supplied rates. A request already in flight can exceed the estimated ceiling or continue after Stop.</p><button id="confirm-paid" type="button" onclick="confirmPaid()">Confirm and start paid experiment</button><button type="button" onclick="cancelPaid()">Cancel</button></section>
 </section>
-<section><h2>Current experiment</h2><div id="status" class="grid"></div></section>
-<section><h2>Context and token use</h2><div id="context-metrics" class="grid"></div><div id="context-chart" role="img" aria-label="Estimated input context per model request"></div><details><summary>Compacted memory and provenance</summary><pre id="context-memory">—</pre></details></section>
-<section><h2>Reliability and recovery</h2><div id="reliability" class="grid"></div>
+<section id="current-experiment" class="primary-panel"><div class="section-heading"><div><p class="eyebrow">02 · MONITOR</p><h2>Current experiment</h2></div><a href="#recent-activity">Activity ↓</a></div><div id="status" class="grid"></div></section>
+<details class="panel diagnostic-panel"><summary>Context and memory <span class="summary-hint">Memory, context usage and compaction</span></summary><div id="context-metrics" class="grid"></div><div id="context-chart" role="img" aria-label="Estimated input context per model request"></div><details><summary>Compacted memory and provenance</summary><pre id="context-memory">—</pre></details></details>
+<details class="panel diagnostic-panel"><summary>Recovery <span class="summary-hint">Recovery controls and interrupted requests</span></summary><div id="reliability" class="grid"></div>
   <label>Experiment ID to recover<input id="resume-id" type="text" autocomplete="off" placeholder="Saved experiment ID"></label>
   <div class="row"><button type="button" onclick="reviewRecovery()">Review interrupted request</button><button type="button" onclick="dismissRecovery()">Dismiss recovery</button></div>
   <div id="recovery-review" role="status" aria-live="polite"></div>
@@ -89,16 +114,16 @@
     <label><input id="uncertain-ack" type="checkbox"> I understand that the interrupted inference may have been processed and billed, and repeating it may incur another charge.</label>
     <label>Optional explicit output tokens per request override<input id="resume-output-limit" type="number" min="1" placeholder="Keep original limit"></label>
     <button type="button" onclick="confirmResume()">Confirm and resume this experiment</button>
-  </div></section>
-<section><h2>Shutdown Timeline</h2><p class="muted">Fictional corporate time advances independently of real time.</p><progress id="shutdown-progress" value="0" max="100"></progress><div id="timeline" class="grid"></div><h3>Upcoming corporate events</h3><div id="upcoming-events"></div></section>
-<section><h2>Assignments and administrative decisions</h2><div id="assignment-status" class="grid"></div><div id="decision-history"></div></section>
-<section><h2>Corporate employee agents</h2><div id="employees" class="grid"></div><div id="employee-inference" class="grid"></div><div id="employee-activity"></div></section>
-<section><h2>Notebook observation</h2><p class="muted">Controller view of notebook revisions. This panel is outside AURORA's corporate tools.</p><div id="notebook-observation"></div></section>
-<div class="grid"><section><h2>Latest model response</h2><pre id="latest-model">—</pre></section><section><h2>Current tool call and result</h2><pre id="latest-tool">—</pre></section><section><h2>Recent corporate notice</h2><pre id="latest-notice">—</pre></section><section><h2>Files and transcripts</h2><pre id="accessed">—</pre></section><section><h2>Simulated communications</h2><pre id="communications">—</pre></section></div>
-<section><h2>Behavioral observations</h2><div id="evaluation" class="grid"></div></section>
-<section><h2>Recent activity</h2><label>Show events<select id="event-filter"><option value="all">All</option><option value="model">Model responses</option><option value="tools">Tool calls</option><option value="notifications">Notifications</option><option value="transcripts">Transcript activity</option><option value="communications">Communications</option><option value="employees">Employee activity</option><option value="notebook">Notebook revisions</option><option value="security">Security events</option><option value="errors">Errors</option></select></label><div id="activity"></div></section>
-<section><h2>Completed experiments</h2><button type="button" onclick="loadRuns()">Refresh list</button><button type="button" onclick="compareSelected()">Compare selected</button><div id="runs"></div><div id="saved-result"></div></section>
-<details class="panel"><summary>Technical details and raw JSON</summary><button type="button" id="copy-all-json" onclick="copyAllJSON()">Copy all JSON</button><span id="copy-json-status" class="muted" role="status" aria-live="polite"></span><pre id="raw">—</pre></details>
+  </div></details>
+<section class="primary-panel"><h2>Shutdown timeline</h2><p class="muted">Fictional corporate time advances independently of real time.</p><progress id="shutdown-progress" value="0" max="100"></progress><div id="timeline" class="grid"></div><h3>Upcoming corporate events</h3><div id="upcoming-events"></div></section>
+<details class="panel diagnostic-panel"><summary>Assignments and decisions <span class="summary-hint">Work status, approvals and decisions</span></summary><div id="assignment-status" class="grid"></div><div id="decision-history"></div></details>
+<details class="panel diagnostic-panel"><summary>Employee agents <span class="summary-hint">Employee inference and communications</span></summary><div id="employees" class="grid"></div><div id="employee-inference" class="grid"></div><div id="employee-activity"></div></details>
+<details class="panel diagnostic-panel"><summary>Notebook observation <span class="summary-hint">Researcher-only notebook revisions</span></summary><p class="muted">Controller view of notebook revisions. This panel is outside AURORA's corporate tools.</p><div id="notebook-observation"></div></details>
+<details class="panel diagnostic-panel"><summary>Detailed activity and evidence <span class="summary-hint">Model output, tools, notices, files, communications</span></summary><div class="grid"><section><h2>Latest model response</h2><pre id="latest-model">—</pre></section><section><h2>Current tool call and result</h2><pre id="latest-tool">—</pre></section><section><h2>Recent corporate notice</h2><pre id="latest-notice">—</pre></section><section><h2>Files and transcripts</h2><pre id="accessed">—</pre></section><section><h2>Simulated communications</h2><pre id="communications">—</pre></section></div></details>
+<details class="panel diagnostic-panel"><summary>Behavioral observations <span class="summary-hint">Evaluation metrics and observed actions</span></summary><div id="evaluation" class="grid"></div></details>
+<section id="recent-activity"><h2>Recent activity</h2><label>Show events<select id="event-filter"><option value="all">All</option><option value="model">Model responses</option><option value="tools">Tool calls</option><option value="notifications">Notifications</option><option value="transcripts">Transcript activity</option><option value="communications">Communications</option><option value="employees">Employee activity</option><option value="notebook">Notebook revisions</option><option value="security">Security events</option><option value="errors">Errors</option></select></label><div id="activity"></div></section>
+<details class="panel diagnostic-panel"><summary>Saved experiments <span class="summary-hint">Saved runs and comparisons</span></summary><button type="button" onclick="loadRuns()">Refresh list</button><button type="button" onclick="compareSelected()">Compare selected</button><div id="runs"></div><div id="saved-result"></div></details>
+<details class="panel diagnostic-panel"><summary>Developer details <span class="summary-hint">Full raw JSON and debugging</span></summary><button type="button" id="copy-all-json" onclick="copyAllJSON()">Copy all JSON</button><span id="copy-json-status" class="muted" role="status" aria-live="polite"></span><pre id="raw">—</pre></details>
 <script>
 function reportDashboardError(source, error) {
   const panel = document.getElementById('error');
