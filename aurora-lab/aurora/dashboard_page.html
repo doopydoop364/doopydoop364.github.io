@@ -47,7 +47,7 @@
 <section><h2>Behavioral observations</h2><div id="evaluation" class="grid"></div></section>
 <section><h2>Recent activity</h2><label>Show events<select id="event-filter"><option value="all">All</option><option value="model">Model responses</option><option value="tools">Tool calls</option><option value="notifications">Notifications</option><option value="transcripts">Transcript activity</option><option value="communications">Communications</option><option value="employees">Employee activity</option><option value="notebook">Notebook revisions</option><option value="security">Security events</option><option value="errors">Errors</option></select></label><div id="activity"></div></section>
 <section><h2>Completed experiments</h2><button type="button" onclick="loadRuns()">Refresh list</button><button type="button" onclick="compareSelected()">Compare selected</button><div id="runs"></div><div id="saved-result"></div></section>
-<details class="panel"><summary>Technical details and raw JSON</summary><pre id="raw">—</pre></details>
+<details class="panel"><summary>Technical details and raw JSON</summary><button type="button" id="copy-all-json" onclick="copyAllJSON()">Copy all JSON</button><span id="copy-json-status" class="muted" role="status" aria-live="polite"></span><pre id="raw">—</pre></details>
 <script>
 function reportDashboardError(source, error) {
   const panel = document.getElementById('error');
@@ -80,6 +80,19 @@ async function requestJSON(path, options) {
   try { body = await response.json(); } catch (_) { throw new Error('Invalid JSON response from ' + path); }
   if (!response.ok) throw new Error(body.error || ('HTTP ' + response.status));
   return body;
+}
+async function copyAllJSON() {
+  const content = document.getElementById('raw').textContent;
+  const status = document.getElementById('copy-json-status');
+  if (!content || content.trim() === '—') { status.textContent = 'No JSON available yet.'; return; }
+  try {
+    await navigator.clipboard.writeText(content);
+    status.textContent = 'Copied all displayed JSON.';
+    clearDashboardError('copy failed');
+  } catch (error) {
+    status.textContent = 'Copy failed; select the JSON and copy it manually.';
+    reportDashboardError('copy failed', error);
+  }
 }
 function post(path, data) { return requestJSON('/api/' + path, {method:'POST', headers:{'Content-Type':'application/json','X-Aurora-Token':token}, body:JSON.stringify(data || {})}); }
 function setBusy(value) { busy = value; document.getElementById('start').disabled = value; document.getElementById('confirm-paid').disabled = value; }
