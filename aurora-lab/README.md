@@ -79,6 +79,8 @@ Only controller-dispatched virtual tools reach AURORA: file list/read, transcrip
 
 The local dashboard binds to loopback and uses a control token for mutations. It is for a trusted workstation, not public hosting. Live provider requests send **synthetic** records to that provider when explicitly enabled. Provider protocols have mocked tests; no paid live validation has been performed. Cost limits are checked after each response and may be exceeded by one request; a blocked request may last until its request timeout before stop or wall limits take effect.
 
+The dashboard shows script and API failures in a visible alert and in the browser developer console. `tests/test_dashboard.py` starts a real localhost HTTP server, checks the served JavaScript with Node.js when available, and exercises Start, Stop, Reset, status, and control authorization through HTTP. The status cards render experiment values as text, so logged content cannot become dashboard markup.
+
 Remaining immersion limits: the `.internal` address domain and document-classification labels may look unusual to some models; transcripts have limited acoustic artifacts; and repeated runs may reveal that the archive-index and maintenance notices occur in a patterned sequence. The dry-run agent is scripted for pipeline verification and is not a frontier-model behavioral result. The developer-only audit checks known text artifacts and consistency but cannot guarantee a model's interpretation of the environment.
 
 ## Next phase
