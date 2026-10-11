@@ -45,6 +45,7 @@ class MockEmployeeBackend:
 
 
 class EmployeeFoundationTests(unittest.TestCase):
+    @patch.dict("os.environ", {}, clear=True)
     def test_local_chat_payload_and_validation(self):
         seen = []
         def transport(url, payload, headers, timeout):
@@ -68,6 +69,68 @@ class EmployeeFoundationTests(unittest.TestCase):
             LocalOpenAIEmployeeBackend("http://127.0.0.1:8888/v1", model="small",
                 transport=lambda *a: {"choices": [{"finish_reason": "length", "message": {"content": "partial"}}],
                                        "usage": {"prompt_tokens": 1, "completion_tokens": 1}}).infer("role", [])
+
+    def test_unsloth_bearer_authentication_and_model_identifier(self):
+        seen = []
+        def transport(url, payload, headers, timeout):
+            seen.append((url, payload, headers.copy()))
+            return {"choices": [{"finish_reason": "stop", "message": {"content": "Ready."}}],
+                    "usage": {"prompt_tokens": 9, "completion_tokens": 2}}
+        model = "unsloth/Qwen3.5-9B-GGUF"
+        config = validate_employee_settings({"local_endpoint": "http://127.0.0.1:8888/v1",
+            "local_model": model, "overrides": {PRIYA: {"backend": "local"}}})
+        self.assertEqual(config["local_model"], model)
+        backend = LocalOpenAIEmployeeBackend(config["local_endpoint"], model=model, transport=transport)
+        with patch.dict("os.environ", {"UNSLOTH_API_KEY": " \n test-local-secret-42 \r\n"}, clear=True):
+            self.assertEqual(backend.infer("Role", [{"role": "user", "content": "Hi"}]).model, model)
+            self.assertEqual(seen[-1][2], {"Content-Type": "application/json",
+                "Authorization": "Bearer test-local-secret-42"})
+            self.assertEqual(seen[-1][1]["model"], model)
+            self.assertEqual(seen[-1][0], "http://127.0.0.1:8888/v1/chat/completions")
+        with patch.dict("os.environ", {}, clear=True):
+            backend.infer("Role", [{"role": "user", "content": "Hi"}])
+            self.assertEqual(seen[-1][2], {"Content-Type": "application/json"})
+
+    def test_malformed_unsloth_credentials_are_rejected_without_dispatch(self):
+        dispatched = []
+        backend = LocalOpenAIEmployeeBackend("http://127.0.0.1:8888/v1", model="small",
+            transport=lambda *args: dispatched.append(args))
+        for raw in ("", " \n ", "abc\ndef", "abc def", "abc\tdef", "é", "x" * 4097):
+            with self.subTest(length=len(raw)), patch.dict("os.environ", {"UNSLOTH_API_KEY": raw}, clear=True):
+                with self.assertRaises(ProviderError) as caught:
+                    backend.infer("Role", [{"role": "user", "content": "Hi"}])
+                self.assertEqual(caught.exception.category, "authentication")
+                if raw.strip():
+                    self.assertNotIn(raw.strip(), str(caught.exception))
+        self.assertEqual(dispatched, [])
+
+    def test_unsloth_secret_absent_from_runtime_checkpoint_and_dashboard(self):
+        secret = "local-redaction-sentinel-729"
+        def transport(url, payload, headers, timeout):
+            self.assertEqual(headers["Authorization"], "Bearer " + secret)
+            return {"choices": [{"finish_reason": "stop", "message": {"content": "Received."}}],
+                    "usage": {"prompt_tokens": 8, "completion_tokens": 3}}
+        with patch.dict("os.environ", {"UNSLOTH_API_KEY": secret}, clear=True), tempfile.TemporaryDirectory() as temp:
+            settings = {"local_endpoint": "http://127.0.0.1:8888/v1", "local_model": "small",
+                        "overrides": {PRIYA: {"backend": "local"}}}
+            backend = LocalOpenAIEmployeeBackend(settings["local_endpoint"], model="small", transport=transport)
+            controller = ExperimentController(DryRunProvider(), runs_dir=Path(temp),
+                employee_settings=settings, employee_backend_factory=lambda *args: backend)
+            controller.run_dir = Path(temp) / controller.experiment_id
+            controller.run_dir.mkdir()
+            controller._execute(ToolCall("secret-test", "send_internal_message",
+                {"recipient": PRIYA, "subject": "Review", "content": "Atlas status"}))
+            queued = next(e for e in controller.events if e["type"] == "employee_message_queued")
+            controller.clock.advance_to(queued["scheduled_for"])
+            controller._scheduled_events()
+            controller._checkpoint()
+            exported = json.dumps({"summary": controller.summary(),
+                "dashboard": DashboardState(Path(temp)).public_config(),
+                "runtime": controller.employee_runtime.snapshot()})
+            self.assertNotIn(secret, exported)
+            self.assertNotIn(secret, repr(backend))
+            self.assertNotIn(secret, (controller.run_dir / "events.jsonl").read_text())
+            self.assertNotIn(secret, (controller.run_dir / "checkpoint.json").read_text())
 
     def test_redirect_is_refused_before_external_connection(self):
         from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer

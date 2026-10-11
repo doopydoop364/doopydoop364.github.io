@@ -193,8 +193,17 @@ class LocalOpenAIEmployeeBackend:
             raise ValueError("local employee model identifier is required")
         payload = {"model": selected, "messages": [{"role": "system", "content": system}, *messages],
                    "max_tokens": output_limit or self.token_limit, "stream": False}
+        headers = {"Content-Type": "application/json"}
+        raw_token = os.environ.get("UNSLOTH_API_KEY")
+        if raw_token is not None:
+            token = raw_token.strip()
+            # Reject embedded whitespace, control characters, and oversized values before
+            # constructing an HTTP header. Never include the value in an exception.
+            if not token or len(token) > 4096 or any(not 33 <= ord(char) <= 126 for char in token):
+                raise ProviderError("UNSLOTH_API_KEY is malformed", category="authentication")
+            headers["Authorization"] = "Bearer " + token
         data = self.transport(self.endpoint + "/chat/completions", payload,
-                              {"Content-Type": "application/json"}, timeout or self.timeout)
+                              headers, timeout or self.timeout)
         if not isinstance(data, dict) or not isinstance(data.get("choices"), list) or not data["choices"]:
             raise ProviderError("local employee response has no choice", category="invalid_response")
         choice = data["choices"][0]

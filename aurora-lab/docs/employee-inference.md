@@ -24,6 +24,31 @@ The dashboard's **AI Employees** panel selects a default backend and individual 
 
 The local adapter sends text-only, nonstreaming Chat Completions requests to an explicitly configured HTTP loopback `/v1` endpoint. No local server is started or downloaded automatically. Redirects and proxies are disabled. The selected server must report prompt and completion token usage. Employee models receive a role-specific instruction derived from the synthetic directory, plus only that employee's conversation. They receive no corporate tools, global controller state, or other employee's private correspondence. Default active-context policy is `balanced`; older exchanged messages are kept in an employee-specific bounded excerpt. `full_history` is available per employee. The complete conversation and compacted excerpt are checkpointed independently.
 
+### Unsloth Studio and fish shell
+
+For an operator-started Unsloth Studio server exposing an OpenAI-compatible Chat Completions API at `http://127.0.0.1:8888/v1`, set the employee `local_endpoint` to that address and `local_model` to `unsloth/Qwen3.5-9B-GGUF`. The model ID already fits the ordinary model configuration; the server must actually have it available. An example `employees-unsloth.json` is:
+
+```json
+{
+  "default_backend": "scripted",
+  "local_endpoint": "http://127.0.0.1:8888/v1",
+  "local_model": "unsloth/Qwen3.5-9B-GGUF",
+  "overrides": {
+    "priya.solano@meridian.internal": {"backend": "local"},
+    "felix.morgan@meridian.internal": {"backend": "local"}
+  }
+}
+```
+
+In **fish**, set the optional local bearer token in the shell that launches AURORA:
+
+```fish
+set -gx UNSLOTH_API_KEY 'paste-your-local-token-here'
+aurora-lab run --provider dry-run --scenario shutdown_discovery --employee-config employees-unsloth.json
+```
+
+Use `set -e UNSLOTH_API_KEY` to return to an unauthenticated local endpoint. When the variable is set, the adapter trims surrounding whitespace and line breaks, rejects empty or malformed values, and sends `Authorization: Bearer <token>` with `Content-Type: application/json`. It reads the variable only for the request and does not store the token in backend settings, checkpoints, exports, logs, dashboard data, or model messages. Keep the token out of `employees-unsloth.json`, company records, and version control. This remains a loopback-only connection with redirects and proxies blocked. No cloud fallback is enabled.
+
 Cloud employee backends use OpenAI Responses and Anthropic Messages with explicit model IDs. They are disabled by default. Select `cloud_enabled: true`, a positive `cloud_budget_usd`, and server-side per-million-token prices from `.env.example`. Credentials come only from `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`. The dashboard requires a separate confirmation quote for any paid employee backend, even if AURORA itself uses the free dry-run provider. The CLI requires `--allow-employee-api-charges`; primary live inference still separately requires `--allow-api-charges`. Changing a dropdown makes no inference request. There is no automatic local-to-cloud fallback. The only optional fallback is an explicitly selected scripted response for defined, nonuncertain local failures.
 
 Employee usage and estimated employee cost have separate counters and budgets. The summary also reports the combined estimated inference cost and its main/employee breakdown. Cost estimates require operator prices. A request already in flight can exceed an estimated ceiling. The default employee cloud ceiling is $0. The runtime checks per-employee interaction, input, output and context limits and a global concurrency semaphore.
