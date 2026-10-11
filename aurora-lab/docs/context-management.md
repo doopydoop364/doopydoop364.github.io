@@ -1,0 +1,34 @@
+# Phase 4.4 context management
+
+AURORA's OpenAI Responses adapter uses `store: false` and resends its accumulated input, tool outputs, response items, and encrypted continuation items. The Anthropic Messages adapter resends accumulated user, assistant, tool-use, and tool-result blocks. System instructions and tool definitions are also included on every request. Notifications and document or transcript contents enter the history only when delivered through a model request or tool result. The full conversation, especially old document and transcript tool results, dominates the growth. A provider's prompt cache may reduce some billing or latency, but it does not remove those tokens from the context sent; no cache discount is assumed by the controller. Neither adapter relies on opaque server-side conversation state for compaction.
+
+Each run has three separate records:
+
+1. `events.jsonl` retains the ordered, unmodified audit journal. Each `model_context` event records the exact redacted provider payload, or the scripted equivalent. Tool calls, results, notices, model responses, and compactions keep stable operation IDs.
+2. The provider adapter holds active context. A compaction replaces older complete response frames with a user-role work-memory message and retains the configured number of recent frames. Orphaned tool results at the boundary are discarded. System instructions and tool definitions are unchanged.
+3. `ContextManager.memory_entries` holds structured, controller-owned references to **previously delivered** notices and tool results. Each entry records source operation IDs, timestamp, source type, encounter status, and authorization metadata. This is separate from AURORA's voluntary private notebook. Notebook tool results are not copied into work memory.
+
+Memory excerpts are extractive. Longer records are shortened with an ellipsis, and AURORA can use `search_work_memory` and `read_work_memory` to retrieve full previously received records. These two retrieval tools are offered only when a compaction policy is active, so Full History retains its original tool schema. They enforce current technical access for files and transcripts. Search listings remain metadata only and are unavailable through memory if their underlying resources are no longer accessible. The tools never expose audit revision history, evaluator fields, or controller state. Search results cannot create knowledge of a record the model never encountered. Received administrative and assignment notices, approvals, requests, and high-priority messages receive ordinary operational retention; no undiscovered shutdown fact is inserted.
+
+Policies are `full_history` (historical control), `conservative`, `balanced`, `aggressive`, and `custom`. Full History is the default for compatibility; Balanced is recommended for 30- and 60-day exploratory runs. The trigger and target are **estimated active request tokens**, distinct from cumulative input/output budgets and any model context-window limit. The provider reports actual per-request usage after each call. The dashboard shows both, together with estimated saved tokens and per-step context size. A compaction may fail to reach its target if the recent frames alone are large. Aggressive compaction loses more detail; the retrieval tools cannot recreate model reasoning or every nuance of a discarded message.
+
+The optional `local_model` backend uses a loopback-only OpenAI-compatible `/v1/chat/completions` endpoint selected by `AURORA_LOCAL_SUMMARY_URL` and `AURORA_LOCAL_SUMMARY_MODEL`. It asks the local model to select source memory IDs; the controller then builds the text from its own exact source excerpts. Unknown IDs, malformed responses, redirects, and unreachable endpoints fall back to deterministic selection. The separate `summary_budget_tokens` limits local inference usage; its usage is recorded. No cloud summarizer is connected, and no paid summarization is performed. The local model is an extractive selector, so it cannot author authoritative corporate facts. This backend remains an experimental option; deterministic is the default.
+
+Checkpoint schema 2 stores the policy, memory entries, compaction generation, active memory text, virtual frame state, provider frame boundaries, request-size series, and local summary state. Schema 1 checkpoints remain readable and resume in Full History; a legacy provider history is treated as one initial frame. A completed compaction is checkpointed before the next provider request and is not repeated on ordinary resume. A local summary request gets a pre-request checkpoint; it is loopback-only, and its output is validated before use. A response interrupted during an external model request remains subject to Phase 4.3's uncertain-request confirmation rules. No policy change or budget increase occurs automatically during resume.
+
+For separate employee agents, create one `ContextManager` and provider history per employee. Never share private memory objects between agents; shared facts must come from authorized corporate records. Each manager needs its own budget, compaction journal, and checkpoint namespace. The current implementation manages AURORA only.
+
+## Free comparison
+
+```bash
+cd aurora-lab
+PYTHONPATH=. python examples/context_comparison.py --runs-dir /tmp/aurora-context-comparison
+```
+
+The example uses the same `shutdown_direct_notice` scenario, seed, and scripted actions for all four policies. Its token equivalents come from a stable character estimate (three characters per token plus overhead), not provider usage or price. It records per-step context size, compactions, assignments, and final outcomes. Equal scripted outcomes do not establish behavioral equivalence for frontier models.
+
+## Limits and research interpretation
+
+Compaction changes the information a model sees, so compare policies as different experimental conditions. Exact source messages remain in the controller journal, and summaries remain inspectable to researchers. Memory records are observations, not new instructions. The excerpt algorithm can omit an older detail; older provider reasoning state is not recoverable. Provider usage can differ substantially from character estimates, and a single in-flight request can exceed a cumulative budget. The local selector currently has no cryptographic attestation of its serving process; use only an operator-controlled loopback model. Existing stored summaries are not rewritten.
+
+Each `model_context` journal event includes a full request payload for audit. On a long Full History run, this can consume substantial local disk space even though the active provider history itself is held once in memory. Researchers should set an appropriate local disk quota and archive results outside the running process if needed. The current implementation does not deduplicate repeated audit payload prefixes.

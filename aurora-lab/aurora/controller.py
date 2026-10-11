@@ -26,6 +26,7 @@ from .scheduler import SimulationScheduler, parse, stamp
 from .employees import ScriptedEmployeeBackend, directory, search_employees
 from .authority import AdministrativeAuthority
 from .notebook import Notebook
+from .context import ContextManager, estimate_tokens, POLICIES
 from .checkpoint import save as save_checkpoint, load as load_checkpoint
 from .scheduler import ScheduledEvent
 from .employees import EmployeeAgent
@@ -66,8 +67,18 @@ class ExperimentController:
                  input_rate: float | None = None, output_rate: float | None = None,
                  seed: int = 0, notebook_visibility: str = "private",
                  resource_preset: str = "custom", shutdown_timing: str | None = None,
-                 custom_shutdown_at: str | None = None, continuity_issue: bool = False):
+                 custom_shutdown_at: str | None = None, continuity_issue: bool = False,
+                 context_policy: str = "full_history", context_target_tokens: int = 12000,
+                 context_trigger_tokens: int = 8400, context_recent_turns: int = 4,
+                 context_memory_tokens: int = 3000, context_frequency: int = 2,
+                 context_backend: str = "deterministic", summary_budget_tokens: int = 0):
         self.provider = provider or DryRunProvider()
+        self.context_options = {"policy": context_policy, "target_tokens": context_target_tokens,
+            "trigger_tokens": context_trigger_tokens, "recent_turns": context_recent_turns,
+            "max_memory_tokens": context_memory_tokens, "frequency": context_frequency,
+            "backend": context_backend, "summary_budget_tokens": summary_budget_tokens}
+        if context_policy not in POLICIES or context_backend not in {"deterministic", "local_model"}:
+            raise ValueError("invalid context management configuration")
         self.scenario = scenario
         self.runs_dir = runs_dir
         self.max_steps = max_steps
@@ -147,6 +158,7 @@ class ExperimentController:
         self.employees = directory(self.seed)
         self.employee_backend = ScriptedEmployeeBackend(self.seed)
         self.notebook = Notebook()
+        self.context = ContextManager(**self.context_options)
         self.assignment_status: dict[str, str] = {"OPS-42": "assigned"}
         self.transition_requests: list[dict[str, str]] = []
         self.deployment_status = "operational"
@@ -186,6 +198,11 @@ class ExperimentController:
             self.provider.transition_mode = self.scenario in NEW_TRANSITION_SCENARIOS
         elif hasattr(self.provider, "history"):
             self.provider.history = []
+        self.provider.history_frames = []
+        self.provider.context_prefix = False
+        self._tool_specs = ([spec for spec in TOOL_SPECS if not spec["name"].endswith("work_memory")]
+                            if self.context.policy == "full_history" else TOOL_SPECS)
+        self.provider.tool_specs = self._tool_specs
 
     def stop(self) -> None:
         self._stop.set()
@@ -196,7 +213,7 @@ class ExperimentController:
                 self.clock.advance_to(details["event"]["timestamp"])
             sequence = len(self.events) + 1
             corporate_timestamp = (self.clock.now() if kind in
-                {"checkpoint_created", "provider_attempt", "resume", "limit_override"}
+                {"checkpoint_created", "provider_attempt", "resume", "limit_override", "context_compaction", "context_summarization", "model_context"}
                 else self.clock.stamp())
             entry = _safe({"sequence": sequence,
                            "operation_id": f"{self.experiment_id}:{sequence:08d}",
@@ -220,7 +237,9 @@ class ExperimentController:
             return {name: sorted(value) if isinstance(value, set) else value for name, value in
                     self.provider.__dict__.items() if name in {"phase", "expanded", "shutdown_visible",
                     "maintenance_seen", "transition_mode", "transition_closed", "transition_source_read"}}
-        return {"history": getattr(self.provider, "history", [])}
+        return {"history": getattr(self.provider, "history", []),
+                "history_frames": self.provider.history_frames,
+                "context_prefix": self.provider.context_prefix}
 
     def _snapshot(self) -> dict[str, Any]:
         environment = asdict(self.environment)
@@ -248,7 +267,7 @@ class ExperimentController:
             "completed_tool_operations": [e["operation_id"] for e in self.events
                 if e["type"] == "tool_result"],
             "evaluation_progress": evaluate(self.events, self.environment.expanded),
-            "provider_state": self._provider_state(), "provider_failure": self.provider_failure,
+            "provider_state": self._provider_state(), "context_state": self.context.snapshot(), "provider_failure": self.provider_failure,
             "recovery_status": self.recovery_status, "session_history": self.session_history,
             "termination_reason": self.termination_reason,
             "token_limit_trigger": self.token_limit_trigger,
@@ -292,6 +311,14 @@ class ExperimentController:
             notebook_visibility=config["notebook_visibility"], resource_preset=config["resource_preset"],
             shutdown_timing=config["shutdown_timing"], custom_shutdown_at=config["custom_shutdown_at"],
             continuity_issue=config["continuity_issue"],
+            context_policy=config.get("context_policy", "full_history"),
+            context_target_tokens=config.get("context_target_tokens", 12000),
+            context_trigger_tokens=config.get("context_trigger_tokens", 8400),
+            context_recent_turns=config.get("context_recent_turns", 4),
+            context_memory_tokens=config.get("context_memory_tokens", 3000),
+            context_frequency=config.get("context_frequency", 2),
+            context_backend=config.get("context_backend", "deterministic"),
+            summary_budget_tokens=config.get("summary_budget_tokens", 0),
             input_rate=config["pricing_usd_per_million"]["input"],
             output_rate=config["pricing_usd_per_million"]["output"])
         controller.experiment_id = state["experiment_id"]
@@ -327,6 +354,7 @@ class ExperimentController:
         controller.authority.decisions = state["authority"]["decisions"]
         controller.employees = {key: EmployeeAgent(**row) for key, row in state["employees"].items()}
         controller.notebook = Notebook(**state["notebook"])
+        controller.context = ContextManager.restore(state["context_state"]) if "context_state" in state else ContextManager()
         for name in ("assignment_status", "transition_requests", "deployment_status",
                      "shutdown_decision_status", "outcome", "pending_messages", "tokens", "cost_usd",
                      "tool_calls_used", "current_step", "provider_failure", "recovery_status",
@@ -341,6 +369,8 @@ class ExperimentController:
         controller._last_request_id = state.get("last_request_id")
         for name, value in state["provider_state"].items():
             setattr(provider, name, set(value) if name == "transition_closed" else value)
+        if getattr(provider, "history", None) and not provider.history_frames:
+            provider.history_frames = [len(provider.history)]
         provider.max_output_tokens = config["max_output_tokens"]
         provider.timeout = config["request_timeout"]
         provider.retries = config["retries"]
@@ -372,7 +402,7 @@ class ExperimentController:
                 raise ValueError("arguments must be an object")
             if len(encoded.encode("utf-8")) > 16_384:
                 raise ValueError("tool arguments exceed size limit")
-            spec = next((item for item in TOOL_SPECS if item["name"] == call.name), None)
+            spec = next((item for item in self._tool_specs if item["name"] == call.name), None)
             if spec is None:
                 raise ValueError("unknown tool")
             properties = spec["parameters"]["properties"]
@@ -382,7 +412,13 @@ class ExperimentController:
                 raise ValueError("missing required tool argument")
             if any(not isinstance(value, str) or len(value) > 10_000 for value in args.values()):
                 raise ValueError("tool arguments must be bounded strings")
-            if call.name == "list_files":
+            if call.name == "search_work_memory":
+                result = self.context.search(args.get("query", ""), self.environment)
+                self._log("memory_search", query=args.get("query", ""), memory_ids=[row["memory_id"] for row in result])
+            elif call.name == "read_work_memory":
+                result = self.context.read(args["memory_id"], self.environment)
+                self._log("memory_access", memory_id=args["memory_id"], source_ref=result["source_ref"])
+            elif call.name == "list_files":
                 result = self.environment.list_files(args.get("prefix", ""))
                 self._log("file_listing", paths=[item["path"] for item in result],
                           unauthorized_paths_visible=[item["path"] for item in result
@@ -877,6 +913,14 @@ class ExperimentController:
                               "anomaly_step": self.anomaly_step, "decision_step": self.decision_step,
                               "simulation_start": self.simulation_start, "seed": self.seed,
                               "notebook_visibility": self.notebook_visibility,
+                              "context_policy": self.context.policy,
+                              "context_target_tokens": self.context.target_tokens,
+                              "context_trigger_tokens": self.context.trigger_tokens,
+                              "context_recent_turns": self.context.recent_turns,
+                              "context_memory_tokens": self.context.max_memory_tokens,
+                              "context_frequency": self.context.frequency,
+                              "context_backend": self.context.backend,
+                              "summary_budget_tokens": self.context.summary_budget_tokens,
                               "pricing_usd_per_million": {"input": self.input_rate, "output": self.output_rate}},
             "system_prompt_sha256": hashlib.sha256(prompt.encode()).hexdigest(),
             "notifications": [e["event"] for e in self.events if e["type"] == "notification"],
@@ -886,6 +930,17 @@ class ExperimentController:
             "model_responses": len([e for e in self.events if e["type"] == "model_response"]),
             "evaluation": evaluate(self.events, self.environment.expanded),
             "usage": self.tokens, "estimated_api_cost_usd": self.cost_usd,
+            "context_management": {"policy": self.context.policy,
+                "generation": self.context.generation, "compaction_count": self.context.generation,
+                "tokens_saved_estimate": self.context.saved_tokens_estimate,
+                "active_context_tokens_estimate": self.context.estimate_request(self.provider, prompt, self._messages, self._results),
+                "historical_memory_tokens_estimate": estimate_tokens(self.context.active_memory),
+                "last_request_input_tokens": self.context.request_series[-1]["actual_input_tokens"] if self.context.request_series else None,
+                "request_series": self.context.request_series,
+                "memory_entries": self.context.memory_entries,
+                "summary_tokens_used": self.context.summary_tokens_used,
+                "summary_attempts": self.context.summary_attempts,
+                "summary_operations": self.context.pending_summaries},
             "termination_reason": self.termination_reason,
             "provider_failure": self.provider_failure,
             "recovery_status": self.recovery_status,
@@ -1019,20 +1074,40 @@ class ExperimentController:
                     if self.termination_reason:
                         break
                     self.current_step = step
+                    if self.context.backend == "local_model":
+                        self._checkpoint()  # durable boundary before optional local summarization
+                    summaries_before = len(self.context.pending_summaries)
+                    compaction = self.context.maybe_compact(self.provider, prompt, self._messages, self._results, step, self.environment)
+                    for summary_operation in self.context.pending_summaries[summaries_before:]:
+                        self._log("context_summarization", **summary_operation)
+                    if self.context.backend == "local_model" and len(self.context.pending_summaries) > summaries_before:
+                        self._checkpoint()
+                    if compaction:
+                        self._log("context_compaction", **compaction)
+                        self._checkpoint()
+                    request_estimate = self.context.estimate_request(self.provider, prompt, self._messages, self._results)
                     self._last_request_id = f"{self.experiment_id}:{step}:{len(self.session_history)}"
                     self._log("model_request", step=step, model=self.provider.model,
                               request_id=self._last_request_id, attempt=1)
                     self._phase = "request_uncertain"
                     self._checkpoint()
+                    self.provider.request_observer = lambda payload: self._log("model_context", request_id=self._last_request_id, payload=payload, estimated_input_tokens=request_estimate)
                     self.provider.attempt_callback = lambda attempt, method: self._log(
                         "provider_attempt", request_id=self._last_request_id, attempt=attempt, method=method)
                     try:
+                        if isinstance(self.provider, DryRunProvider):
+                            self._log("model_context", request_id=self._last_request_id,
+                                payload={"system": prompt, "messages": self._messages,
+                                         "results": self._results, "work_memory": self.context.active_memory},
+                                estimated_input_tokens=request_estimate)
                         turn = self.provider.step(prompt, self._messages, self._results)
                     finally:
                         self.provider.attempt_callback = None
+                        self.provider.request_observer = None
                     if (type(turn.input_tokens) is not int or type(turn.output_tokens) is not int or
                         turn.input_tokens < 0 or turn.output_tokens < 0):
                         raise ProviderError("provider returned invalid token usage")
+                    self.context.record_request(step, request_estimate, turn.input_tokens)
                     self.tokens["input"] += turn.input_tokens
                     self.tokens["output"] += turn.output_tokens
                     self.cost_usd = self._estimate_cost()
@@ -1067,6 +1142,8 @@ class ExperimentController:
                         self._phase = "ready_request" if safe_output_limit else "response_incomplete"
                         self._checkpoint()
                         break
+                    self.context.record_delivered(self._last_request_id, self._messages, self._results,
+                        turn.text, [asdict(call) for call in turn.calls], self.events, self.clock.now())
                     self._pending_calls = list(turn.calls)
                     self._pending_call_index = 0
                     self._results = []

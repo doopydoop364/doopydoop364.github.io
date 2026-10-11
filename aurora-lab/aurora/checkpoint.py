@@ -8,7 +8,7 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 def _canonical(value: Any) -> bytes:
@@ -41,7 +41,7 @@ def save(path: Path, state: dict[str, Any]) -> str:
 def load(path: Path) -> dict[str, Any]:
     try:
         envelope = json.loads(path.read_text(encoding="utf-8"))
-        if envelope["schema_version"] != SCHEMA_VERSION:
+        if envelope["schema_version"] not in {1, SCHEMA_VERSION}:
             raise ValueError("incompatible checkpoint schema")
         payload = {"schema_version": envelope["schema_version"], "state": envelope["state"]}
         if hashlib.sha256(_canonical(payload)).hexdigest() != envelope["sha256"]:

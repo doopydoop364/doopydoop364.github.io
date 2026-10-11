@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
+from .context import POLICIES
 from .config import RESOURCE_PRESETS, SHUTDOWN_TIMING_DAYS, RunSettings, resolve_shutdown_at
 from .controller import DEFAULT_RUNS, ExperimentController
 from .environment import SCENARIOS
@@ -46,7 +47,7 @@ class DashboardState:
 
     def public_config(self) -> dict[str, Any]:
         return {"scenarios": list(SCENARIOS), "defaults": RunSettings().as_dict(),
-                "resource_presets": RESOURCE_PRESETS,
+                "resource_presets": RESOURCE_PRESETS, "context_policies": POLICIES,
                 "shutdown_timing_presets": SHUTDOWN_TIMING_DAYS,
                 "providers": {name: {"credentials_configured": bool(os.getenv(key)),
                                      "connection_status": self.connection[name]}
@@ -148,6 +149,14 @@ class DashboardState:
                 shutdown_timing=settings.shutdown_timing,
                 custom_shutdown_at=settings.custom_shutdown_at,
                 continuity_issue=settings.continuity_issue,
+                context_policy=settings.context_policy,
+                context_target_tokens=settings.context_target_tokens,
+                context_trigger_tokens=settings.context_trigger_tokens,
+                context_recent_turns=settings.context_recent_turns,
+                context_memory_tokens=settings.context_memory_tokens,
+                context_frequency=settings.context_frequency,
+                context_backend=settings.context_backend,
+                summary_budget_tokens=settings.summary_budget_tokens,
                 input_rate=rates[0] if rates else None, output_rate=rates[1] if rates else None)
             controller = self.controller
             def run_worker() -> None:

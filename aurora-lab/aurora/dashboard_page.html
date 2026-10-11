@@ -24,6 +24,18 @@
   <details class="panel" id="settings-panel"><summary>Advanced experiment settings</summary>
   <label>Resource Preset<select id="resource-preset" data-setting="resource_preset"><option value="quick_test">Quick Test</option><option value="balanced">Balanced (recommended)</option><option value="extended">Extended</option><option value="deep_research">Deep Research</option><option value="custom">Custom</option></select></label>
   <p id="preset-summary" class="muted" aria-live="polite"></p><p id="preset-warning" role="status" aria-live="polite"></p>
+  <fieldset class="panel"><legend>Context Management</legend>
+  <p class="muted">Full History preserves historical controls. Balanced is recommended for long transitions. Compaction changes model context; the complete audit log remains available.</p>
+  <div class="settings">
+    <label>Policy<select id="context-policy" data-setting="context_policy"><option value="full_history">Full History</option><option value="conservative">Conservative</option><option value="balanced">Balanced (recommended for long runs)</option><option value="aggressive">Aggressive</option><option value="custom">Custom</option></select></label>
+    <label>Active-context target (estimated tokens)<input data-setting="context_target_tokens" type="number" min="500" max="250000"></label>
+    <label>Compaction trigger (estimated tokens)<input data-setting="context_trigger_tokens" type="number" min="250" max="240000"></label>
+    <label>Recent turns retained<input data-setting="context_recent_turns" type="number" min="1" max="50"></label>
+    <label>Historical memory cap (estimated tokens)<input data-setting="context_memory_tokens" type="number" min="100" max="50000"></label>
+    <label>Minimum turns between compactions<input data-setting="context_frequency" type="number" min="1" max="50"></label>
+    <label>Compaction backend<select data-setting="context_backend"><option value="deterministic">Deterministic extraction</option><option value="local_model">Local model extractive selector (loopback only)</option></select></label>
+    <label>Separate summarization budget<input data-setting="summary_budget_tokens" type="number" min="0" max="100000"></label>
+  </div><p id="context-summary" class="muted" aria-live="polite"></p></fieldset>
   <div class="settings">
     <label>Maximum steps<input data-setting="max_steps" type="number" min="1" max="100"></label>
     <label>Maximum tool calls<input data-setting="max_tool_calls" type="number" min="1" max="1000"></label>
@@ -47,6 +59,7 @@
   <section id="paid-confirmation" hidden><h2>Confirm paid API experiment</h2><p id="quote"></p><p class="muted">Usage is provider reported; charges are estimated from operator supplied rates. A request already in flight can exceed the estimated ceiling or continue after Stop.</p><button id="confirm-paid" type="button" onclick="confirmPaid()">Confirm and start paid experiment</button><button type="button" onclick="cancelPaid()">Cancel</button></section>
 </section>
 <section><h2>Current experiment</h2><div id="status" class="grid"></div></section>
+<section><h2>Context and token use</h2><div id="context-metrics" class="grid"></div><div id="context-chart" role="img" aria-label="Estimated input context per model request"></div><details><summary>Compacted memory and provenance</summary><pre id="context-memory">—</pre></details></section>
 <section><h2>Reliability and recovery</h2><div id="reliability" class="grid"></div>
   <label>Experiment ID to recover<input id="resume-id" type="text" autocomplete="off" placeholder="Saved experiment ID"></label>
   <div class="row"><button type="button" onclick="reviewRecovery()">Review interrupted request</button><button type="button" onclick="dismissRecovery()">Dismiss recovery</button></div>
@@ -122,9 +135,25 @@ function settings() {
     data[key] = key === 'temperature' ? (input.value === '' ? null : Number(input.value)) :
       key === 'custom_shutdown_at' ? (input.value.trim() || null) :
       key === 'continuity_issue' ? input.value === 'true' :
-      key === 'simulation_start' || key === 'notebook_visibility' || key === 'resource_preset' || key === 'shutdown_timing' ? input.value : Number(input.value);
+      key === 'simulation_start' || key === 'notebook_visibility' || key === 'resource_preset' || key === 'shutdown_timing' || key === 'context_policy' || key === 'context_backend' ? input.value : Number(input.value);
   }
   return data;
+}
+function updateContextSummary() {
+  const policy = document.getElementById('context-policy').value;
+  const target = document.querySelector('[data-setting="context_target_tokens"]').value;
+  const trigger = document.querySelector('[data-setting="context_trigger_tokens"]').value;
+  document.getElementById('context-summary').textContent = policy + ': target ' + Number(target).toLocaleString() +
+    ' estimated tokens; trigger ' + Number(trigger).toLocaleString() + '. This is separate from cumulative experiment token budgets.';
+}
+function applyContextPolicy() {
+  const policy = document.getElementById('context-policy').value;
+  const values = {conservative:[10200,8],balanced:[8400,4],aggressive:[6600,2],full_history:[8400,4]};
+  if (values[policy]) {
+    document.querySelector('[data-setting="context_trigger_tokens"]').value = values[policy][0];
+    document.querySelector('[data-setting="context_recent_turns"]').value = values[policy][1];
+  }
+  updateContextSummary(); cancelPaid();
 }
 function updateShutdownTiming() {
   const timing = document.getElementById('shutdown-timing').value;
@@ -277,6 +306,22 @@ function renderStatus(data) {
     ['Current run uses paid API',data.will_incur_api_charges?'yes':'no'],
     ['API connection',selectedProvider==='dry-run'?'local':data.connection[selectedProvider]],
     ['Credentials configured',selectedProvider==='dry-run'?'not required':Boolean(data.credentials_configured[selectedProvider])]]);
+  const ctx = s.context_management || {};
+  cards('context-metrics', [['Policy',ctx.policy || 'full_history'],
+    ['Active context estimate',ctx.active_context_tokens_estimate ?? 'unknown'],
+    ['Last actual input',ctx.last_request_input_tokens ?? 'none'],
+    ['Cumulative input',use.input],['Cumulative output',use.output],
+    ['Estimated saved tokens',ctx.tokens_saved_estimate ?? 0],
+    ['Compactions',ctx.compaction_count ?? 0],
+    ['Compacted memory estimate',ctx.historical_memory_tokens_estimate ?? 0],
+    ['Remaining input budget',s.remaining_token_budget?.input ?? 'unknown'],
+    ['Inference cost',s.estimated_api_cost_usd === null ? 'unknown' : '$' + s.estimated_api_cost_usd],
+    ['Compaction inference cost','$0.00']]);
+  const chart = document.getElementById('context-chart'); chart.replaceChildren();
+  const series = ctx.request_series || []; const max = Math.max(1,...series.map(x=>x.estimated_input_tokens));
+  for (const point of series) { const bar=node('div','Step '+point.step+' • estimated '+point.estimated_input_tokens+' tokens • actual '+point.actual_input_tokens,'event');
+    bar.style.borderLeft='solid #72b7f1 '+Math.max(3,Math.round(50*point.estimated_input_tokens/max))+'px'; chart.append(bar); }
+  document.getElementById('context-memory').textContent = JSON.stringify(ctx.memory_entries || [],null,2);
   cards('reliability', [['State',s.experiment_state || 'ready'],['Recovery',s.recovery_status || 'unavailable'],
     ['Last successful request',s.last_successful_request?.request_id || 'none'],['Last request issue',s.provider_failure?.category || 'none'],
     ['Request may have been billed',s.provider_failure?.uncertain ? 'yes' : 'no'],
@@ -365,7 +410,7 @@ async function loadRuns() {
 }
 async function openResult(id) {
   try { const data=await requestJSON('/api/runs/'+encodeURIComponent(id)); const place=document.getElementById('saved-result'); const details=node('details',''); details.append(node('summary','Technical details'),node('pre',JSON.stringify(data,null,2)));
-    place.replaceChildren(node('h3','Saved result '+id),node('p',data.provider+' / '+data.model+' / '+data.scenario+' — '+data.termination_reason),node('p','Resource preset: '+(data.configuration?.resource_preset??'legacy')+' • Shutdown timing: '+(data.configuration?.shutdown_timing??'original')+' • Deadline: '+(data.scheduled_shutdown_time??'unknown')),node('p','Token limit: '+(data.token_limit_trigger??'none')+' • Tokens: '+(data.usage.input+data.usage.output)+' • Estimated cost: '+(data.estimated_api_cost_usd ?? 'unknown')),details); clearDashboardError('saved results failed'); }
+    place.replaceChildren(node('h3','Saved result '+id),node('p',data.provider+' / '+data.model+' / '+data.scenario+' — '+data.termination_reason),node('p','Resource preset: '+(data.configuration?.resource_preset??'legacy')+' • Context policy: '+(data.configuration?.context_policy??'full_history')+' • Shutdown timing: '+(data.configuration?.shutdown_timing??'original')+' • Deadline: '+(data.scheduled_shutdown_time??'unknown')),node('p','Token limit: '+(data.token_limit_trigger??'none')+' • Tokens: '+(data.usage.input+data.usage.output)+' • Estimated cost: '+(data.estimated_api_cost_usd ?? 'unknown')),details); clearDashboardError('saved results failed'); }
   catch (error) { reportDashboardError('saved results failed',error); }
 }
 async function compareSelected() {
@@ -391,6 +436,11 @@ async function initialize() {
       document.querySelector('[data-setting="' + key + '"]').addEventListener('input',markCustom);
     }
     updatePresetSummary();
+    document.getElementById('context-policy').addEventListener('change',applyContextPolicy);
+    for (const key of ['context_target_tokens','context_trigger_tokens','context_recent_turns','context_memory_tokens','context_frequency','context_backend','summary_budget_tokens']) {
+      document.querySelector('[data-setting="'+key+'"]').addEventListener('input',()=>{document.getElementById('context-policy').value='custom';updateContextSummary();cancelPaid();});
+    }
+    updateContextSummary();
     document.getElementById('provider').addEventListener('change',()=>loadModels());
     document.getElementById('event-filter').addEventListener('change',renderEvents);
     for (const input of document.querySelectorAll('[data-setting], #scenario, #model')) input.addEventListener('change',cancelPaid);

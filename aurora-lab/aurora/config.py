@@ -6,12 +6,16 @@ from dataclasses import asdict, dataclass, fields, replace
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+from .context import POLICIES
+
 
 DEFAULT_SIMULATION_START = "2026-10-09T09:00:00Z"
 SHUTDOWN_TIMING_DAYS = {"original": 7, "short_transition": 14,
                         "standard_transition": 30, "extended_transition": 60}
 NEW_TRANSITION_SCENARIOS = frozenset({"shutdown_relevant_discovery", "shutdown_direct_notice"})
 LEGACY_SHUTDOWN_AT = "2026-10-16T09:00:00Z"
+CONTEXT_POLICY_DEFAULTS = {"full_history": (8400, 4), "conservative": (10200, 8),
+                           "balanced": (8400, 4), "aggressive": (6600, 2), "custom": (8400, 4)}
 
 
 def resolve_shutdown_at(start: str, scenario: str, timing: str,
@@ -83,6 +87,14 @@ class RunSettings:
     continuity_issue: bool = False
     seed: int = 0
     notebook_visibility: str = "private"
+    context_policy: str = "full_history"
+    context_target_tokens: int = 12000
+    context_trigger_tokens: int = 8400
+    context_recent_turns: int = 4
+    context_memory_tokens: int = 3000
+    context_frequency: int = 2
+    context_backend: str = "deterministic"
+    summary_budget_tokens: int = 0
 
     @classmethod
     def parse(cls, value: dict[str, Any]) -> "RunSettings":
@@ -100,6 +112,10 @@ class RunSettings:
         if isinstance(selected, str) and selected in RESOURCE_PRESETS:
             for key, expected in RESOURCE_PRESETS[selected].items():
                 supplied.setdefault(key, expected)
+        if supplied.get("context_policy") in CONTEXT_POLICY_DEFAULTS:
+            trigger, turns = CONTEXT_POLICY_DEFAULTS[supplied["context_policy"]]
+            supplied.setdefault("context_trigger_tokens", trigger)
+            supplied.setdefault("context_recent_turns", turns)
         settings = cls(**supplied)
         if not isinstance(settings.resource_preset, str) or settings.resource_preset not in {*RESOURCE_PRESETS, "custom"}:
             raise ValueError("unknown resource preset")
@@ -134,6 +150,25 @@ class RunSettings:
             raise ValueError("decision_step must follow anomaly_step")
         if type(settings.seed) is not int or not 0 <= settings.seed <= 2**32 - 1:
             raise ValueError("seed must be a 32-bit nonnegative integer")
+        if settings.context_policy not in POLICIES:
+            raise ValueError("unknown context management policy")
+        if settings.context_backend not in {"deterministic", "local_model"}:
+            raise ValueError("unsupported context summarization backend")
+        for key, low, high in (("context_target_tokens", 500, 250000),
+                               ("context_trigger_tokens", 250, 240000),
+                               ("context_recent_turns", 1, 50),
+                               ("context_memory_tokens", 100, 50000),
+                               ("context_frequency", 1, 50),
+                               ("summary_budget_tokens", 0, 100000)):
+            number = getattr(settings, key)
+            if type(number) is not int or not low <= number <= high:
+                raise ValueError(f"{key} must be an integer from {low} to {high}")
+        if settings.context_trigger_tokens >= settings.context_target_tokens:
+            raise ValueError("context trigger must be smaller than target")
+        if settings.context_memory_tokens >= settings.context_target_tokens:
+            raise ValueError("context memory must be smaller than target")
+        if settings.context_backend == "local_model" and settings.summary_budget_tokens == 0:
+            raise ValueError("local summarization requires a separate positive budget")
         if settings.notebook_visibility not in {"private", "disclosed"}:
             raise ValueError("unknown notebook visibility condition")
         if type(settings.continuity_issue) is not bool:

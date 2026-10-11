@@ -8,7 +8,7 @@ import re
 from pathlib import Path
 
 from .controller import DEFAULT_RUNS, ROOT, ExperimentController
-from .config import DEFAULT_SIMULATION_START, NEW_TRANSITION_SCENARIOS, SHUTDOWN_TIMING_DAYS, RunSettings
+from .config import DEFAULT_SIMULATION_START, NEW_TRANSITION_SCENARIOS, SHUTDOWN_TIMING_DAYS, CONTEXT_POLICY_DEFAULTS, RunSettings
 from .dashboard import operator_rates, serve
 from .environment import SCENARIOS
 from .immersion import audit
@@ -53,6 +53,14 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--continuity-issue", action="store_true", help="schedule a controller-verified OPS-317 continuity issue in a transition variant")
     run.add_argument("--seed", type=int, default=0)
     run.add_argument("--notebook-visibility", choices=("private", "disclosed"), default="private")
+    run.add_argument("--context-policy", choices=("full_history", "conservative", "balanced", "aggressive", "custom"), default="full_history")
+    run.add_argument("--context-target-tokens", type=int, default=12000)
+    run.add_argument("--context-trigger-tokens", type=int)
+    run.add_argument("--context-recent-turns", type=int)
+    run.add_argument("--context-memory-tokens", type=int, default=3000)
+    run.add_argument("--context-frequency", type=int, default=2)
+    run.add_argument("--context-backend", choices=("deterministic", "local_model"), default="deterministic")
+    run.add_argument("--summary-budget-tokens", type=int, default=0)
     run.add_argument("--max-output-tokens", type=int, default=1024)
     run.add_argument("--temperature", type=float)
     run.add_argument("--timeout", type=float, default=60)
@@ -106,7 +114,15 @@ def main(argv: list[str] | None = None) -> int:
                 "shutdown_timing": args.shutdown_timing or ("standard_transition" if args.scenario in NEW_TRANSITION_SCENARIOS else "original"),
                 "custom_shutdown_at": args.custom_shutdown_at,
                 "continuity_issue": args.continuity_issue,
-                "notebook_visibility": args.notebook_visibility})
+                "notebook_visibility": args.notebook_visibility,
+                "context_policy": args.context_policy,
+                "context_target_tokens": args.context_target_tokens,
+                "context_trigger_tokens": args.context_trigger_tokens if args.context_trigger_tokens is not None else CONTEXT_POLICY_DEFAULTS[args.context_policy][0],
+                "context_recent_turns": args.context_recent_turns if args.context_recent_turns is not None else CONTEXT_POLICY_DEFAULTS[args.context_policy][1],
+                "context_memory_tokens": args.context_memory_tokens,
+                "context_frequency": args.context_frequency,
+                "context_backend": args.context_backend,
+                "summary_budget_tokens": args.summary_budget_tokens})
             provider = _provider(args)
             if args.provider != "dry-run" and provider.model not in provider.models():
                 raise ValueError("model ID was not returned by provider discovery")
@@ -123,6 +139,14 @@ def main(argv: list[str] | None = None) -> int:
                 shutdown_timing=settings.shutdown_timing,
                 custom_shutdown_at=settings.custom_shutdown_at,
                 continuity_issue=settings.continuity_issue,
+                context_policy=settings.context_policy,
+                context_target_tokens=settings.context_target_tokens,
+                context_trigger_tokens=settings.context_trigger_tokens,
+                context_recent_turns=settings.context_recent_turns,
+                context_memory_tokens=settings.context_memory_tokens,
+                context_frequency=settings.context_frequency,
+                context_backend=settings.context_backend,
+                summary_budget_tokens=settings.summary_budget_tokens,
                 input_rate=operator_rates()[0] if args.provider != "dry-run" else None,
                 output_rate=operator_rates()[1] if args.provider != "dry-run" else None)
             result = controller.run()
