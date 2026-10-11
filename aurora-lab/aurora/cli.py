@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 from pathlib import Path
 
 from .controller import DEFAULT_RUNS, ROOT, ExperimentController
@@ -57,6 +58,13 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--timeout", type=float, default=60)
     run.add_argument("--retries", type=int, default=0)
     run.add_argument("--runs-dir", type=Path, default=DEFAULT_RUNS)
+    resume = sub.add_parser("resume", help="inspect or continue an interrupted experiment")
+    resume.add_argument("experiment_id")
+    resume.add_argument("--runs-dir", type=Path, default=DEFAULT_RUNS)
+    resume.add_argument("--inspect", action="store_true", help="show recovery state without inference")
+    resume.add_argument("--allow-api-charges", action="store_true")
+    resume.add_argument("--acknowledge-uncertain-inference", action="store_true")
+    resume.add_argument("--max-output-tokens", type=int, help="explicit per-request output limit override")
     models = sub.add_parser("models", help="discover model IDs from provider API")
     models.add_argument("provider", choices=("openai", "anthropic"))
     dash = sub.add_parser("dashboard", help="serve local experiment dashboard")
@@ -122,6 +130,47 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Event log: {controller.run_dir / 'events.jsonl'}")
         elif args.command == "dashboard":
             serve(args.host, args.port, args.runs_dir)
+        elif args.command == "resume":
+            if not re.fullmatch(r"[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}", args.experiment_id):
+                raise ValueError("invalid experiment identifier")
+            run_dir = args.runs_dir / args.experiment_id
+            if run_dir.is_symlink() or not run_dir.is_dir():
+                raise ValueError("experiment not found")
+            from .checkpoint import load as load_checkpoint
+            state = load_checkpoint(run_dir / "checkpoint.json")
+            config = state["configuration"]
+            if args.inspect:
+                print(json.dumps({"experiment_id": state["experiment_id"], "provider": state["provider"],
+                    "model": state["model"], "configuration": config, "phase": state["phase"],
+                    "last_completed_sequence": state["event_sequence"],
+                    "last_request_id": state.get("last_request_id"),
+                    "last_completed_tool_operation": (state.get("completed_tool_operations") or [None])[-1],
+                    "provider_failure": state["provider_failure"], "recovery_status": state["recovery_status"]}, indent=2))
+                return 0
+            if state["provider"] == "DryRunProvider":
+                provider = DryRunProvider()
+            else:
+                if not args.allow_api_charges:
+                    raise ValueError("resume of paid inference requires --allow-api-charges")
+                rates = operator_rates()
+                saved_rates = config["pricing_usd_per_million"]
+                if rates is None or rates != (saved_rates["input"], saved_rates["output"]):
+                    raise ValueError("current operator pricing must match the recorded run before paid resume")
+                cls = {"OpenAIProvider": OpenAIProvider, "AnthropicProvider": AnthropicProvider}.get(state["provider"])
+                if cls is None:
+                    raise ValueError("unsupported checkpoint provider")
+                provider = cls(state["model"], max_output_tokens=config["max_output_tokens"],
+                    timeout=config["request_timeout"], retries=config["retries"],
+                    temperature=config["temperature"])
+            controller = ExperimentController.from_checkpoint(run_dir, provider)
+            print(json.dumps({"resuming_experiment": controller.experiment_id,
+                "provider": state["provider"], "model": state["model"],
+                "configuration": config, "last_completed_sequence": state["event_sequence"],
+                "provider_failure": state["provider_failure"],
+                "uncertain_request_acknowledged": args.acknowledge_uncertain_inference}, indent=2), flush=True)
+            result = controller.resume(acknowledge_uncertain=args.acknowledge_uncertain_inference,
+                allow_api_charges=args.allow_api_charges, max_output_tokens=args.max_output_tokens)
+            print(json.dumps(result, indent=2))
         elif args.command == "compare":
             rows = []
             for path in args.summaries:

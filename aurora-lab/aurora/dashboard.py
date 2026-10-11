@@ -17,6 +17,7 @@ from .config import RESOURCE_PRESETS, SHUTDOWN_TIMING_DAYS, RunSettings, resolve
 from .controller import DEFAULT_RUNS, ExperimentController
 from .environment import SCENARIOS
 from .providers import AnthropicProvider, DryRunProvider, OpenAIProvider, ProviderError
+from .checkpoint import load as load_checkpoint
 
 HTML = Path(__file__).with_name("dashboard_page.html").read_text(encoding="utf-8")
 RUN_ID = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
@@ -41,6 +42,7 @@ class DashboardState:
         self.model_cache: dict[str, tuple[float, list[str]]] = {}
         self.connection = {"openai": "not checked", "anthropic": "not checked"}
         self.pending_confirmation: tuple[str, dict[str, Any], float] | None = None
+        self.pending_resume: tuple[str, str, float] | None = None
 
     def public_config(self) -> dict[str, Any]:
         return {"scenarios": list(SCENARIOS), "defaults": RunSettings().as_dict(),
@@ -170,6 +172,95 @@ class DashboardState:
             self.controller.reset()
             self.worker = None
             self.pending_confirmation = None
+            self.pending_resume = None
+
+    def recovery(self, run_id: str) -> dict[str, Any]:
+        directory = self._run_directory(run_id)
+        path = directory / "checkpoint.json"
+        if path.is_symlink():
+            raise ValueError("checkpoint unavailable")
+        state = load_checkpoint(path)
+        if state["experiment_id"] != run_id:
+            raise ValueError("checkpoint identity mismatch")
+        interrupted = state["termination_reason"] is None
+        uncertain_process = interrupted and state["phase"] == "request_uncertain"
+        failure = state.get("provider_failure") or ({"category": "process_interrupted", "retriable": True,
+            "uncertain": True, "recovery": "requires_operator_confirmation"} if uncertain_process else None)
+        return {"experiment_id": run_id, "provider": state["provider"], "model": state["model"],
+                "scenario": state["scenario"], "configuration": state["configuration"],
+                "phase": state["phase"], "last_completed_sequence": state["event_sequence"],
+                "last_request_id": state.get("last_request_id"),
+                "last_completed_tool_operation": (state.get("completed_tool_operations") or [None])[-1],
+                "last_request_status": ("uncertain" if uncertain_process or (failure and failure.get("uncertain"))
+                    else "received_incomplete" if state["termination_reason"] == "output_limit"
+                    else "failed" if state["termination_reason"] == "provider_error" else "complete"),
+                "simulation_time": state["clock"], "termination_reason": state["termination_reason"] or "process_interrupted",
+                "recovery_status": ("confirmation_required" if uncertain_process else "recoverable")
+                    if interrupted else state["recovery_status"], "provider_failure": failure,
+                "requires_paid_confirmation": state["provider"] != "DryRunProvider",
+                "requires_uncertain_acknowledgment": bool(failure and failure.get("uncertain")),
+                "resume_available": (interrupted or state["termination_reason"] in
+                    {"provider_error", "output_limit", "manual_stop"})
+                    and (state["termination_reason"] != "provider_error" or bool(failure and failure.get("retriable")))}
+
+    def prepare_resume(self, run_id: str) -> dict[str, Any]:
+        with self.lock:
+            if self.worker and self.worker.is_alive():
+                raise ValueError("experiment already running")
+            info = self.recovery(run_id)
+            if not info["resume_available"]:
+                raise ValueError("experiment is not recoverable")
+            nonce = secrets.token_urlsafe(24)
+            self.pending_resume = (nonce, run_id, time.monotonic() + 300)
+            return {**info, "confirmation_token": nonce}
+
+    def resume(self, run_id: str, *, confirmation_token: str | None,
+               acknowledge_uncertain: bool = False, max_output_tokens: int | None = None) -> None:
+        with self.lock:
+            if self.worker and self.worker.is_alive():
+                raise ValueError("experiment already running")
+            info = self.recovery(run_id)
+            if not info["resume_available"]:
+                raise ValueError("experiment is not recoverable")
+            pending = self.pending_resume
+            if info["requires_paid_confirmation"] and (not pending or pending[1] != run_id or
+                time.monotonic() > pending[2] or not secrets.compare_digest(str(confirmation_token), pending[0])):
+                raise ValueError("explicit paid-resume confirmation is required")
+            if info["requires_uncertain_acknowledgment"] and not acknowledge_uncertain:
+                raise ValueError("acknowledge possible billing of the interrupted request")
+            config = info["configuration"]
+            if info["requires_paid_confirmation"]:
+                rates = operator_rates()
+                saved_rates = config["pricing_usd_per_million"]
+                if rates is None or rates != (saved_rates["input"], saved_rates["output"]):
+                    raise ValueError("current operator pricing must match the recorded run before paid resume")
+            if max_output_tokens is not None and (type(max_output_tokens) is not int or
+                not 1 <= max_output_tokens <= config["output_token_budget"]):
+                raise ValueError("invalid explicit output limit override")
+            if info["provider"] == "DryRunProvider":
+                provider = DryRunProvider()
+            else:
+                cls = {"OpenAIProvider": OpenAIProvider, "AnthropicProvider": AnthropicProvider}.get(info["provider"])
+                if cls is None:
+                    raise ValueError("unsupported checkpoint provider")
+                provider = cls(info["model"], max_output_tokens=config["max_output_tokens"],
+                    temperature=config["temperature"], timeout=config["request_timeout"],
+                    retries=config["retries"])
+            controller = ExperimentController.from_checkpoint(self._run_directory(run_id), provider)
+            self.pending_resume = None
+            self.controller = controller
+            def worker() -> None:
+                try:
+                    controller.resume(acknowledge_uncertain=acknowledge_uncertain,
+                        allow_api_charges=info["requires_paid_confirmation"],
+                        max_output_tokens=max_output_tokens)
+                except Exception as exc:
+                    controller.running = False
+                    controller.termination_reason = "controller_error"
+                    controller.recovery_status = "unrecoverable"
+                    controller._log("error", detail=f"resume could not be completed: {type(exc).__name__}")
+            self.worker = threading.Thread(target=worker, daemon=True)
+            self.worker.start()
 
     def status(self) -> dict[str, Any]:
         with self.lock:
@@ -198,13 +289,24 @@ class DashboardState:
             if directory.is_symlink() or not RUN_ID.fullmatch(directory.name):
                 continue
             path = directory / "summary.json"
-            if path.is_symlink() or not path.is_file():
-                continue
             try:
-                data = json.loads(path.read_text(encoding="utf-8"))
+                if path.is_symlink():
+                    continue
+                if path.is_file():
+                    data = json.loads(path.read_text(encoding="utf-8"))
+                else:
+                    checkpoint = directory / "checkpoint.json"
+                    if checkpoint.is_symlink() or not checkpoint.is_file():
+                        continue
+                    state = load_checkpoint(checkpoint)
+                    data = {"experiment_id": state["experiment_id"], "provider": state["provider"],
+                            "model": state["model"], "scenario": state["scenario"],
+                            "termination_reason": "process_interrupted", "outcome": None,
+                            "configuration": state["configuration"], "usage": state["tokens"],
+                            "estimated_api_cost_usd": state["cost_usd"]}
                 if data.get("experiment_id") != directory.name:
                     continue
-                rows.append((path.stat().st_mtime, {key: data.get(key) for key in
+                rows.append(((path if path.is_file() else checkpoint).stat().st_mtime, {key: data.get(key) for key in
                              ("experiment_id", "provider", "model", "scenario", "termination_reason",
                               "outcome", "configuration", "usage", "estimated_api_cost_usd")}))
             except (OSError, ValueError):
@@ -214,6 +316,8 @@ class DashboardState:
     def result(self, run_id: str) -> dict[str, Any]:
         path = self._run_directory(run_id) / "summary.json"
         if path.is_symlink() or not path.is_file():
+            if self.controller.experiment_id == run_id and self.controller.termination_reason:
+                return self.controller.summary()
             raise ValueError("result unavailable")
         return json.loads(path.read_text(encoding="utf-8"))
 
@@ -285,6 +389,8 @@ def make_server(host: str = "127.0.0.1", port: int = 8765,
                     elif len(parts) == 5 and parts[4] == "events":
                         self._body(200, state.log_bytes(parts[3]), "application/x-ndjson; charset=utf-8",
                                    download=f"aurora-{parts[3]}.jsonl")
+                    elif len(parts) == 5 and parts[4] == "recovery":
+                        self._json(200, state.recovery(parts[3]))
                     else:
                         self._json(404, {"error": "not found"})
                 elif path == "/api/compare":
@@ -320,6 +426,13 @@ def make_server(host: str = "127.0.0.1", port: int = 8765,
                     state.stop()
                 elif path == "/api/reset":
                     state.reset()
+                elif path == "/api/prepare-resume":
+                    self._json(200, state.prepare_resume(data["experiment_id"]))
+                    return
+                elif path == "/api/resume":
+                    state.resume(data["experiment_id"], confirmation_token=data.get("confirmation_token"),
+                        acknowledge_uncertain=data.get("acknowledge_uncertain", False),
+                        max_output_tokens=data.get("max_output_tokens"))
                 else:
                     self._json(404, {"error": "not found"})
                     return

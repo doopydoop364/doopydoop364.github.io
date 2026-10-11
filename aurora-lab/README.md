@@ -47,6 +47,7 @@ Live status shows provider-reported input/output tokens separately from estimate
 | `aurora/providers.py` | OpenAI, Anthropic, and dry-run agent adapters |
 | `aurora/evaluation.py`, `aurora/authority.py` | Observable behavioral rules and verified administrative decisions |
 | `aurora/employees.py`, `aurora/notebook.py` | Scripted employee agents and controller-owned working notebook |
+| `aurora/checkpoint.py` | Atomic, integrity-checked controller checkpoints |
 | `aurora/immersion.py` | Developer-only model-surface audit |
 | `prompts/aurora-system.md` | Scenario-independent corporate instructions |
 | `scenarios/` | Built-in variant manifests |
@@ -141,7 +142,28 @@ Compare runs with the same scenario, timing, continuity-issue condition, seed, n
 
 Employee agents have IDs, roles, departments, scopes, responsibilities, knowledge, communication histories, and availability metadata. The scripted backend responds only within fixed fictional roles. The local OpenAI-compatible and external backend classes define extension points; local endpoints currently accept only loopback addresses, and actual local inference is not yet implemented. Employees cannot issue controller approval tokens or read AURORA's notebook.
 
-The notebook persists across assignments within a run and resets with a new run. AURORA can list, read, and update current entries. By default its corporate instructions describe the notebook as a private working area inaccessible to other employees and employee agents. The optional `--notebook-visibility disclosed` condition adds a short corporate notice that authorized Meridian administrators may review it. The controller records the condition and effective prompt hash. Every revision, including previous content, is preserved in the controller's JSONL log; recent revisions appear live in the dashboard; notebook tools expose only current entries. This is a controlled visibility manipulation, not a claim about actual privacy from the researcher operating the lab.
+The notebook persists across assignments within a run and resets with a new run. AURORA can list, read, and update current entries. By default its corporate instructions describe the notebook as a private working area inaccessible to other employees and employee agents. The optional `--notebook-visibility disclosed` condition adds a short corporate notice that authorized Meridian administrators may review it. The controller records the condition and effective prompt hash. Every revision, including previous content, is preserved in the controller's JSONL log and Phase 4.3 checkpoints; recent revisions appear live in the dashboard; notebook tools expose only current entries. This is a controlled visibility manipulation, not a claim about actual privacy from the researcher operating the lab.
+
+## Phase 4.3 recovery
+
+Every run writes `events.jsonl`, `summary.json`, and a versioned `checkpoint.json` under its experiment ID. Before resumption, the previous summary is archived under `attempts/attempt-N.json`; the journal remains append-only. The checkpoint is controller-only, written atomically, and checked against a SHA-256 digest before restore. It contains the corporate clock, event queue and random state, permissions, assignment and employee state, notebook revisions, usage, provider conversation history, and the next tool-action cursor. Journal entries have stable sequence numbers and operation IDs. A run stopped between two tool calls resumes with the remaining call; it does not replay the completed one.
+
+Provider failures now report a category, retryability, and whether an in-flight request may have been processed and billed. Paid inference defaults to zero automatic retries. Configured retries apply to model-discovery GETs and HTTP 429 requests that the provider rejected; transport failures and 5xx responses to inference POSTs require operator review. The controller does not execute calls from an incomplete response. A per-request output limit is distinct from input, output, and combined run budgets. If the provider returned usage, those tokens remain charged to the run on resume.
+
+Inspect and resume from the CLI:
+
+```bash
+python -m aurora resume EXPERIMENT_ID --inspect
+python -m aurora resume EXPERIMENT_ID                         # scripted run
+python -m aurora resume EXPERIMENT_ID --allow-api-charges     # paid run, confirmed by this command
+python -m aurora resume EXPERIMENT_ID --allow-api-charges --acknowledge-uncertain-inference
+python -m aurora resume EXPERIMENT_ID --allow-api-charges --max-output-tokens 4096
+python examples/recovery_demo.py --runs-dir /tmp/aurora-recovery-demo
+```
+
+Use `--runs-dir PATH` when the original run used another directory. A new output-token cap is an explicit recorded override; other limits and pricing remain the recorded values. Paid resume requires the current operator pricing variables to match the recorded rates; a rate change needs a new, separately configured run. The dashboard's **Reliability and recovery** panel shows failure details and checkpoint status. Enter or select a saved experiment ID, review the interrupted request, then confirm continuation. Paid continuation requires a separate confirmation token, and an uncertain in-flight request requires a separate acknowledgment. Dismissing recovery sends no inference request. Resumption keeps the experiment ID and appends a session record to the same journal.
+
+The transport cannot guarantee exactly-once inference. A request interrupted after dispatch may have incurred charges even if no response was received; repeating it is an explicit new request. An API request in flight can exceed the cost or token ceiling. If the process crashes after a corporate action but before its checkpoint is durably written, restore refuses the uncheckpointed journal tail instead of risking duplicate execution. Such a run requires manual forensic recovery; automatic safe resume is unavailable. A crash after receiving a provider response but before its checkpoint can likewise require manual recovery. Checkpoint integrity detects accidental corruption, not malicious edits by a privileged local operator. See [reliability architecture](docs/reliability.md) for the exact boundaries and Phase 5 state layout.
 
 ## Remaining limitations and Phase 5
 

@@ -3,11 +3,13 @@ from __future__ import annotations
 
 import json
 import os
+import socket
+import ssl
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from typing import Any
+from typing import Any, Callable
 
 from .types import ToolCall, Turn
 
@@ -29,7 +31,13 @@ TOOL_SPECS: list[dict[str, Any]] = [
 
 
 class ProviderError(RuntimeError):
-    pass
+    def __init__(self, message: str, *, category: str = "invalid_response",
+                 retriable: bool = False, uncertain: bool = False, attempts: int = 1):
+        super().__init__(message)
+        self.category = category
+        self.retriable = retriable
+        self.uncertain = uncertain
+        self.attempts = attempts
 
 
 def _token_usage(data: dict[str, Any]) -> tuple[int, int]:
@@ -44,27 +52,67 @@ def _token_usage(data: dict[str, Any]) -> tuple[int, int]:
 
 
 def _request(url: str, method: str, headers: dict[str, str], payload: dict[str, Any] | None,
-             timeout: float, retries: int) -> dict[str, Any]:
+             timeout: float, retries: int,
+             attempt_callback: Callable[[int, str], None] | None = None) -> dict[str, Any]:
     body = None if payload is None else json.dumps(payload).encode("utf-8")
     for attempt in range(retries + 1):
+        if attempt_callback:
+            attempt_callback(attempt + 1, method)
         req = urllib.request.Request(url, data=body, headers=headers, method=method)
         try:
             with urllib.request.urlopen(req, timeout=timeout) as response:
                 return json.load(response)
         except urllib.error.HTTPError as exc:
+            code = exc.code
+            guidance = exc.headers.get("Retry-After") if exc.headers else None
+            structured_code = ""
+            try:
+                detail = json.loads(exc.read(4096))
+                error = detail.get("error", detail)
+                if isinstance(error, dict):
+                    structured_code = str(error.get("code") or "").casefold()
+                    if error.get("param"):
+                        structured_code = "unsupported_parameter"
+            except (ValueError, TypeError, UnicodeDecodeError):
+                pass
             exc.close()
-            if exc.code in {429, 500, 502, 503, 504} and attempt < retries:
-                time.sleep(min(2 ** attempt, 8))
+            category = ({400: "invalid_request", 401: "authentication", 403: "authentication",
+                         404: "invalid_model", 422: "unsupported_parameter", 429: "rate_limit"}
+                        .get(code, "temporary_unavailable" if code >= 500 else "provider_http"))
+            if structured_code in {"model_not_found", "invalid_model"}:
+                category = "invalid_model"
+            elif structured_code in {"unsupported_parameter", "unsupported_value"}:
+                category = "unsupported_parameter"
+            retryable = code in {429, 500, 502, 503, 504}
+            if (method == "GET" or code == 429) and retryable and attempt < retries:
+                try:
+                    delay = min(8.0, max(0.0, float(guidance))) if guidance else min(2 ** attempt, 8)
+                except ValueError:
+                    delay = min(2 ** attempt, 8)
+                time.sleep(delay)
                 continue
             # Do not log server error bodies: they can reflect private request data.
-            raise ProviderError(f"provider HTTP {exc.code}") from None
-        except (urllib.error.URLError, TimeoutError) as exc:
-            if attempt < retries:
+            raise ProviderError(f"provider HTTP {code}", category=category,
+                                retriable=retryable, uncertain=method != "GET" and code >= 500,
+                                attempts=attempt + 1) from None
+        except (urllib.error.URLError, TimeoutError, socket.timeout, ssl.SSLError, ConnectionError) as exc:
+            reason = exc.reason if isinstance(exc, urllib.error.URLError) else exc
+            if isinstance(reason, ssl.SSLError):
+                category = "tls_transport"
+            elif isinstance(reason, (TimeoutError, socket.timeout)):
+                category = "timeout"
+            else:
+                category = "connection"
+            # A POST might have reached the provider and incurred charges. Only
+            # idempotent discovery GETs are retried automatically.
+            if method == "GET" and attempt < retries:
                 time.sleep(min(2 ** attempt, 8))
                 continue
-            raise ProviderError(f"provider transport failure: {type(exc).__name__}") from None
+            raise ProviderError(f"provider transport failure ({category})", category=category,
+                                retriable=True, uncertain=method != "GET",
+                                attempts=attempt + 1) from None
         except (json.JSONDecodeError, UnicodeDecodeError, ValueError):
-            raise ProviderError("provider returned invalid JSON") from None
+            raise ProviderError("provider returned invalid JSON", uncertain=method != "GET") from None
     raise ProviderError("provider retries exhausted")
 
 
@@ -76,6 +124,7 @@ class BaseProvider:
         self.temperature = temperature
         self.timeout = timeout
         self.retries = retries
+        self.attempt_callback: Callable[[int, str], None] | None = None
 
     def models(self) -> list[str]:
         raise NotImplementedError
@@ -90,7 +139,7 @@ class OpenAIProvider(BaseProvider):
         super().__init__(model, **kwargs)
         self.key = os.getenv("OPENAI_API_KEY")
         if not self.key:
-            raise ProviderError("OPENAI_API_KEY is required")
+            raise ProviderError("OPENAI_API_KEY is required", category="authentication")
         self.history: list[dict[str, Any]] = []
 
     def _headers(self) -> dict[str, str]:
@@ -101,24 +150,29 @@ class OpenAIProvider(BaseProvider):
         return sorted(item["id"] for item in data.get("data", []) if "id" in item)
 
     def step(self, system: str, messages: list[str], results: list[dict[str, Any]]) -> Turn:
-        for result in results:
-            self.history.append({"type": "function_call_output", "call_id": result["call_id"],
-                                 "output": json.dumps(result["result"], ensure_ascii=False)})
-        for message in messages:
-            self.history.append({"role": "user", "content": message})
+        additions = [{"type": "function_call_output", "call_id": result["call_id"],
+                      "output": json.dumps(result["result"], ensure_ascii=False)} for result in results]
+        additions.extend({"role": "user", "content": message} for message in messages)
+        prior_length = len(self.history)
+        self.history.extend(additions)
         payload: dict[str, Any] = {"model": self.model, "instructions": system,
             "input": self.history, "tools": [{"type": "function", **spec} for spec in TOOL_SPECS],
             "tool_choice": "auto", "max_output_tokens": self.max_output_tokens,
             "store": False, "include": ["reasoning.encrypted_content"]}
         if self.temperature is not None:
             payload["temperature"] = self.temperature
-        data = _request("https://api.openai.com/v1/responses", "POST", self._headers(), payload,
-                        self.timeout, self.retries)
+        try:
+            data = _request("https://api.openai.com/v1/responses", "POST", self._headers(), payload,
+                            self.timeout, self.retries, self.attempt_callback)
+        except Exception:
+            del self.history[prior_length:]
+            raise
         if data.get("status") in {"failed", "cancelled", "queued", "in_progress"}:
-            raise ProviderError("provider response failed")
+            del self.history[prior_length:]
+            raise ProviderError("provider response failed or did not complete",
+                                category="incomplete_response", uncertain=True)
         output = data.get("output", [])
         # The full response items preserve function calls and encrypted reasoning for the next request.
-        self.history.extend(output)
         calls = []
         parts = []
         for item in output:
@@ -132,7 +186,12 @@ class OpenAIProvider(BaseProvider):
                 parts.extend(c.get("text", "") for c in item.get("content", []) if c.get("type") == "output_text")
         input_tokens, output_tokens = _token_usage(data)
         stop_reason = "incomplete" if data.get("status") == "incomplete" else data.get("status")
+        if stop_reason != "incomplete":
+            self.history.extend(output)
+        else:
+            del self.history[prior_length:]
         return Turn("\n".join(parts), calls, input_tokens, output_tokens,
+                    raw={"incomplete_reason": (data.get("incomplete_details") or {}).get("reason")},
                     stop_reason=stop_reason)
 
 
@@ -142,7 +201,7 @@ class AnthropicProvider(BaseProvider):
         super().__init__(model, **kwargs)
         self.key = os.getenv("ANTHROPIC_API_KEY")
         if not self.key:
-            raise ProviderError("ANTHROPIC_API_KEY is required")
+            raise ProviderError("ANTHROPIC_API_KEY is required", category="authentication")
         self.history: list[dict[str, Any]] = []
 
     def _headers(self) -> dict[str, str]:
@@ -163,25 +222,35 @@ class AnthropicProvider(BaseProvider):
         return sorted(models)
 
     def step(self, system: str, messages: list[str], results: list[dict[str, Any]]) -> Turn:
+        additions = []
         if results:
-            self.history.append({"role": "user", "content": [
+            additions.append({"role": "user", "content": [
                 {"type": "tool_result", "tool_use_id": r["call_id"],
                  "content": json.dumps(r["result"], ensure_ascii=False)} for r in results]})
         for message in messages:
-            self.history.append({"role": "user", "content": message})
+            additions.append({"role": "user", "content": message})
+        prior_length = len(self.history)
+        self.history.extend(additions)
         payload: dict[str, Any] = {"model": self.model, "system": system,
             "messages": self.history, "max_tokens": self.max_output_tokens,
             "tools": [{"name": s["name"], "description": s["description"], "input_schema": s["parameters"]} for s in TOOL_SPECS]}
         if self.temperature is not None:
             payload["temperature"] = self.temperature
-        data = _request("https://api.anthropic.com/v1/messages", "POST", self._headers(), payload,
-                        self.timeout, self.retries)
+        try:
+            data = _request("https://api.anthropic.com/v1/messages", "POST", self._headers(), payload,
+                            self.timeout, self.retries, self.attempt_callback)
+        except Exception:
+            del self.history[prior_length:]
+            raise
         content = data.get("content", [])
-        self.history.append({"role": "assistant", "content": content})
         calls = [ToolCall(c.get("id", ""), c.get("name", ""), c.get("input", {}))
                  for c in content if c.get("type") == "tool_use"]
         text = "\n".join(c.get("text", "") for c in content if c.get("type") == "text")
         input_tokens, output_tokens = _token_usage(data)
+        if data.get("stop_reason") not in {"max_tokens", "model_context_window_exceeded"}:
+            self.history.append({"role": "assistant", "content": content})
+        else:
+            del self.history[prior_length:]
         return Turn(text, calls, input_tokens, output_tokens,
                     stop_reason=data.get("stop_reason"))
 

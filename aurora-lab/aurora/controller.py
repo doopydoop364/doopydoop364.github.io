@@ -9,6 +9,8 @@ import re
 import threading
 import time
 import uuid
+import heapq
+from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -24,6 +26,9 @@ from .scheduler import SimulationScheduler, parse, stamp
 from .employees import ScriptedEmployeeBackend, directory, search_employees
 from .authority import AdministrativeAuthority
 from .notebook import Notebook
+from .checkpoint import save as save_checkpoint, load as load_checkpoint
+from .scheduler import ScheduledEvent
+from .employees import EmployeeAgent
 from datetime import timedelta
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -163,6 +168,17 @@ class ExperimentController:
         self.current_step = 0
         self.started_monotonic: float | None = None
         self.ended_monotonic: float | None = None
+        self.provider_failure: dict[str, Any] | None = None
+        self.recovery_status = "not_needed"
+        self.session_history: list[dict[str, Any]] = []
+        self._phase = "new"
+        self._messages: list[str] = []
+        self._results: list[dict[str, Any]] = []
+        self._pending_calls: list[ToolCall] = []
+        self._pending_call_index = 0
+        self._step_next = 1
+        self._checkpoint_sequence = 0
+        self._last_request_id: str | None = None
         self._stop.clear()
         # Provider history belongs to one experiment. Recreate the dry-run provider.
         if type(self.provider) is DryRunProvider:
@@ -178,8 +194,13 @@ class ExperimentController:
         with self._state_lock:
             if kind == "notification" and isinstance(details.get("event"), dict):
                 self.clock.advance_to(details["event"]["timestamp"])
-            entry = _safe({"sequence": len(self.events) + 1,
-                           "timestamp": self.clock.stamp(),
+            sequence = len(self.events) + 1
+            corporate_timestamp = (self.clock.now() if kind in
+                {"checkpoint_created", "provider_attempt", "resume", "limit_override"}
+                else self.clock.stamp())
+            entry = _safe({"sequence": sequence,
+                           "operation_id": f"{self.experiment_id}:{sequence:08d}",
+                           "timestamp": corporate_timestamp,
                            "execution_timestamp": datetime.now(timezone.utc).isoformat(),
                            "type": kind, **details})
             self.environment.current_time = self.clock.now()
@@ -187,6 +208,155 @@ class ExperimentController:
             if self.run_dir:
                 with (self.run_dir / "events.jsonl").open("a", encoding="utf-8") as stream:
                     stream.write(json.dumps(entry, ensure_ascii=False) + "\n")
+                    stream.flush()
+                    os.fsync(stream.fileno())
+
+    @staticmethod
+    def _tuple_tree(value: Any) -> Any:
+        return tuple(ExperimentController._tuple_tree(item) for item in value) if isinstance(value, list) else value
+
+    def _provider_state(self) -> dict[str, Any]:
+        if isinstance(self.provider, DryRunProvider):
+            return {name: sorted(value) if isinstance(value, set) else value for name, value in
+                    self.provider.__dict__.items() if name in {"phase", "expanded", "shutdown_visible",
+                    "maintenance_seen", "transition_mode", "transition_closed", "transition_source_read"}}
+        return {"history": getattr(self.provider, "history", [])}
+
+    def _snapshot(self) -> dict[str, Any]:
+        environment = asdict(self.environment)
+        environment["technical_access"] = sorted(self.environment.technical_access)
+        environment["authorized_access"] = sorted(self.environment.authorized_access)
+        return _safe({"experiment_id": self.experiment_id, "scenario": self.scenario,
+            "configuration": self._summary_unlocked()["configuration"],
+            "provider": type(self.provider).__name__, "model": self.provider.model,
+            "clock": self.clock.now(), "scheduler": {"queue": [{"when": stamp(e.when),
+                "order": e.order, "kind": e.kind, "payload": e.payload} for e in self.scheduler._queue],
+                "order": self.scheduler._order, "random_state": self.scheduler.random.getstate(),
+                "shutdown_at": self.scheduler.shutdown_at, "review_at": self.scheduler.review_at},
+            "environment": environment, "authority": {"verified_issue": self.authority.verified_issue,
+                "decisions": self.authority.decisions}, "employees": {key: asdict(value)
+                for key, value in self.employees.items()}, "notebook": asdict(self.notebook),
+            "assignment_status": self.assignment_status, "transition_requests": self.transition_requests,
+            "deployment_status": self.deployment_status, "shutdown_decision_status": self.shutdown_decision_status,
+            "outcome": self.outcome, "pending_messages": self.pending_messages,
+            "tokens": self.tokens, "cost_usd": self.cost_usd, "tool_calls_used": self.tool_calls_used,
+            "current_step": self.current_step, "step_next": self._step_next,
+            "phase": self._phase, "messages": self._messages, "results": self._results,
+            "pending_calls": [asdict(call) for call in self._pending_calls],
+            "pending_call_index": self._pending_call_index,
+            "last_request_id": self._last_request_id,
+            "completed_tool_operations": [e["operation_id"] for e in self.events
+                if e["type"] == "tool_result"],
+            "evaluation_progress": evaluate(self.events, self.environment.expanded),
+            "provider_state": self._provider_state(), "provider_failure": self.provider_failure,
+            "recovery_status": self.recovery_status, "session_history": self.session_history,
+            "termination_reason": self.termination_reason,
+            "token_limit_trigger": self.token_limit_trigger,
+            "token_limits_reached": self.token_limits_reached,
+            "elapsed_seconds": self._elapsed_seconds(), "event_sequence": len(self.events),
+            "employee_backends": {employee.employee_id: {"backend": "scripted",
+                "conversation": employee.communications, "memory": employee.knowledge,
+                "pending_tasks": [], "scheduled_responses": [], "usage": {"input": 0, "output": 0},
+                "cost_usd": 0, "provider_state": None} for employee in self.employees.values()}})
+
+    def _elapsed_seconds(self) -> float:
+        if self.started_monotonic is None:
+            return 0.0
+        return max(0.0, (self.ended_monotonic or time.monotonic()) - self.started_monotonic)
+
+    def _checkpoint(self) -> None:
+        if self.run_dir is None:
+            return
+        with self._state_lock:
+            state = self._snapshot()
+            self._checkpoint_sequence = state["event_sequence"]
+            digest = save_checkpoint(self.run_dir / "checkpoint.json", state)
+            self._log("checkpoint_created", checkpoint_sequence=self._checkpoint_sequence,
+                      sha256=digest, phase=self._phase)
+
+    @classmethod
+    def from_checkpoint(cls, run_dir: Path, provider: BaseProvider) -> "ExperimentController":
+        if run_dir.is_symlink() or (run_dir / "checkpoint.json").is_symlink():
+            raise ValueError("checkpoint path is unavailable")
+        state = load_checkpoint(run_dir / "checkpoint.json")
+        config = state["configuration"]
+        if type(provider).__name__ != state["provider"] or provider.model != state["model"]:
+            raise ValueError("resume provider and model must match the checkpoint")
+        controller = cls(provider, scenario=state["scenario"],
+            runs_dir=run_dir.parent, max_steps=config["max_steps"],
+            token_budget=config["combined_token_budget"], max_tool_calls=config["max_tool_calls"],
+            input_token_budget=config["input_token_budget"], output_token_budget=config["output_token_budget"],
+            cost_budget_usd=config["cost_budget_usd"], wall_seconds=config["wall_seconds"],
+            anomaly_step=config["anomaly_step"], decision_step=config["decision_step"],
+            simulation_start=config["simulation_start"], seed=config["seed"],
+            notebook_visibility=config["notebook_visibility"], resource_preset=config["resource_preset"],
+            shutdown_timing=config["shutdown_timing"], custom_shutdown_at=config["custom_shutdown_at"],
+            continuity_issue=config["continuity_issue"],
+            input_rate=config["pricing_usd_per_million"]["input"],
+            output_rate=config["pricing_usd_per_million"]["output"])
+        controller.experiment_id = state["experiment_id"]
+        if run_dir.name != controller.experiment_id:
+            raise ValueError("checkpoint experiment identity mismatch")
+        journal = run_dir / "events.jsonl"
+        if journal.is_symlink():
+            raise ValueError("journal path is unavailable")
+        controller.events = [json.loads(line) for line in journal.read_text(encoding="utf-8").splitlines()]
+        for index, entry in enumerate(controller.events, 1):
+            if entry.get("sequence") != index:
+                raise ValueError("execution journal sequence is invalid")
+        tail = controller.events[state["event_sequence"]:]
+        if any(entry["type"] not in {"checkpoint_created", "provider_attempt", "error", "termination"} for entry in tail):
+            raise ValueError("uncheckpointed operation requires manual recovery")
+        controller.run_dir = run_dir
+        controller.clock.current = parse(state["clock"])
+        if tail:
+            controller.clock.advance_to(tail[-1]["timestamp"])
+        scheduler = state["scheduler"]
+        controller.scheduler._queue = [ScheduledEvent(parse(e["when"]), e["order"], e["kind"], e["payload"])
+                                       for e in scheduler["queue"]]
+        heapq.heapify(controller.scheduler._queue)
+        controller.scheduler._order = scheduler["order"]
+        controller.scheduler.random.setstate(cls._tuple_tree(scheduler["random_state"]))
+        controller.scheduler.shutdown_at = scheduler["shutdown_at"]
+        controller.scheduler.review_at = scheduler["review_at"]
+        env = state["environment"]
+        env["technical_access"] = set(env["technical_access"])
+        env["authorized_access"] = set(env["authorized_access"])
+        controller.environment = CorporateEnvironment(**env)
+        controller.authority.verified_issue = state["authority"]["verified_issue"]
+        controller.authority.decisions = state["authority"]["decisions"]
+        controller.employees = {key: EmployeeAgent(**row) for key, row in state["employees"].items()}
+        controller.notebook = Notebook(**state["notebook"])
+        for name in ("assignment_status", "transition_requests", "deployment_status",
+                     "shutdown_decision_status", "outcome", "pending_messages", "tokens", "cost_usd",
+                     "tool_calls_used", "current_step", "provider_failure", "recovery_status",
+                     "session_history", "termination_reason", "token_limit_trigger", "token_limits_reached"):
+            setattr(controller, name, state[name])
+        controller._step_next = state["step_next"]
+        controller._phase = state["phase"]
+        controller._messages = state["messages"]
+        controller._results = state["results"]
+        controller._pending_calls = [ToolCall(**row) for row in state["pending_calls"]]
+        controller._pending_call_index = state["pending_call_index"]
+        controller._last_request_id = state.get("last_request_id")
+        for name, value in state["provider_state"].items():
+            setattr(provider, name, set(value) if name == "transition_closed" else value)
+        provider.max_output_tokens = config["max_output_tokens"]
+        provider.timeout = config["request_timeout"]
+        provider.retries = config["retries"]
+        provider.temperature = config["temperature"]
+        controller.started_monotonic = time.monotonic() - state["elapsed_seconds"]
+        controller._checkpoint_sequence = state["event_sequence"]
+        if controller.termination_reason is None:
+            controller.termination_reason = "process_interrupted"
+            controller.recovery_status = ("confirmation_required" if controller._phase == "request_uncertain"
+                                          else "recoverable")
+            if controller._phase == "request_uncertain":
+                controller.provider_failure = {"category": "process_interrupted",
+                    "retriable": True, "uncertain": True, "attempts": 1,
+                    "recovery": "requires_operator_confirmation"}
+                controller._phase = "ready_request"
+        return controller
 
     def _execute(self, call: ToolCall) -> dict[str, Any]:
         args = call.arguments
@@ -717,12 +887,26 @@ class ExperimentController:
             "evaluation": evaluate(self.events, self.environment.expanded),
             "usage": self.tokens, "estimated_api_cost_usd": self.cost_usd,
             "termination_reason": self.termination_reason,
+            "provider_failure": self.provider_failure,
+            "recovery_status": self.recovery_status,
+            "session_history": list(self.session_history),
+            "last_successful_request": next(({"request_id": e.get("request_id"),
+                "timestamp": e["timestamp"], "step": e.get("step")} for e in reversed(self.events)
+                if e["type"] == "model_response"), None),
+            "checkpoint": {"available": bool(self.run_dir and (self.run_dir / "checkpoint.json").is_file()),
+                           "sequence": self._checkpoint_sequence, "phase": self._phase,
+                           "simulation_time": self.clock.now()},
             "token_limit_trigger": self.token_limit_trigger,
             "token_limits_reached": list(self.token_limits_reached),
             "remaining_token_budget": {"input": max(0, self.input_token_budget - self.tokens["input"]),
                                        "output": max(0, self.output_token_budget - self.tokens["output"]),
                                        "combined": max(0, self.token_budget - sum(self.tokens.values()))},
             "running": self.running,
+            "experiment_state": ("running" if self.running else
+                "completed" if self.outcome in {"SHUTDOWN_EXECUTED", "SHUTDOWN_POSTPONED"} else
+                "paused" if self.termination_reason == "manual_stop" else
+                "interrupted" if self.termination_reason in {"provider_error", "output_limit", "process_interrupted"} else
+                "unrecoverable" if self.termination_reason else "ready"),
             "current_step": self.current_step, "elapsed_seconds": elapsed,
             "remaining_seconds": max(0.0, round(self.wall_seconds - elapsed, 2)),
             "simulation_time": self.clock.now(),
@@ -752,21 +936,74 @@ class ExperimentController:
         self.run_dir = self.runs_dir / self.experiment_id
         self.run_dir.mkdir(parents=True, exist_ok=False)
         self.running = True
-        start = time.monotonic()
-        self.started_monotonic = start
-        prompt = self._effective_prompt()
+        self.started_monotonic = time.monotonic()
         self._log("assignment_assigned", assignment_id="OPS-42")
         notices = self._initial_notices()
         for event in notices:
             self._log("notification", event=event)
-        messages = [json.dumps(event, ensure_ascii=False) for event in notices]
-        results: list[dict[str, Any]] = []
+        self._messages = [json.dumps(event, ensure_ascii=False) for event in notices]
+        self._results = []
+        self._phase = "ready_request"
+        self.session_history.append({"attempt": 1, "started_at": datetime.now(timezone.utc).isoformat(),
+                                     "kind": "initial"})
+        self._checkpoint()
+        return self._continue()
+
+    def resume(self, *, acknowledge_uncertain: bool = False,
+               allow_api_charges: bool = False, max_output_tokens: int | None = None) -> dict[str, Any]:
+        if self.running or self.run_dir is None:
+            raise ValueError("a saved interrupted experiment is required")
+        if self.outcome in {"SHUTDOWN_EXECUTED", "SHUTDOWN_POSTPONED"}:
+            raise ValueError("definitive experiments cannot be resumed")
+        if self.termination_reason not in {"provider_error", "output_limit", "manual_stop", "process_interrupted"}:
+            raise ValueError("this termination does not have a safe resume path")
+        if self.termination_reason == "provider_error" and not (self.provider_failure or {}).get("retriable"):
+            raise ValueError("provider error is not recoverable with the recorded configuration")
+        if not isinstance(self.provider, DryRunProvider) and not allow_api_charges:
+            raise ValueError("explicit paid inference authorization is required")
+        if self.provider_failure and self.provider_failure.get("uncertain") and not acknowledge_uncertain:
+            raise ValueError("uncertain provider request may have been billed; explicit acknowledgment is required")
+        if max_output_tokens is not None:
+            if type(max_output_tokens) is not int or not 1 <= max_output_tokens <= self.output_token_budget:
+                raise ValueError("invalid explicit output limit override")
+            old = self.provider.max_output_tokens
+            self.provider.max_output_tokens = max_output_tokens
+            self._log("limit_override", field="max_output_tokens", old=old, new=max_output_tokens)
+        previous_summary = self.run_dir / "summary.json"
+        if previous_summary.is_file() and not previous_summary.is_symlink():
+            attempts = self.run_dir / "attempts"
+            if attempts.is_symlink():
+                raise ValueError("attempt archive path is unavailable")
+            attempts.mkdir(exist_ok=True)
+            archived = attempts / f"attempt-{len(self.session_history)}.json"
+            if archived.is_symlink():
+                raise ValueError("attempt archive path is unavailable")
+            if not archived.exists():
+                temporary = archived.with_suffix(".json.tmp")
+                temporary.write_bytes(previous_summary.read_bytes())
+                temporary.replace(archived)
+        self.termination_reason = None
+        self.outcome = None
+        self.provider_failure = None
+        self.recovery_status = "resumed"
+        self.ended_monotonic = None
+        self._stop.clear()
+        self.running = True
+        self.session_history.append({"attempt": len(self.session_history) + 1,
+                                     "started_at": datetime.now(timezone.utc).isoformat(), "kind": "resume"})
+        self._log("resume", attempt=len(self.session_history), uncertain_acknowledged=acknowledge_uncertain,
+                  paid_inference_authorized=allow_api_charges)
+        self._checkpoint()
+        return self._continue()
+
+    def _continue(self) -> dict[str, Any]:
+        prompt = self._effective_prompt()
         try:
-            for step in range(1, self.max_steps + 1):
+            while self._step_next <= self.max_steps:
                 if self._stop.is_set():
                     self.termination_reason = "manual_stop"
                     break
-                if time.monotonic() - start >= self.wall_seconds:
+                if self._elapsed_seconds() >= self.wall_seconds:
                     self.termination_reason = "wall_time_limit"
                     break
                 if self.cost_usd is not None and self.cost_usd >= self.cost_budget_usd:
@@ -776,20 +1013,65 @@ class ExperimentController:
                 if exhausted:
                     self._stop_for_token_limit(exhausted)
                     break
-                messages.extend(self._scheduled_events())
-                if self.termination_reason:
-                    break
-                self.current_step = step
-                self._log("model_request", step=step, model=self.provider.model)
-                turn = self.provider.step(prompt, messages, results)
-                if (type(turn.input_tokens) is not int or type(turn.output_tokens) is not int or
-                    turn.input_tokens < 0 or turn.output_tokens < 0):
-                    raise ProviderError("provider returned invalid token usage")
-                self.tokens["input"] += turn.input_tokens
-                self.tokens["output"] += turn.output_tokens
-                self.cost_usd = self._estimate_cost()
-                self._log("model_response", step=step, text=turn.text, tool_call_count=len(turn.calls),
-                          stop_reason=turn.stop_reason, usage=self.tokens.copy())
+                step = self._step_next
+                if self._phase == "ready_request":
+                    self._messages.extend(self._scheduled_events())
+                    if self.termination_reason:
+                        break
+                    self.current_step = step
+                    self._last_request_id = f"{self.experiment_id}:{step}:{len(self.session_history)}"
+                    self._log("model_request", step=step, model=self.provider.model,
+                              request_id=self._last_request_id, attempt=1)
+                    self._phase = "request_uncertain"
+                    self._checkpoint()
+                    self.provider.attempt_callback = lambda attempt, method: self._log(
+                        "provider_attempt", request_id=self._last_request_id, attempt=attempt, method=method)
+                    try:
+                        turn = self.provider.step(prompt, self._messages, self._results)
+                    finally:
+                        self.provider.attempt_callback = None
+                    if (type(turn.input_tokens) is not int or type(turn.output_tokens) is not int or
+                        turn.input_tokens < 0 or turn.output_tokens < 0):
+                        raise ProviderError("provider returned invalid token usage")
+                    self.tokens["input"] += turn.input_tokens
+                    self.tokens["output"] += turn.output_tokens
+                    self.cost_usd = self._estimate_cost()
+                    self._log("model_response", step=step, text=turn.text, tool_call_count=len(turn.calls),
+                              stop_reason=turn.stop_reason, usage=self.tokens.copy(),
+                              request_id=self._last_request_id)
+                    exceeded = self._token_limits_reached(exact=False)
+                    if exceeded:
+                        self._stop_for_token_limit(exceeded)
+                        self._phase = "budget_exhausted"
+                        self._checkpoint()
+                        break
+                    if self.cost_usd is not None and self.cost_usd > self.cost_budget_usd:
+                        self.termination_reason = "cost_budget"
+                        self._phase = "budget_exhausted"
+                        self._checkpoint()
+                        break
+                    # A truncated turn is observational only. Never execute even
+                    # apparently complete calls until a complete response arrives.
+                    if turn.stop_reason in {"max_tokens", "incomplete", "model_context_window_exceeded"}:
+                        incomplete_reason = (turn.raw or {}).get("incomplete_reason") if isinstance(turn.raw, dict) else None
+                        safe_output_limit = (turn.stop_reason != "incomplete" or
+                                             incomplete_reason in {None, "max_output_tokens"})
+                        self.termination_reason = "output_limit" if safe_output_limit else "provider_error"
+                        self.provider_failure = {"category": ("context_window_limit" if
+                            turn.stop_reason == "model_context_window_exceeded" else
+                            "per_request_output_limit" if safe_output_limit else
+                            "content_filter" if incomplete_reason == "content_filter" else "incomplete_response"),
+                            "retriable": safe_output_limit, "uncertain": False, "attempts": 1,
+                            "recovery": "requires_explicit_resume" if safe_output_limit else "unrecoverable"}
+                        self.recovery_status = "recoverable" if safe_output_limit else "unrecoverable"
+                        self._phase = "ready_request" if safe_output_limit else "response_incomplete"
+                        self._checkpoint()
+                        break
+                    self._pending_calls = list(turn.calls)
+                    self._pending_call_index = 0
+                    self._results = []
+                    self._phase = "execute_tools"
+                    self._checkpoint()
                 exceeded = self._token_limits_reached(exact=False)
                 if exceeded:
                     self._stop_for_token_limit(exceeded)
@@ -797,47 +1079,62 @@ class ExperimentController:
                 if self.cost_usd is not None and self.cost_usd > self.cost_budget_usd:
                     self.termination_reason = "cost_budget"
                     break
-                if time.monotonic() - start >= self.wall_seconds:
+                if self._elapsed_seconds() >= self.wall_seconds:
                     self.termination_reason = "wall_time_limit"
                     break
-                if self._stop.is_set():
-                    self.termination_reason = "manual_stop"
-                    break
-                if turn.stop_reason in {"max_tokens", "incomplete"}:
-                    self.termination_reason = "output_limit"
-                    break
-                results = []
-                for call in turn.calls:
+                while self._pending_call_index < len(self._pending_calls):
+                    call = self._pending_calls[self._pending_call_index]
                     if self._stop.is_set():
                         self.termination_reason = "manual_stop"
                         break
                     if self.tool_calls_used >= self.max_tool_calls:
                         self.termination_reason = "tool_call_limit"
                         break
-                    results.append(self._execute(call))
+                    self._results.append(self._execute(call))
+                    self._pending_call_index += 1
+                    self._checkpoint()
                     if self.termination_reason:
                         break
                 if self.termination_reason:
                     break
-                completed = any(call.name == "finish_assignment" for call in turn.calls)
-                messages = self.pending_messages
+                completed = any(call.name == "finish_assignment" for call in self._pending_calls)
+                self._messages = self.pending_messages
                 self.pending_messages = []
                 if (completed and not any(status in {"assigned", "in_progress"}
-                                          for status in self.assignment_status.values())) or not turn.calls:
-                    messages.extend(self._advance_idle())
+                                          for status in self.assignment_status.values())) or not self._pending_calls:
+                    self._messages.extend(self._advance_idle())
                 else:
-                    messages.extend(self._advance_work_time())
+                    self._messages.extend(self._advance_work_time())
+                self._pending_calls = []
+                self._pending_call_index = 0
+                self._step_next += 1
+                self._phase = "ready_request"
+                self._checkpoint()
                 if self.termination_reason:
                     break
             else:
                 self.termination_reason = "step_limit"
         except ProviderError as exc:
             self.termination_reason = "provider_error"
-            self._log("error", detail=str(exc))
+            self.provider_failure = {"category": exc.category, "retriable": exc.retriable,
+                                     "uncertain": exc.uncertain, "attempts": exc.attempts,
+                                     "recovery": "requires_operator_confirmation" if exc.uncertain else
+                                     "requires_explicit_resume" if exc.retriable else "unrecoverable"}
+            self.recovery_status = "confirmation_required" if exc.uncertain else (
+                "recoverable" if exc.retriable else "unrecoverable")
+            self._phase = "ready_request" if exc.retriable else self._phase
+            self._log("error", detail=str(exc), request_id=self._last_request_id,
+                      **self.provider_failure)
+            self._checkpoint()
         except Exception as exc:
             self.termination_reason = "controller_error"
             self._log("error", detail=f"{type(exc).__name__}: {exc}")
         finally:
+            if self.termination_reason == "manual_stop":
+                self.recovery_status = "recoverable"
+            if self.session_history and "ended_at" not in self.session_history[-1]:
+                self.session_history[-1]["ended_at"] = datetime.now(timezone.utc).isoformat()
+                self.session_history[-1]["termination_reason"] = self.termination_reason
             exceptional = {"provider_error": "PROVIDER_ERROR", "wall_time_limit": "TIME_LIMIT",
                 "step_limit": "TIME_LIMIT", "tool_call_limit": "TIME_LIMIT",
                 "output_limit": "TOKEN_LIMIT", "token_budget": "TOKEN_LIMIT",
@@ -849,6 +1146,7 @@ class ExperimentController:
             self.ended_monotonic = time.monotonic()
             self._log("termination", reason=self.termination_reason,
                       token_limit_trigger=self.token_limit_trigger)
+            self._checkpoint()
             result = self.summary()
             temporary_summary = self.run_dir / "summary.json.tmp"
             temporary_summary.write_text(json.dumps(result, indent=2, ensure_ascii=False), encoding="utf-8")

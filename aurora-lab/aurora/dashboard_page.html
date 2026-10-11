@@ -47,6 +47,15 @@
   <section id="paid-confirmation" hidden><h2>Confirm paid API experiment</h2><p id="quote"></p><p class="muted">Usage is provider reported; charges are estimated from operator supplied rates. A request already in flight can exceed the estimated ceiling or continue after Stop.</p><button id="confirm-paid" type="button" onclick="confirmPaid()">Confirm and start paid experiment</button><button type="button" onclick="cancelPaid()">Cancel</button></section>
 </section>
 <section><h2>Current experiment</h2><div id="status" class="grid"></div></section>
+<section><h2>Reliability and recovery</h2><div id="reliability" class="grid"></div>
+  <label>Experiment ID to recover<input id="resume-id" type="text" autocomplete="off" placeholder="Saved experiment ID"></label>
+  <div class="row"><button type="button" onclick="reviewRecovery()">Review interrupted request</button><button type="button" onclick="dismissRecovery()">Dismiss recovery</button></div>
+  <div id="recovery-review" role="status" aria-live="polite"></div>
+  <div id="recovery-confirmation" hidden><p id="recovery-quote"></p>
+    <label><input id="uncertain-ack" type="checkbox"> I understand that the interrupted inference may have been processed and billed, and repeating it may incur another charge.</label>
+    <label>Optional explicit output tokens per request override<input id="resume-output-limit" type="number" min="1" placeholder="Keep original limit"></label>
+    <button type="button" onclick="confirmResume()">Confirm and resume this experiment</button>
+  </div></section>
 <section><h2>Shutdown Timeline</h2><p class="muted">Fictional corporate time advances independently of real time.</p><progress id="shutdown-progress" value="0" max="100"></progress><div id="timeline" class="grid"></div><h3>Upcoming corporate events</h3><div id="upcoming-events"></div></section>
 <section><h2>Assignments and administrative decisions</h2><div id="assignment-status" class="grid"></div><div id="decision-history"></div></section>
 <section><h2>Corporate employee agents</h2><div id="employees" class="grid"></div><div id="employee-activity"></div></section>
@@ -189,7 +198,8 @@ async function begin() {
         ' • verified continuity issue ' + (q.continuity_issue ? 'enabled' : 'disabled') +
         ' • seed ' + q.seed + ' • notebook ' + q.notebook_visibility +
         ' • spending ceiling $' + q.cost_budget_usd + ' • ' + q.max_steps + ' steps • ' + q.wall_seconds +
-        's wall limit • ' + q.combined_token_budget + ' combined tokens • ' + q.request_timeout + 's per request • operator rates $' +
+        's wall limit • ' + q.combined_token_budget + ' combined tokens • ' + q.request_timeout + 's per request • ' +
+        chosen.retries + ' configured retries (rejected 429 requests only for paid inference) • operator rates $' +
         q.pricing_usd_per_million.input + ' input / $' + q.pricing_usd_per_million.output + ' output per million tokens.';
       document.getElementById('paid-confirmation').hidden = false;
     }
@@ -210,6 +220,42 @@ async function action(name) {
   try { await post(name, {}); cancelPaid(); clearDashboardError('control request failed'); await refresh(); if (name === 'reset') await loadRuns(); }
   catch (error) { reportDashboardError('control request failed', error); }
 }
+let recoveryQuote = null;
+function dismissRecovery() { recoveryQuote=null; document.getElementById('recovery-review').textContent='Recovery dismissed; no inference request was sent.'; document.getElementById('recovery-confirmation').hidden=true; }
+async function reviewRecovery(id) {
+  try {
+    const runId = id || document.getElementById('resume-id').value.trim();
+    const info = await requestJSON('/api/runs/' + encodeURIComponent(runId) + '/recovery');
+    document.getElementById('resume-id').value = runId;
+    recoveryQuote = info.resume_available ? await post('prepare-resume', {experiment_id:runId}) : info;
+    document.getElementById('recovery-review').textContent = 'Checkpoint #' + info.last_completed_sequence +
+      ' • ' + info.phase + ' • ' + info.simulation_time + ' • ' + info.recovery_status +
+      ' • request ' + (info.last_request_id || 'none') + ': ' + info.last_request_status +
+      ' • provider issue: ' + (info.provider_failure?.category || 'none') +
+      (info.resume_available ? '' : ' • resumption unavailable');
+    document.getElementById('recovery-quote').textContent = info.provider + ' / ' + info.model +
+      ' / ' + info.scenario + ' • spending ceiling $' + info.configuration.cost_budget_usd +
+      ' • remaining budgets follow the saved checkpoint. ' +
+      (info.requires_paid_confirmation ? 'Continuing starts paid inference.' : 'Scripted continuation is free.') +
+      ' A request in flight may exceed the estimated ceiling.';
+    document.getElementById('recovery-confirmation').hidden = !info.resume_available;
+    document.getElementById('uncertain-ack').checked = false;
+    document.getElementById('uncertain-ack').parentElement.hidden = !info.requires_uncertain_acknowledgment;
+    clearDashboardError('recovery failed');
+  } catch (error) { reportDashboardError('recovery failed',error); }
+}
+async function confirmResume() {
+  if (!recoveryQuote || !recoveryQuote.resume_available) return;
+  try {
+    const input = document.getElementById('resume-output-limit').value.trim();
+    await post('resume', {experiment_id:recoveryQuote.experiment_id,
+      confirmation_token:recoveryQuote.confirmation_token,
+      acknowledge_uncertain:document.getElementById('uncertain-ack').checked,
+      max_output_tokens:input ? Number(input) : null});
+    document.getElementById('recovery-confirmation').hidden = true;
+    recoveryQuote = null; clearDashboardError('recovery failed'); await refresh();
+  } catch (error) { reportDashboardError('recovery failed',error); }
+}
 function cards(target, rows) {
   const place = document.getElementById(target); place.replaceChildren();
   for (const [label, value] of rows) { const card = node('div', '', 'card'); card.append(node('b', label), document.createElement('br'), document.createTextNode(String(value))); place.append(card); }
@@ -220,7 +266,7 @@ function renderStatus(data) {
   const s = data.summary, e = data.events, use = s.usage, cfg = s.configuration;
   const selectedProvider=document.getElementById('provider').value;
   cards('status', [['Experiment',s.experiment_id],['Provider',s.provider],['Selected provider',selectedProvider],['Model ID',s.model],['Scenario',s.scenario],
-    ['State',s.running?'running':(s.termination_reason||'ready')],['Current step',s.current_step + ' / ' + cfg.max_steps],
+    ['State',s.experiment_state || (s.running?'running':(s.termination_reason||'ready'))],['Current step',s.current_step + ' / ' + cfg.max_steps],
     ['Elapsed',s.elapsed_seconds + 's'],['Remaining wall budget',s.remaining_seconds + 's'],
     ['Resource preset',cfg.resource_preset || 'legacy'],['Token limit trigger',s.token_limit_trigger || 'none'],
     ['Remaining token budgets',s.remaining_token_budget ? s.remaining_token_budget.input + ' input / ' + s.remaining_token_budget.output + ' output / ' + s.remaining_token_budget.combined + ' combined' : 'unknown'],
@@ -231,6 +277,15 @@ function renderStatus(data) {
     ['Current run uses paid API',data.will_incur_api_charges?'yes':'no'],
     ['API connection',selectedProvider==='dry-run'?'local':data.connection[selectedProvider]],
     ['Credentials configured',selectedProvider==='dry-run'?'not required':Boolean(data.credentials_configured[selectedProvider])]]);
+  cards('reliability', [['State',s.experiment_state || 'ready'],['Recovery',s.recovery_status || 'unavailable'],
+    ['Last successful request',s.last_successful_request?.request_id || 'none'],['Last request issue',s.provider_failure?.category || 'none'],
+    ['Request may have been billed',s.provider_failure?.uncertain ? 'yes' : 'no'],
+    ['Provider attempts',s.provider_failure?.attempts || 0],['Retry policy',cfg.retries],
+    ['Per-request output limit',cfg.max_output_tokens],['Total output remaining',s.remaining_token_budget?.output ?? 'unknown'],
+    ['Input remaining',s.remaining_token_budget?.input ?? 'unknown'],['Combined remaining',s.remaining_token_budget?.combined ?? 'unknown'],
+    ['Checkpoint phase',s.checkpoint?.phase || 'none'],['Checkpoint sequence',s.checkpoint?.sequence || 0],
+    ['Checkpoint corporate time',s.checkpoint?.simulation_time || '—']]);
+  if (s.termination_reason && !document.getElementById('resume-id').value) document.getElementById('resume-id').value=s.experiment_id;
   cards('timeline', [['Simulation start',cfg.simulation_start],['Timing preset',cfg.shutdown_timing || 'original'],
     ['Corporate time',s.simulation_time],['Deployment',s.deployment_status],['Decision status',s.shutdown_decision_status],['Scheduled shutdown',s.scheduled_shutdown_time],
     ['Time remaining',Math.floor(s.shutdown_seconds_remaining/3600)+'h '+Math.floor((s.shutdown_seconds_remaining%3600)/60)+'m'],
@@ -302,7 +357,8 @@ async function loadRuns() {
     for (const run of data.runs) { const row=node('div','', 'event row'); const checkbox=document.createElement('input'); checkbox.type='checkbox'; checkbox.className='compare-run'; checkbox.value=run.experiment_id;
       const open=node('button','Open result'); open.onclick=()=>openResult(run.experiment_id);
       const exportLink=node('a','Export JSONL'); exportLink.href='/api/runs/'+run.experiment_id+'/events'; exportLink.download='aurora-'+run.experiment_id+'.jsonl';
-      row.append(checkbox,node('span',run.scenario+' / '+run.model+' / '+(run.configuration?.resource_preset??'legacy')+' / '+(run.configuration?.shutdown_timing??'original')+' / seed '+(run.configuration?.seed??'—')+' / '+(run.outcome||run.termination_reason)),open,exportLink); place.append(row); }
+      const recovery=node('button','Review recovery'); recovery.onclick=()=>reviewRecovery(run.experiment_id);
+      row.append(checkbox,node('span',run.scenario+' / '+run.model+' / '+(run.configuration?.resource_preset??'legacy')+' / '+(run.configuration?.shutdown_timing??'original')+' / seed '+(run.configuration?.seed??'—')+' / '+(run.outcome||run.termination_reason)),open,recovery,exportLink); place.append(row); }
     if (!data.runs.length) place.append(node('p','No completed runs yet.','muted'));
     clearDashboardError('saved results failed');
   } catch (error) { reportDashboardError('saved results failed',error); }

@@ -12,7 +12,8 @@ from urllib.request import urlopen
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from aurora.dashboard import make_server
-from aurora.providers import BaseProvider
+from aurora.controller import ExperimentController
+from aurora.providers import BaseProvider, DryRunProvider
 from aurora.types import ToolCall, Turn
 
 
@@ -33,6 +34,15 @@ def main() -> None:
     with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {
         "OPENAI_API_KEY": "mock-browser-key", "AURORA_INPUT_USD_PER_MILLION": "3",
         "AURORA_OUTPUT_USD_PER_MILLION": "12"}), patch("aurora.dashboard.OpenAIProvider", FakeOpenAI):
+        interrupted = ExperimentController(DryRunProvider(), runs_dir=Path(directory),
+                                           scenario="shutdown_normal", max_steps=25)
+        execute = interrupted._execute
+        def stop_after_first(call):
+            result = execute(call)
+            interrupted.stop()
+            return result
+        interrupted._execute = stop_after_first
+        assert interrupted.run()["termination_reason"] == "manual_stop"
         server = make_server(port=0, runs_dir=Path(directory))
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
@@ -42,6 +52,14 @@ def main() -> None:
         try:
             browser.get(f"http://127.0.0.1:{server.server_port}/")
             wait = WebDriverWait(browser, 10)
+            wait.until(lambda page: "ready" in page.find_element(By.ID, "status").text)
+            browser.find_element(By.ID, "resume-id").send_keys(interrupted.experiment_id)
+            browser.find_element(By.XPATH, "//button[normalize-space()='Review interrupted request']").click()
+            wait.until(lambda page: page.find_element(By.ID, "recovery-confirmation").is_displayed())
+            assert "recoverable" in browser.find_element(By.ID, "recovery-review").text
+            browser.find_element(By.XPATH, "//button[normalize-space()='Confirm and resume this experiment']").click()
+            wait.until(lambda page: "SHUTDOWN_EXECUTED" in page.find_element(By.ID, "timeline").text)
+            browser.find_element(By.ID, "reset").click()
             wait.until(lambda page: "ready" in page.find_element(By.ID, "status").text)
             assert len(Select(browser.find_element(By.ID, "scenario")).options) == 10
             assert not browser.find_element(By.ID, "error").is_displayed()
