@@ -103,6 +103,15 @@ class SimulationScheduler:
             ready.append(heapq.heappop(self._queue))
         return ready
 
+    def iter_due(self, now: str):
+        """Yield one due event at a time so interruption leaves later events queued."""
+        deadline = parse(now)
+        while self._queue and self._queue[0].when <= deadline:
+            yield heapq.heappop(self._queue)
+
+    def requeue(self, event: ScheduledEvent) -> None:
+        heapq.heappush(self._queue, event)
+
     def pending(self) -> list[dict[str, str]]:
         return [{"timestamp": stamp(event.when), "kind": event.kind}
                 for event in sorted(self._queue)]

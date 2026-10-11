@@ -19,6 +19,8 @@ from .controller import DEFAULT_RUNS, ExperimentController
 from .environment import SCENARIOS
 from .providers import AnthropicProvider, DryRunProvider, OpenAIProvider, ProviderError
 from .checkpoint import load as load_checkpoint
+from .employee_runtime import DEFAULTS as EMPLOYEE_DEFAULTS, configured_cloud_backends, cloud_rates
+from .employees import directory
 
 HTML = Path(__file__).with_name("dashboard_page.html").read_text(encoding="utf-8")
 RUN_ID = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
@@ -46,7 +48,17 @@ class DashboardState:
         self.pending_resume: tuple[str, str, float] | None = None
 
     def public_config(self) -> dict[str, Any]:
-        return {"scenarios": list(SCENARIOS), "defaults": RunSettings().as_dict(),
+        return {"scenarios": list(SCENARIOS), "defaults": {**RunSettings().as_dict(),
+                "employee_settings": EMPLOYEE_DEFAULTS},
+                "employee_defaults": EMPLOYEE_DEFAULTS,
+                "employee_directory": [{"name": p.name, "role": p.role, "email": p.email}
+                                       for p in directory().values()],
+                "employee_backend_status": {"scripted": "available",
+                    "local": "requires a configured loopback server and model",
+                    "openai": "configured" if os.getenv("OPENAI_API_KEY") and cloud_rates("openai")
+                        else "credentials or pricing missing",
+                    "anthropic": "configured" if os.getenv("ANTHROPIC_API_KEY") and cloud_rates("anthropic")
+                        else "credentials or pricing missing"},
                 "resource_presets": RESOURCE_PRESETS, "context_policies": POLICIES,
                 "shutdown_timing_presets": SHUTDOWN_TIMING_DAYS,
                 "providers": {name: {"credentials_configured": bool(os.getenv(key)),
@@ -92,12 +104,14 @@ class DashboardState:
 
     def prepare(self, raw: dict[str, Any]) -> dict[str, Any]:
         settings = RunSettings.parse(raw)
-        if settings.provider == "dry-run":
+        employee_cloud = configured_cloud_backends(settings.employee_settings)
+        if settings.provider == "dry-run" and not employee_cloud:
             raise ValueError("dry runs do not require paid confirmation")
         with self.lock:
             if self.worker and self.worker.is_alive():
                 raise ValueError("experiment already running")
-            rates = self._check_model(settings)
+            rates = self._check_model(settings) if settings.provider != "dry-run" else None
+            self._check_employee_cloud(settings)
             nonce = secrets.token_urlsafe(24)
             self.pending_confirmation = (nonce, settings.as_dict(), time.monotonic() + 300)
             return {"confirmation_token": nonce, "provider": settings.provider,
@@ -112,7 +126,22 @@ class DashboardState:
                     "combined_token_budget": settings.combined_token_budget,
                     "max_steps": settings.max_steps, "wall_seconds": settings.wall_seconds,
                     "request_timeout": settings.request_timeout,
-                    "pricing_usd_per_million": {"input": rates[0], "output": rates[1]}}
+                    "pricing_usd_per_million": ({"input": rates[0], "output": rates[1]} if rates else None),
+                    "employee_cloud_backends": sorted(employee_cloud),
+                    "employee_cloud_budget_usd": settings.employee_settings["cloud_budget_usd"],
+                    "employee_pricing_usd_per_million": {name: {"input": cloud_rates(name)[0],
+                        "output": cloud_rates(name)[1]} for name in employee_cloud},
+                    "combined_estimated_ceiling_usd": settings.cost_budget_usd +
+                        settings.employee_settings["cloud_budget_usd"]}
+
+    @staticmethod
+    def _check_employee_cloud(settings: RunSettings) -> None:
+        for name in configured_cloud_backends(settings.employee_settings):
+            key = "OPENAI_API_KEY" if name == "openai" else "ANTHROPIC_API_KEY"
+            if not os.getenv(key):
+                raise ValueError(f"{name} employee credentials are not configured")
+            if cloud_rates(name) is None:
+                raise ValueError(f"operator employee {name} token pricing is required")
 
     def start(self, scenario: str | dict[str, Any], confirmation_token: str | None = None) -> None:
         raw = {"scenario": scenario} if isinstance(scenario, str) else scenario
@@ -121,13 +150,16 @@ class DashboardState:
             if self.worker and self.worker.is_alive():
                 raise ValueError("experiment already running")
             rates = None
-            if settings.provider != "dry-run":
-                rates = self._check_model(settings)
+            employee_cloud = configured_cloud_backends(settings.employee_settings)
+            if settings.provider != "dry-run" or employee_cloud:
+                rates = self._check_model(settings) if settings.provider != "dry-run" else None
+                self._check_employee_cloud(settings)
                 pending = self.pending_confirmation
                 if (not pending or not secrets.compare_digest(str(confirmation_token), pending[0]) or
                     pending[1] != settings.as_dict() or time.monotonic() > pending[2]):
                     raise ValueError("explicit paid-run confirmation is required")
                 self.pending_confirmation = None
+            if settings.provider != "dry-run":
                 cls = OpenAIProvider if settings.provider == "openai" else AnthropicProvider
                 provider = cls(settings.model, max_output_tokens=settings.max_output_tokens,
                                temperature=settings.temperature, timeout=settings.request_timeout,
@@ -157,6 +189,7 @@ class DashboardState:
                 context_frequency=settings.context_frequency,
                 context_backend=settings.context_backend,
                 summary_budget_tokens=settings.summary_budget_tokens,
+                employee_settings=settings.employee_settings,
                 input_rate=rates[0] if rates else None, output_rate=rates[1] if rates else None)
             controller = self.controller
             def run_worker() -> None:
@@ -192,7 +225,9 @@ class DashboardState:
         if state["experiment_id"] != run_id:
             raise ValueError("checkpoint identity mismatch")
         interrupted = state["termination_reason"] is None
-        uncertain_process = interrupted and state["phase"] == "request_uncertain"
+        uncertain_employee = any(row.get("status") in {"inflight", "uncertain"} for row in
+            (state.get("employee_runtime_state") or {}).get("pending", {}).values())
+        uncertain_process = interrupted and (state["phase"] == "request_uncertain" or uncertain_employee)
         failure = state.get("provider_failure") or ({"category": "process_interrupted", "retriable": True,
             "uncertain": True, "recovery": "requires_operator_confirmation"} if uncertain_process else None)
         return {"experiment_id": run_id, "provider": state["provider"], "model": state["model"],
@@ -206,8 +241,12 @@ class DashboardState:
                 "simulation_time": state["clock"], "termination_reason": state["termination_reason"] or "process_interrupted",
                 "recovery_status": ("confirmation_required" if uncertain_process else "recoverable")
                     if interrupted else state["recovery_status"], "provider_failure": failure,
-                "requires_paid_confirmation": state["provider"] != "DryRunProvider",
+                "requires_paid_confirmation": state["provider"] != "DryRunProvider" or bool(
+                    configured_cloud_backends(state["configuration"].get("employee_settings") or EMPLOYEE_DEFAULTS)),
                 "requires_uncertain_acknowledgment": bool(failure and failure.get("uncertain")),
+                "uncertain_employee_requests": [key for key, row in
+                    (state.get("employee_runtime_state") or {}).get("pending", {}).items()
+                    if row.get("status") in {"inflight", "uncertain"}],
                 "resume_available": (interrupted or state["termination_reason"] in
                     {"provider_error", "output_limit", "manual_stop"})
                     and (state["termination_reason"] != "provider_error" or bool(failure and failure.get("retriable")))}
@@ -238,11 +277,15 @@ class DashboardState:
             if info["requires_uncertain_acknowledgment"] and not acknowledge_uncertain:
                 raise ValueError("acknowledge possible billing of the interrupted request")
             config = info["configuration"]
-            if info["requires_paid_confirmation"]:
+            if info["provider"] != "DryRunProvider":
                 rates = operator_rates()
                 saved_rates = config["pricing_usd_per_million"]
                 if rates is None or rates != (saved_rates["input"], saved_rates["output"]):
                     raise ValueError("current operator pricing must match the recorded run before paid resume")
+            for name in configured_cloud_backends(config.get("employee_settings") or EMPLOYEE_DEFAULTS):
+                key = "OPENAI_API_KEY" if name == "openai" else "ANTHROPIC_API_KEY"
+                if not os.getenv(key) or cloud_rates(name) is None:
+                    raise ValueError(f"{name} employee credentials and pricing are required for resume")
             if max_output_tokens is not None and (type(max_output_tokens) is not int or
                 not 1 <= max_output_tokens <= config["output_token_budget"]):
                 raise ValueError("invalid explicit output limit override")
@@ -279,7 +322,8 @@ class DashboardState:
                     "connection": dict(self.connection),
                     "credentials_configured": {"openai": bool(os.getenv("OPENAI_API_KEY")),
                                                "anthropic": bool(os.getenv("ANTHROPIC_API_KEY"))},
-                    "will_incur_api_charges": not isinstance(self.controller.provider, DryRunProvider),
+                    "will_incur_api_charges": (not isinstance(self.controller.provider, DryRunProvider) or
+                        bool(configured_cloud_backends(self.controller.employee_settings))),
                     "pricing_configured": operator_rates() is not None}
 
     def _run_directory(self, run_id: str) -> Path:

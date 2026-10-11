@@ -146,7 +146,7 @@ class Phase4Tests(unittest.TestCase):
         with self.assertRaises(ValueError):
             LocalOpenAIEmployeeBackend("http://127.0.0.1:8080/v1", token_limit=0)
         local = LocalOpenAIEmployeeBackend("http://127.0.0.1:8080/v1")
-        with self.assertRaises(NotImplementedError):
+        with self.assertRaisesRegex(ValueError, "model identifier"):
             local.respond(next(iter(directory().values())), {"content": "hello"})
 
     def test_assignment_partial_and_malformed_calls_are_separate(self):

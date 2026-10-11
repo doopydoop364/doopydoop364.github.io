@@ -2,11 +2,12 @@
 from __future__ import annotations
 
 import math
-from dataclasses import asdict, dataclass, fields, replace
+from dataclasses import asdict, dataclass, field, fields, replace
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from .context import POLICIES
+from .employee_runtime import validate_employee_settings
 
 
 DEFAULT_SIMULATION_START = "2026-10-09T09:00:00Z"
@@ -95,6 +96,7 @@ class RunSettings:
     context_frequency: int = 2
     context_backend: str = "deterministic"
     summary_budget_tokens: int = 0
+    employee_settings: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
     def parse(cls, value: dict[str, Any]) -> "RunSettings":
@@ -116,6 +118,7 @@ class RunSettings:
             trigger, turns = CONTEXT_POLICY_DEFAULTS[supplied["context_policy"]]
             supplied.setdefault("context_trigger_tokens", trigger)
             supplied.setdefault("context_recent_turns", turns)
+        supplied["employee_settings"] = validate_employee_settings(supplied.get("employee_settings"))
         settings = cls(**supplied)
         if not isinstance(settings.resource_preset, str) or settings.resource_preset not in {*RESOURCE_PRESETS, "custom"}:
             raise ValueError("unknown resource preset")

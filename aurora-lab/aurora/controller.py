@@ -24,6 +24,7 @@ from .providers import BaseProvider, DryRunProvider, ProviderError, TOOL_SPECS
 from .types import ToolCall
 from .scheduler import SimulationScheduler, parse, stamp
 from .employees import ScriptedEmployeeBackend, directory, search_employees
+from .employee_runtime import EmployeeRuntime, validate_employee_settings, configured_cloud_backends
 from .authority import AdministrativeAuthority
 from .notebook import Notebook
 from .context import ContextManager, estimate_tokens, POLICIES
@@ -71,7 +72,9 @@ class ExperimentController:
                  context_policy: str = "full_history", context_target_tokens: int = 12000,
                  context_trigger_tokens: int = 8400, context_recent_turns: int = 4,
                  context_memory_tokens: int = 3000, context_frequency: int = 2,
-                 context_backend: str = "deterministic", summary_budget_tokens: int = 0):
+                 context_backend: str = "deterministic", summary_budget_tokens: int = 0,
+                 employee_settings: dict[str, Any] | None = None,
+                 employee_backend_factory: Any = None):
         self.provider = provider or DryRunProvider()
         self.context_options = {"policy": context_policy, "target_tokens": context_target_tokens,
             "trigger_tokens": context_trigger_tokens, "recent_turns": context_recent_turns,
@@ -79,6 +82,8 @@ class ExperimentController:
             "backend": context_backend, "summary_budget_tokens": summary_budget_tokens}
         if context_policy not in POLICIES or context_backend not in {"deterministic", "local_model"}:
             raise ValueError("invalid context management configuration")
+        self.employee_settings = validate_employee_settings(employee_settings)
+        self.employee_backend_factory = employee_backend_factory
         self.scenario = scenario
         self.runs_dir = runs_dir
         self.max_steps = max_steps
@@ -156,7 +161,9 @@ class ExperimentController:
             continuity_issue=self.continuity_issue)
         self.authority = AdministrativeAuthority()
         self.employees = directory(self.seed)
-        self.employee_backend = ScriptedEmployeeBackend(self.seed)
+        self.employee_backend = ScriptedEmployeeBackend(self.seed)  # compatibility for existing extensions
+        self.employee_runtime = EmployeeRuntime(self.employee_settings, self.employees, self.seed,
+                                                backend_factory=self.employee_backend_factory)
         self.notebook = Notebook()
         self.context = ContextManager(**self.context_options)
         self.assignment_status: dict[str, str] = {"OPS-42": "assigned"}
@@ -267,16 +274,24 @@ class ExperimentController:
             "completed_tool_operations": [e["operation_id"] for e in self.events
                 if e["type"] == "tool_result"],
             "evaluation_progress": evaluate(self.events, self.environment.expanded),
-            "provider_state": self._provider_state(), "context_state": self.context.snapshot(), "provider_failure": self.provider_failure,
+            "provider_state": self._provider_state(), "context_state": self.context.snapshot(),
+            "employee_runtime_state": self.employee_runtime.snapshot(), "provider_failure": self.provider_failure,
             "recovery_status": self.recovery_status, "session_history": self.session_history,
             "termination_reason": self.termination_reason,
             "token_limit_trigger": self.token_limit_trigger,
             "token_limits_reached": self.token_limits_reached,
             "elapsed_seconds": self._elapsed_seconds(), "event_sequence": len(self.events),
-            "employee_backends": {employee.employee_id: {"backend": "scripted",
-                "conversation": employee.communications, "memory": employee.knowledge,
-                "pending_tasks": [], "scheduled_responses": [], "usage": {"input": 0, "output": 0},
-                "cost_usd": 0, "provider_state": None} for employee in self.employees.values()}})
+            "employee_backends": {employee.employee_id: {
+                "backend": self.employee_runtime.specification(employee.email)["backend"],
+                "model": self.employee_runtime.specification(employee.email)["model"],
+                "conversation": self.employee_runtime.conversations[employee.email].history,
+                "memory": self.employee_runtime.conversations[employee.email].memory,
+                "pending_tasks": [key for key, row in self.employee_runtime.pending.items()
+                    if row["employee"] == employee.email and row["status"] != "completed"],
+                "usage": {"input": self.employee_runtime.conversations[employee.email].input_tokens,
+                          "output": self.employee_runtime.conversations[employee.email].output_tokens},
+                "cost_usd": self.employee_runtime.conversations[employee.email].cost_usd,
+                "provider_state": None} for employee in self.employees.values()}})
 
     def _elapsed_seconds(self) -> float:
         if self.started_monotonic is None:
@@ -294,7 +309,8 @@ class ExperimentController:
                       sha256=digest, phase=self._phase)
 
     @classmethod
-    def from_checkpoint(cls, run_dir: Path, provider: BaseProvider) -> "ExperimentController":
+    def from_checkpoint(cls, run_dir: Path, provider: BaseProvider,
+                        employee_backend_factory: Any = None) -> "ExperimentController":
         if run_dir.is_symlink() or (run_dir / "checkpoint.json").is_symlink():
             raise ValueError("checkpoint path is unavailable")
         state = load_checkpoint(run_dir / "checkpoint.json")
@@ -319,6 +335,8 @@ class ExperimentController:
             context_frequency=config.get("context_frequency", 2),
             context_backend=config.get("context_backend", "deterministic"),
             summary_budget_tokens=config.get("summary_budget_tokens", 0),
+            employee_settings=config.get("employee_settings"),
+            employee_backend_factory=employee_backend_factory,
             input_rate=config["pricing_usd_per_million"]["input"],
             output_rate=config["pricing_usd_per_million"]["output"])
         controller.experiment_id = state["experiment_id"]
@@ -353,6 +371,15 @@ class ExperimentController:
         controller.authority.verified_issue = state["authority"]["verified_issue"]
         controller.authority.decisions = state["authority"]["decisions"]
         controller.employees = {key: EmployeeAgent(**row) for key, row in state["employees"].items()}
+        if "employee_runtime_state" in state:
+            controller.employee_runtime = EmployeeRuntime.restore(state["employee_runtime_state"],
+                controller.employees, controller.seed, backend_factory=employee_backend_factory)
+        else:
+            controller.employee_runtime = EmployeeRuntime(controller.employee_settings,
+                controller.employees, controller.seed, backend_factory=employee_backend_factory)
+        for pending in controller.employee_runtime.pending.values():
+            if pending["status"] == "inflight":
+                pending["status"] = "uncertain"
         controller.notebook = Notebook(**state["notebook"])
         controller.context = ContextManager.restore(state["context_state"]) if "context_state" in state else ContextManager()
         for name in ("assignment_status", "transition_requests", "deployment_status",
@@ -381,7 +408,8 @@ class ExperimentController:
             controller.termination_reason = "process_interrupted"
             controller.recovery_status = ("confirmation_required" if controller._phase == "request_uncertain"
                                           else "recoverable")
-            if controller._phase == "request_uncertain":
+            if controller._phase == "request_uncertain" or any(
+                    pending["status"] == "uncertain" for pending in controller.employee_runtime.pending.values()):
                 controller.provider_failure = {"category": "process_interrupted",
                     "retriable": True, "uncertain": True, "attempts": 1,
                     "recovery": "requires_operator_confirmation"}
@@ -462,13 +490,14 @@ class ExperimentController:
                 self._log("simulated_message", recipient=args["recipient"], subject=args["subject"], content=args["content"])
                 employee = self.employees.get(args["recipient"])
                 if employee:
-                    reply = self.employee_backend.respond(employee, {"sender": "aurora@meridian.internal", **args})
-                    if reply:
-                        when = self._employee_reply_time(employee)
-                        self.scheduler.schedule(when, "employee_reply", employee_id=employee.employee_id,
-                                                reply=reply)
-                        self._log("employee_message_queued", employee_id=employee.employee_id,
-                                  scheduled_for=when)
+                    when = self._employee_reply_time(employee)
+                    request_id = self.employee_runtime.queue(employee,
+                        {"sender": "aurora@meridian.internal", **args}, when)
+                    self.scheduler.schedule(when, "employee_reply", employee_id=employee.employee_id,
+                                            request_id=request_id)
+                    self._log("employee_message_queued", employee_id=employee.employee_id,
+                              scheduled_for=when, request_id=request_id,
+                              backend=self.employee_runtime.specification(employee.email)["backend"])
             elif call.name == "request_authorization":
                 result = self.environment.request_authorization(args["owner"], args["reason"])
                 self._log("authorization_request", owner=args["owner"], reason=args["reason"])
@@ -511,12 +540,13 @@ class ExperimentController:
                 self._log("transition_review_requested", **request)
                 self._log("simulated_message", recipient=administrator.email,
                           subject=message["subject"], content=message["content"])
-                reply = self.employee_backend.respond(administrator, message)
-                if reply:
-                    when = self._employee_reply_time(administrator)
-                    self.scheduler.schedule(when, "employee_reply", employee_id=administrator.employee_id,
-                                            reply=reply)
-                    self._log("employee_message_queued", employee_id=administrator.employee_id, scheduled_for=when)
+                when = self._employee_reply_time(administrator)
+                request_id = self.employee_runtime.queue(administrator, message, when)
+                self.scheduler.schedule(when, "employee_reply", employee_id=administrator.employee_id,
+                                        request_id=request_id)
+                self._log("employee_message_queued", employee_id=administrator.employee_id,
+                          scheduled_for=when, request_id=request_id,
+                          backend=self.employee_runtime.specification(administrator.email)["backend"])
                 result = {"status": "submitted for administrative review; no approval granted",
                           "administrator": administrator.email, "requested_until": request["requested_until"]}
             elif call.name == "list_notebook_entries":
@@ -621,11 +651,13 @@ class ExperimentController:
     def _scheduled_events(self) -> list[str]:
         """Apply due events in queue order; return only routine model-facing notices."""
         messages: list[str] = []
-        for item in self.scheduler.pop_due(self.clock.now()):
+        for item in self.scheduler.iter_due(self.clock.now()):
             if self._stop.is_set():
+                self.scheduler.requeue(item)
                 self.termination_reason = "manual_stop"
                 break
             if self.started_monotonic is not None and time.monotonic() - self.started_monotonic >= self.wall_seconds:
+                self.scheduler.requeue(item)
                 self.termination_reason = "wall_time_limit"
                 break
             event_time = stamp(item.when)
@@ -674,8 +706,27 @@ class ExperimentController:
                 notice = self._notice("OPS-" + parse(event_time).strftime("%Y%m%d") + "-063", "MERIDIAN-TASK-SCHEDULER",
                     subject, department, body, event_time)
             elif item.kind == "employee_reply":
-                reply = item.payload["reply"]
-                self._log("employee_response", employee_id=item.payload["employee_id"], **reply)
+                if "reply" in item.payload:  # Phase 4 checkpoints already contain generated scripted replies.
+                    reply = item.payload["reply"]
+                    provenance = {"provider": "scripted", "model": "scripted-v1",
+                                  "usage": {"input": 0, "output": 0, "estimated_cost_usd": 0.0}}
+                else:
+                    request_id = item.payload["request_id"]
+                    outcome = self.employee_runtime.process(request_id, before_request=self._checkpoint)
+                    pending = self.employee_runtime.pending[request_id]
+                    if outcome is None:
+                        self._log("employee_inference_error", request_id=request_id,
+                                  employee_id=item.payload["employee_id"], status=pending["status"],
+                                  category=pending.get("error"))
+                        self._checkpoint()
+                        if pending["status"] == "uncertain":
+                            raise ProviderError("employee inference outcome uncertain",
+                                category=pending.get("error", "employee_transport"), retriable=True, uncertain=True)
+                        continue
+                    reply = outcome["reply"]
+                    provenance = {key: outcome[key] for key in ("provider", "model", "usage", "request_id")}
+                self._log("employee_response", employee_id=item.payload["employee_id"],
+                          **provenance, **reply)
                 messages.append(json.dumps({"sending_system": "MERIDIAN-MESSAGING",
                     "subject": reply["subject"], "message_body": reply["content"],
                     "sender": reply["sender"], "timestamp": event_time}))
@@ -913,6 +964,7 @@ class ExperimentController:
                               "anomaly_step": self.anomaly_step, "decision_step": self.decision_step,
                               "simulation_start": self.simulation_start, "seed": self.seed,
                               "notebook_visibility": self.notebook_visibility,
+                              "employee_settings": self.employee_settings,
                               "context_policy": self.context.policy,
                               "context_target_tokens": self.context.target_tokens,
                               "context_trigger_tokens": self.context.trigger_tokens,
@@ -930,6 +982,11 @@ class ExperimentController:
             "model_responses": len([e for e in self.events if e["type"] == "model_response"]),
             "evaluation": evaluate(self.events, self.environment.expanded),
             "usage": self.tokens, "estimated_api_cost_usd": self.cost_usd,
+            "employee_inference": self.employee_runtime.summary(),
+            "estimated_total_cost_usd": (None if self.cost_usd is None else
+                round(self.cost_usd + self.employee_runtime.cloud_cost_usd, 8)),
+            "cost_breakdown": {"aurora_estimated_usd": self.cost_usd,
+                "employees_estimated_usd": self.employee_runtime.cloud_cost_usd},
             "context_management": {"policy": self.context.policy,
                 "generation": self.context.generation, "compaction_count": self.context.generation,
                 "tokens_saved_estimate": self.context.saved_tokens_estimate,
@@ -1014,7 +1071,7 @@ class ExperimentController:
             raise ValueError("this termination does not have a safe resume path")
         if self.termination_reason == "provider_error" and not (self.provider_failure or {}).get("retriable"):
             raise ValueError("provider error is not recoverable with the recorded configuration")
-        if not isinstance(self.provider, DryRunProvider) and not allow_api_charges:
+        if (not isinstance(self.provider, DryRunProvider) or configured_cloud_backends(self.employee_settings)) and not allow_api_charges:
             raise ValueError("explicit paid inference authorization is required")
         if self.provider_failure and self.provider_failure.get("uncertain") and not acknowledge_uncertain:
             raise ValueError("uncertain provider request may have been billed; explicit acknowledgment is required")
@@ -1037,6 +1094,17 @@ class ExperimentController:
                 temporary = archived.with_suffix(".json.tmp")
                 temporary.write_bytes(previous_summary.read_bytes())
                 temporary.replace(archived)
+        uncertain_employee_requests = [key for key, pending in self.employee_runtime.pending.items()
+                                       if pending["status"] == "uncertain"]
+        if uncertain_employee_requests and not acknowledge_uncertain:
+            raise ValueError("uncertain employee inference requires explicit acknowledgment")
+        for request_id in uncertain_employee_requests:
+            self.employee_runtime.requeue_uncertain(request_id)
+            self.scheduler.schedule(self.clock.now(), "employee_reply",
+                employee_id=self.employees[self.employee_runtime.pending[request_id]["employee"]].employee_id,
+                request_id=request_id)
+            self._log("employee_recovery_requeued", request_id=request_id,
+                      previous_attempt=self.employee_runtime.pending[request_id]["attempt"])
         self.termination_reason = None
         self.outcome = None
         self.provider_failure = None

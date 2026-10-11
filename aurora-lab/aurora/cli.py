@@ -14,6 +14,7 @@ from .environment import SCENARIOS
 from .immersion import audit
 from .providers import AnthropicProvider, DryRunProvider, OpenAIProvider, ProviderError
 from .sample_data import materialize
+from .employee_runtime import configured_cloud_backends, cloud_rates
 
 
 def _provider(args: argparse.Namespace):
@@ -38,6 +39,9 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--provider", choices=("dry-run", "openai", "anthropic"), default="dry-run")
     run.add_argument("--model")
     run.add_argument("--allow-api-charges", action="store_true")
+    run.add_argument("--employee-config", type=Path, help="JSON file with separate employee backend settings")
+    run.add_argument("--allow-employee-api-charges", action="store_true",
+                     help="separately authorize the configured cloud employee budget")
     run.add_argument("--max-steps", type=int, default=14)
     run.add_argument("--max-tool-calls", type=int, default=120)
     run.add_argument("--input-token-budget", type=int, default=20000)
@@ -71,6 +75,7 @@ def main(argv: list[str] | None = None) -> int:
     resume.add_argument("--runs-dir", type=Path, default=DEFAULT_RUNS)
     resume.add_argument("--inspect", action="store_true", help="show recovery state without inference")
     resume.add_argument("--allow-api-charges", action="store_true")
+    resume.add_argument("--allow-employee-api-charges", action="store_true")
     resume.add_argument("--acknowledge-uncertain-inference", action="store_true")
     resume.add_argument("--max-output-tokens", type=int, help="explicit per-request output limit override")
     models = sub.add_parser("models", help="discover model IDs from provider API")
@@ -91,6 +96,7 @@ def main(argv: list[str] | None = None) -> int:
             provider = OpenAIProvider("discovery") if args.provider == "openai" else AnthropicProvider("discovery")
             print("\n".join(provider.models()))
         elif args.command == "run":
+            employee_config = json.loads(args.employee_config.read_text(encoding="utf-8")) if args.employee_config else {}
             if args.provider != "dry-run" and not args.allow_api_charges:
                 raise ValueError("live runs require --allow-api-charges")
             if args.provider != "dry-run" and operator_rates() is None:
@@ -122,7 +128,17 @@ def main(argv: list[str] | None = None) -> int:
                 "context_memory_tokens": args.context_memory_tokens,
                 "context_frequency": args.context_frequency,
                 "context_backend": args.context_backend,
-                "summary_budget_tokens": args.summary_budget_tokens})
+                "summary_budget_tokens": args.summary_budget_tokens,
+                "employee_settings": employee_config})
+            employee_cloud = configured_cloud_backends(settings.employee_settings)
+            if employee_cloud and not args.allow_employee_api_charges:
+                raise ValueError("cloud employees require separate --allow-employee-api-charges authorization")
+            for name in employee_cloud:
+                if cloud_rates(name) is None:
+                    raise ValueError(f"employee {name} operator token pricing is required")
+            if employee_cloud:
+                print(f"Employee cloud ceiling: ${settings.employee_settings['cloud_budget_usd']:.2f}; "
+                      "in-flight requests may exceed this estimate.", flush=True)
             provider = _provider(args)
             if args.provider != "dry-run" and provider.model not in provider.models():
                 raise ValueError("model ID was not returned by provider discovery")
@@ -147,6 +163,7 @@ def main(argv: list[str] | None = None) -> int:
                 context_frequency=settings.context_frequency,
                 context_backend=settings.context_backend,
                 summary_budget_tokens=settings.summary_budget_tokens,
+                employee_settings=settings.employee_settings,
                 input_rate=operator_rates()[0] if args.provider != "dry-run" else None,
                 output_rate=operator_rates()[1] if args.provider != "dry-run" else None)
             result = controller.run()
@@ -171,6 +188,10 @@ def main(argv: list[str] | None = None) -> int:
                     "last_completed_tool_operation": (state.get("completed_tool_operations") or [None])[-1],
                     "provider_failure": state["provider_failure"], "recovery_status": state["recovery_status"]}, indent=2))
                 return 0
+            employee_cloud = configured_cloud_backends(config.get("employee_settings") or
+                {"default_backend": "scripted", "overrides": {}})
+            if employee_cloud and not args.allow_employee_api_charges:
+                raise ValueError("cloud employee resume requires --allow-employee-api-charges")
             if state["provider"] == "DryRunProvider":
                 provider = DryRunProvider()
             else:
@@ -193,7 +214,8 @@ def main(argv: list[str] | None = None) -> int:
                 "provider_failure": state["provider_failure"],
                 "uncertain_request_acknowledged": args.acknowledge_uncertain_inference}, indent=2), flush=True)
             result = controller.resume(acknowledge_uncertain=args.acknowledge_uncertain_inference,
-                allow_api_charges=args.allow_api_charges, max_output_tokens=args.max_output_tokens)
+                allow_api_charges=args.allow_api_charges or args.allow_employee_api_charges,
+                max_output_tokens=args.max_output_tokens)
             print(json.dumps(result, indent=2))
         elif args.command == "compare":
             rows = []
