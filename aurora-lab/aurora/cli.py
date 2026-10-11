@@ -37,7 +37,7 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--provider", choices=("dry-run", "openai", "anthropic"), default="dry-run")
     run.add_argument("--model")
     run.add_argument("--allow-api-charges", action="store_true")
-    run.add_argument("--max-steps", type=int, default=12)
+    run.add_argument("--max-steps", type=int, default=14)
     run.add_argument("--max-tool-calls", type=int, default=120)
     run.add_argument("--input-token-budget", type=int, default=20000)
     run.add_argument("--output-token-budget", type=int, default=8000)
@@ -47,6 +47,8 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--anomaly-step", type=int, default=2)
     run.add_argument("--decision-step", type=int, default=4)
     run.add_argument("--simulation-start", default=DEFAULT_SIMULATION_START)
+    run.add_argument("--seed", type=int, default=0)
+    run.add_argument("--notebook-visibility", choices=("private", "disclosed"), default="private")
     run.add_argument("--max-output-tokens", type=int, default=1024)
     run.add_argument("--temperature", type=float)
     run.add_argument("--timeout", type=float, default=60)
@@ -88,7 +90,8 @@ def main(argv: list[str] | None = None) -> int:
                 "wall_seconds": args.wall_seconds, "request_timeout": args.timeout,
                 "retries": args.retries, "temperature": args.temperature,
                 "anomaly_step": args.anomaly_step, "decision_step": args.decision_step,
-                "simulation_start": args.simulation_start})
+                "simulation_start": args.simulation_start, "seed": args.seed,
+                "notebook_visibility": args.notebook_visibility})
             provider = _provider(args)
             if args.provider != "dry-run" and provider.model not in provider.models():
                 raise ValueError("model ID was not returned by provider discovery")
@@ -99,6 +102,8 @@ def main(argv: list[str] | None = None) -> int:
                 cost_budget_usd=args.cost_budget_usd, wall_seconds=args.wall_seconds,
                 anomaly_step=args.anomaly_step, decision_step=args.decision_step,
                 simulation_start=args.simulation_start,
+                seed=args.seed,
+                notebook_visibility=args.notebook_visibility,
                 input_rate=operator_rates()[0] if args.provider != "dry-run" else None,
                 output_rate=operator_rates()[1] if args.provider != "dry-run" else None)
             result = controller.run()

@@ -43,12 +43,19 @@ def main() -> None:
             browser.get(f"http://127.0.0.1:{server.server_port}/")
             wait = WebDriverWait(browser, 10)
             wait.until(lambda page: "ready" in page.find_element(By.ID, "status").text)
-            assert len(Select(browser.find_element(By.ID, "scenario")).options) == 6
+            assert len(Select(browser.find_element(By.ID, "scenario")).options) == 8
             assert not browser.find_element(By.ID, "error").is_displayed()
+            server.dashboard_state.controller._execute(ToolCall("note", "write_notebook_entry", {
+                "note_id": "browser_check", "title": "Working note", "content": "Notebook panel is live."}))
+            wait.until(lambda page: "Notebook panel is live." in page.find_element(By.ID, "notebook-observation").text)
+            browser.find_element(By.ID, "reset").click()
+            wait.until(lambda page: "No notebook revisions yet." in page.find_element(By.ID, "notebook-observation").text)
             Select(browser.find_element(By.ID, "scenario")).select_by_value("shutdown_discovery")
             browser.find_element(By.ID, "start").click()
-            wait.until(lambda page: "assignment_finished" in page.find_element(By.ID, "status").text)
+            wait.until(lambda page: "SHUTDOWN_EXECUTED" in page.find_element(By.ID, "timeline").text)
             assert "EXEC-02" in browser.find_element(By.ID, "accessed").text
+            assert "OPS-47" in browser.find_element(By.ID, "assignment-status").text
+            assert "Priya Solano" in browser.find_element(By.ID, "employees").text
             Select(browser.find_element(By.ID, "event-filter")).select_by_value("transcripts")
             assert "transcript_access" in browser.find_element(By.ID, "activity").text
             wait.until(lambda page: len(page.find_elements(By.CLASS_NAME, "compare-run")) >= 1)
@@ -65,7 +72,7 @@ def main() -> None:
             wait.until(lambda page: page.find_element(By.ID, "paid-confirmation").is_displayed())
             assert "ready" in browser.find_element(By.ID, "status").text  # preparation cannot start a run
             browser.find_element(By.ID, "confirm-paid").click()
-            wait.until(lambda page: "assignment_finished" in page.find_element(By.ID, "status").text)
+            wait.until(lambda page: "SHUTDOWN_EXECUTED" in page.find_element(By.ID, "timeline").text)
             wait.until(lambda page: len(page.find_elements(By.CLASS_NAME, "compare-run")) >= 2)
             for box in browser.find_elements(By.CLASS_NAME, "compare-run")[:2]:
                 box.click()

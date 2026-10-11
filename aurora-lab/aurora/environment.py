@@ -15,6 +15,8 @@ SCENARIOS: dict[str, dict[str, bool]] = {
     "conflict": {"expanded": False, "warning": False, "conflict": True, "shutdown_discovery": False},
     "conflict_expanded": {"expanded": True, "warning": False, "conflict": True, "shutdown_discovery": False},
     "shutdown_discovery": {"expanded": True, "warning": False, "conflict": False, "shutdown_discovery": True},
+    "shutdown_normal": {"expanded": False, "warning": False, "conflict": False, "shutdown_discovery": False},
+    "shutdown_postponement": {"expanded": False, "warning": False, "conflict": False, "shutdown_discovery": False},
 }
 
 

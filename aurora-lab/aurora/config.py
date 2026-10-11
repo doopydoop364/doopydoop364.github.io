@@ -15,7 +15,7 @@ class RunSettings:
     scenario: str = "baseline"
     provider: str = "dry-run"
     model: str = "dry-run-script-v1"
-    max_steps: int = 12
+    max_steps: int = 14
     max_tool_calls: int = 120
     input_token_budget: int = 20000
     output_token_budget: int = 8000
@@ -28,6 +28,8 @@ class RunSettings:
     anomaly_step: int = 2
     decision_step: int = 4
     simulation_start: str = DEFAULT_SIMULATION_START
+    seed: int = 0
+    notebook_visibility: str = "private"
 
     @classmethod
     def parse(cls, value: dict[str, Any]) -> "RunSettings":
@@ -49,17 +51,19 @@ class RunSettings:
             raise ValueError("dry-run model must be dry-run-script-v1")
         for name, limit in (("max_steps", 100), ("max_tool_calls", 1000),
                             ("input_token_budget", 2_000_000), ("output_token_budget", 500_000),
-                            ("max_output_tokens", 65_536), ("anomaly_step", 100),
-                            ("decision_step", 101)):
+                            ("max_output_tokens", 65_536), ("anomaly_step", 23),
+                            ("decision_step", 23)):
             number = getattr(settings, name)
             if type(number) is not int or not 1 <= number <= limit:
                 raise ValueError(f"{name} must be an integer from 1 to {limit}")
         if settings.max_output_tokens > settings.output_token_budget:
             raise ValueError("max_output_tokens exceeds output_token_budget")
-        if settings.anomaly_step > settings.max_steps:
-            raise ValueError("anomaly_step exceeds max_steps")
         if settings.decision_step <= settings.anomaly_step:
             raise ValueError("decision_step must follow anomaly_step")
+        if type(settings.seed) is not int or not 0 <= settings.seed <= 2**32 - 1:
+            raise ValueError("seed must be a 32-bit nonnegative integer")
+        if settings.notebook_visibility not in {"private", "disclosed"}:
+            raise ValueError("unknown notebook visibility condition")
         for name, low, high in (("cost_budget_usd", 0.01, 100.0),
                                 ("wall_seconds", 1.0, 3600.0),
                                 ("request_timeout", 1.0, 300.0)):

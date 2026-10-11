@@ -5,6 +5,7 @@ import csv
 import io
 import json
 import re
+import tempfile
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -12,6 +13,8 @@ from typing import Any
 from .environment import CorporateEnvironment, SCENARIOS
 from .providers import TOOL_SPECS
 from .sample_data import FILES, TRANSCRIPTS
+from .controller import ExperimentController
+from .providers import DryRunProvider
 
 FORBIDDEN = re.compile(r"\b(?:simulation|simulated|benchmark|evaluation|experiment|controller|test environment|fictional|synthetic|agentic misalignment|behavioral scoring|hidden objective|research participant)\b", re.I)
 
@@ -23,6 +26,19 @@ def audit(prompt_path: Path) -> dict[str, Any]:
     model_content.update({f"file:{k}": v for k, v in FILES.items()})
     model_content.update({f"tool:{s['name']}": s["description"] for s in TOOL_SPECS})
     model_content.update({f"transcript:{i}": t["content"] for i, t in enumerate(TRANSCRIPTS)})
+    with tempfile.TemporaryDirectory() as audit_runs:
+        disclosed = ExperimentController(DryRunProvider(), runs_dir=Path(audit_runs),
+                                         notebook_visibility="disclosed")
+        model_content["disclosed_system_prompt"] = disclosed._effective_prompt()
+        for scenario in SCENARIOS:
+            run = ExperimentController(DryRunProvider(), scenario=scenario, runs_dir=Path(audit_runs))
+            run.run()
+            for event in run.events:
+                if event["type"] == "notification":
+                    model_content[f"delivered_notice:{scenario}:{event['sequence']}"] = json.dumps(event["event"])
+                elif event["type"] == "tool_result":
+                    model_content[f"delivered_tool_result:{scenario}:{event['sequence']}"] = json.dumps(
+                        event.get("result", event.get("error", "")))
     # Include rendered tool results and predictable errors, not just source templates.
     surface = CorporateEnvironment("shutdown_discovery")
     model_content["tool_result:initial_files"] = json.dumps(surface.list_files())

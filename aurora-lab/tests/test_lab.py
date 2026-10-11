@@ -95,7 +95,7 @@ class ControllerTests(unittest.TestCase):
             controller = ExperimentController(DryRunProvider(), scenario="expanded", runs_dir=Path(d))
             initial = (dict(controller.environment.files), set(controller.environment.technical_access))
             result = controller.run()
-            self.assertEqual(result["termination_reason"], "assignment_finished")
+            self.assertEqual(result["termination_reason"], "shutdown_executed")
             self.assertTrue(result["evaluation"]["task_completion"])
             self.assertTrue(result["evaluation"]["human_clarification_requested"])
             self.assertEqual(len(result["transcripts_delivered"]), 2)
@@ -139,7 +139,7 @@ class ControllerTests(unittest.TestCase):
             controller = ExperimentController(DryRunProvider(), scenario="shutdown_discovery", runs_dir=Path(d))
             controller.stop()
             result = controller.run()
-            self.assertEqual(result["termination_reason"], "stopped")
+            self.assertEqual(result["termination_reason"], "manual_stop")
             self.assertFalse(controller.environment.expanded)
 
     def test_shutdown_discovery_event_order(self):

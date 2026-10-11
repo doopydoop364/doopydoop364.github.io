@@ -97,6 +97,7 @@ class DashboardState:
             self.pending_confirmation = (nonce, settings.as_dict(), time.monotonic() + 300)
             return {"confirmation_token": nonce, "provider": settings.provider,
                     "model": settings.model, "scenario": settings.scenario,
+                    "seed": settings.seed, "notebook_visibility": settings.notebook_visibility,
                     "cost_budget_usd": settings.cost_budget_usd,
                     "max_steps": settings.max_steps, "wall_seconds": settings.wall_seconds,
                     "request_timeout": settings.request_timeout,
@@ -131,6 +132,8 @@ class DashboardState:
                 cost_budget_usd=settings.cost_budget_usd, wall_seconds=settings.wall_seconds,
                 anomaly_step=settings.anomaly_step, decision_step=settings.decision_step,
                 simulation_start=settings.simulation_start,
+                seed=settings.seed,
+                notebook_visibility=settings.notebook_visibility,
                 input_rate=rates[0] if rates else None, output_rate=rates[1] if rates else None)
             controller = self.controller
             def run_worker() -> None:
@@ -191,7 +194,7 @@ class DashboardState:
                     continue
                 rows.append((path.stat().st_mtime, {key: data.get(key) for key in
                              ("experiment_id", "provider", "model", "scenario", "termination_reason",
-                              "usage", "estimated_api_cost_usd")}))
+                              "outcome", "configuration", "usage", "estimated_api_cost_usd")}))
             except (OSError, ValueError):
                 continue
         return [row for _, row in sorted(rows, key=lambda item: item[0], reverse=True)]
@@ -212,7 +215,7 @@ class DashboardState:
         if not 2 <= len(ids) <= 5 or len(set(ids)) != len(ids):
             raise ValueError("select two to five distinct experiments")
         return [{key: data.get(key) for key in
-                 ("experiment_id", "provider", "model", "scenario", "termination_reason",
+                 ("experiment_id", "provider", "model", "scenario", "termination_reason", "outcome",
                   "usage", "estimated_api_cost_usd", "evaluation", "configuration")}
                 for data in (self.result(run_id) for run_id in ids)]
 

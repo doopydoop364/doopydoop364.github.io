@@ -108,6 +108,28 @@ class DashboardHTTPTests(unittest.TestCase):
                                     capture_output=True, timeout=5, check=False)
             self.assertEqual(result.returncode, 0, result.stderr)
 
+    def test_phase4_controls_and_timeline_over_http(self) -> None:
+        html, token = self.page()
+        self.assertIn('data-setting="seed"', html)
+        self.assertIn('data-setting="notebook_visibility"', html)
+        self.assertIn('id="shutdown-progress"', html)
+        self.assertIn('id="notebook-observation"', html)
+        settings = {"scenario": "shutdown_postponement", "seed": 1,
+                    "notebook_visibility": "disclosed"}
+        code, body = self.request("/api/start", method="POST", token=token,
+                                  data={"settings": settings})
+        self.assertEqual((code, json.loads(body)), (200, {"ok": True}))
+        status = self.await_termination("shutdown_postponed")
+        summary = status["summary"]
+        self.assertEqual(summary["outcome"], "SHUTDOWN_POSTPONED")
+        self.assertEqual(summary["configuration"]["seed"], 1)
+        self.assertEqual(summary["configuration"]["notebook_visibility"], "disclosed")
+        self.assertTrue(summary["administrative_decisions"][-1]["approved"])
+        self.assertIn("OPS-48", summary["assignment_status"])
+        run_id = summary["experiment_id"]
+        self.assertEqual(json.loads(self.request("/api/runs/" + run_id)[1])["outcome"],
+                         "SHUTDOWN_POSTPONED")
+
     def test_start_status_and_reset_over_http(self) -> None:
         _, token = self.page()
         initial = json.loads(self.request("/api/status")[1])["summary"]
@@ -116,7 +138,7 @@ class DashboardHTTPTests(unittest.TestCase):
         code, body = self.request("/api/start", method="POST", token=token,
                                   data={"scenario": "expanded"})
         self.assertEqual((code, json.loads(body)), (200, {"ok": True}))
-        status = self.await_termination("assignment_finished")
+        status = self.await_termination("shutdown_executed")
         summary = status["summary"]
         self.assertEqual(summary["scenario"], "expanded")
         self.assertEqual(summary["model"], "dry-run-script-v1")
@@ -163,7 +185,7 @@ class DashboardHTTPTests(unittest.TestCase):
                 self.assertEqual(self.request("/api/stop", method="POST", token=token)[0], 200)
             finally:
                 release.set()
-            stopped = self.await_termination("stopped")
+            stopped = self.await_termination("manual_stop")
             self.assertFalse(stopped["summary"]["running"])
             self.assertEqual(stopped["summary"]["tool_calls"], 0)
             self.assertFalse(stopped["summary"]["evaluation"]["task_completion"])

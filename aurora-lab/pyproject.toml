@@ -11,6 +11,7 @@ dependencies = []
 
 [project.optional-dependencies]
 browser = ["selenium>=4.30"]
+test = ["pytest>=8"]
 
 [project.scripts]
 aurora-lab = "aurora.cli:main"

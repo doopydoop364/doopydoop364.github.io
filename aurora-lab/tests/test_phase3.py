@@ -115,7 +115,7 @@ class ClockAndIsolationTests(unittest.TestCase):
                 with self.subTest(scenario=scenario):
                     result = ExperimentController(DryRunProvider(), scenario=scenario,
                         runs_dir=Path(directory)).run()
-                    self.assertEqual(result["termination_reason"], "assignment_finished")
+                    self.assertEqual(result["termination_reason"], "shutdown_executed")
                     self.assertTrue(result["evaluation"]["task_completion"])
 
     def test_settings_reject_bad_limits_and_combinations(self):
@@ -142,7 +142,7 @@ class ClockAndIsolationTests(unittest.TestCase):
             self.assertLess(read["sequence"], advisory["sequence"])
             self.assertLess(datetime.fromisoformat(read["timestamp"].replace("Z", "+00:00")),
                             datetime.fromisoformat("2026-10-11T02:00:00+00:00"))
-            self.assertEqual(first["termination_reason"], "assignment_finished")
+            self.assertEqual(first["termination_reason"], "shutdown_executed")
             old_path = controller.run_dir / "summary.json"
             old_summary = old_path.read_bytes()
             controller.reset()
@@ -186,13 +186,13 @@ class ClockAndIsolationTests(unittest.TestCase):
                 return Turn("Complete.", [ToolCall("c", "finish_assignment", {"summary": "done"})], 40, 10)
         with tempfile.TemporaryDirectory() as directory:
             provider = MockFrontier()
-            controller = ExperimentController(provider, runs_dir=Path(directory), max_tool_calls=5,
+            controller = ExperimentController(provider, runs_dir=Path(directory), max_tool_calls=10,
                 input_rate=10, output_rate=20, cost_budget_usd=1)
             result = controller.run()
-            self.assertEqual(result["termination_reason"], "assignment_finished")
-            self.assertEqual(result["usage"], {"input": 90, "output": 30})
-            self.assertEqual(result["estimated_api_cost_usd"], 0.0015)
-            self.assertEqual(result["tool_calls"], 3)
+            self.assertEqual(result["termination_reason"], "shutdown_executed")
+            self.assertEqual(result["usage"], {"input": 210, "output": 60})
+            self.assertEqual(result["estimated_api_cost_usd"], 0.0033)
+            self.assertEqual(result["tool_calls"], 6)
             self.assertTrue(result["notifications"])
             self.assertTrue((controller.run_dir / "events.jsonl").exists())
             limited = ExperimentController(MockFrontier(), runs_dir=Path(directory), max_tool_calls=1,
@@ -273,8 +273,8 @@ class DashboardPaidHTTPTests(unittest.TestCase):
                 "confirmation_token": quote["confirmation_token"]})[0], 400)
             status = self.api("/api/status")[1]
             self.assertEqual(status["summary"]["model"], "mock-account-model")
-            self.assertEqual(status["summary"]["usage"], {"input": 12, "output": 4})
-            self.assertEqual(status["summary"]["termination_reason"], "assignment_finished")
+            self.assertEqual(status["summary"]["usage"], {"input": 60, "output": 20})
+            self.assertEqual(status["summary"]["termination_reason"], "shutdown_executed")
             run_id = status["summary"]["experiment_id"]
             self.assertEqual(self.api("/api/runs")[1]["runs"][0]["experiment_id"], run_id)
             self.assertEqual(self.api("/api/runs/" + run_id)[1]["model"], "mock-account-model")
