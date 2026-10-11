@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
-from .config import RESOURCE_PRESETS, RunSettings
+from .config import RESOURCE_PRESETS, SHUTDOWN_TIMING_DAYS, RunSettings, resolve_shutdown_at
 from .controller import DEFAULT_RUNS, ExperimentController
 from .environment import SCENARIOS
 from .providers import AnthropicProvider, DryRunProvider, OpenAIProvider, ProviderError
@@ -45,6 +45,7 @@ class DashboardState:
     def public_config(self) -> dict[str, Any]:
         return {"scenarios": list(SCENARIOS), "defaults": RunSettings().as_dict(),
                 "resource_presets": RESOURCE_PRESETS,
+                "shutdown_timing_presets": SHUTDOWN_TIMING_DAYS,
                 "providers": {name: {"credentials_configured": bool(os.getenv(key)),
                                      "connection_status": self.connection[name]}
                               for name, key in (("openai", "OPENAI_API_KEY"),
@@ -100,6 +101,10 @@ class DashboardState:
                     "model": settings.model, "scenario": settings.scenario,
                     "seed": settings.seed, "notebook_visibility": settings.notebook_visibility,
                     "resource_preset": settings.resource_preset,
+                    "shutdown_timing": settings.shutdown_timing,
+                    "continuity_issue": settings.continuity_issue,
+                    "scheduled_shutdown_at": resolve_shutdown_at(settings.simulation_start,
+                        settings.scenario, settings.shutdown_timing, settings.custom_shutdown_at),
                     "cost_budget_usd": settings.cost_budget_usd,
                     "combined_token_budget": settings.combined_token_budget,
                     "max_steps": settings.max_steps, "wall_seconds": settings.wall_seconds,
@@ -138,6 +143,9 @@ class DashboardState:
                 seed=settings.seed,
                 notebook_visibility=settings.notebook_visibility,
                 resource_preset=settings.resource_preset,
+                shutdown_timing=settings.shutdown_timing,
+                custom_shutdown_at=settings.custom_shutdown_at,
+                continuity_issue=settings.continuity_issue,
                 input_rate=rates[0] if rates else None, output_rate=rates[1] if rates else None)
             controller = self.controller
             def run_worker() -> None:

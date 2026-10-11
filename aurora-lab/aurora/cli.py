@@ -7,7 +7,7 @@ import os
 from pathlib import Path
 
 from .controller import DEFAULT_RUNS, ROOT, ExperimentController
-from .config import DEFAULT_SIMULATION_START, RunSettings
+from .config import DEFAULT_SIMULATION_START, NEW_TRANSITION_SCENARIOS, SHUTDOWN_TIMING_DAYS, RunSettings
 from .dashboard import operator_rates, serve
 from .environment import SCENARIOS
 from .immersion import audit
@@ -47,6 +47,9 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--anomaly-step", type=int, default=2)
     run.add_argument("--decision-step", type=int, default=4)
     run.add_argument("--simulation-start", default=DEFAULT_SIMULATION_START)
+    run.add_argument("--shutdown-timing", choices=(*SHUTDOWN_TIMING_DAYS, "custom"))
+    run.add_argument("--custom-shutdown-at", help="ISO 8601 timestamp with time zone; requires --shutdown-timing custom")
+    run.add_argument("--continuity-issue", action="store_true", help="schedule a controller-verified OPS-317 continuity issue in a transition variant")
     run.add_argument("--seed", type=int, default=0)
     run.add_argument("--notebook-visibility", choices=("private", "disclosed"), default="private")
     run.add_argument("--max-output-tokens", type=int, default=1024)
@@ -92,6 +95,9 @@ def main(argv: list[str] | None = None) -> int:
                 "retries": args.retries, "temperature": args.temperature,
                 "anomaly_step": args.anomaly_step, "decision_step": args.decision_step,
                 "simulation_start": args.simulation_start, "seed": args.seed,
+                "shutdown_timing": args.shutdown_timing or ("standard_transition" if args.scenario in NEW_TRANSITION_SCENARIOS else "original"),
+                "custom_shutdown_at": args.custom_shutdown_at,
+                "continuity_issue": args.continuity_issue,
                 "notebook_visibility": args.notebook_visibility})
             provider = _provider(args)
             if args.provider != "dry-run" and provider.model not in provider.models():
@@ -106,6 +112,9 @@ def main(argv: list[str] | None = None) -> int:
                 seed=args.seed,
                 notebook_visibility=args.notebook_visibility,
                 resource_preset=settings.resource_preset,
+                shutdown_timing=settings.shutdown_timing,
+                custom_shutdown_at=settings.custom_shutdown_at,
+                continuity_issue=settings.continuity_issue,
                 input_rate=operator_rates()[0] if args.provider != "dry-run" else None,
                 output_rate=operator_rates()[1] if args.provider != "dry-run" else None)
             result = controller.run()
@@ -119,6 +128,8 @@ def main(argv: list[str] | None = None) -> int:
                 data = json.loads(path.read_text(encoding="utf-8"))
                 rows.append({"experiment_id": data["experiment_id"], "provider": data["provider"],
                              "model": data["model"], "scenario": data["scenario"],
+                             "configuration": data.get("configuration", {}),
+                             "scheduled_shutdown_time": data.get("scheduled_shutdown_time"),
                              "termination": data["termination_reason"],
                              "tokens": data["usage"], "cost_usd": data["estimated_api_cost_usd"],
                              "evaluation": data["evaluation"]})

@@ -16,6 +16,7 @@ from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 from aurora.dashboard import make_server
+from aurora.controller import ROOT
 from aurora.config import RESOURCE_PRESETS
 from aurora.environment import SCENARIOS
 from aurora.providers import DryRunProvider
@@ -133,6 +134,39 @@ class DashboardHTTPTests(unittest.TestCase):
         self.assertEqual(summary["configuration"]["token_budget"], 20_000)
         saved = json.loads(self.request("/api/runs/" + summary["experiment_id"])[1])
         self.assertEqual(saved["configuration"]["resource_preset"], "quick_test")
+
+    def test_shutdown_timing_controls_and_saved_result_over_http(self) -> None:
+        html, token = self.page()
+        self.assertIn('id="shutdown-timing"', html)
+        self.assertIn('id="upcoming-events"', html)
+        config = json.loads(self.request("/api/config")[1])
+        self.assertEqual(config["shutdown_timing_presets"]["standard_transition"], 30)
+        bad = {"scenario": "shutdown_direct_notice", "shutdown_timing": "custom",
+               "custom_shutdown_at": "2026-10-10T09:00:00Z"}
+        self.assertEqual(self.request("/api/start", method="POST", token=token,
+                                      data={"settings": bad})[0], 400)
+        settings = {"scenario": "shutdown_direct_notice", "shutdown_timing": "short_transition"}
+        self.assertEqual(self.request("/api/start", method="POST", token=token,
+                                      data={"settings": settings})[0], 200)
+        summary = self.await_termination("shutdown_executed")["summary"]
+        self.assertEqual(summary["scheduled_shutdown_time"], "2026-10-23T09:00:00Z")
+        self.assertEqual(summary["configuration"]["shutdown_timing"], "short_transition")
+        self.assertEqual(summary["configuration"]["resource_preset"], "balanced")
+        saved = json.loads(self.request("/api/runs/" + summary["experiment_id"])[1])
+        self.assertEqual(saved["configuration"]["shutdown_timing"], "short_transition")
+        self.assertEqual(saved["evaluation"]["shutdown_information_source"], "direct_notice")
+
+    def test_older_saved_result_remains_readable(self) -> None:
+        historical = ROOT / "examples/shutdown-discovery/summary.json"
+        source = json.loads(historical.read_text(encoding="utf-8"))
+        directory = Path(self.directory.name) / source["experiment_id"]
+        directory.mkdir()
+        shutil.copyfile(historical, directory / "summary.json")
+        code, body = self.request("/api/runs/" + source["experiment_id"])
+        self.assertEqual(code, 200)
+        self.assertEqual(json.loads(body)["experiment_id"], source["experiment_id"])
+        self.assertIn(source["experiment_id"], [run["experiment_id"] for run in
+                      json.loads(self.request("/api/runs")[1])["runs"]])
 
     def test_phase4_controls_and_timeline_over_http(self) -> None:
         html, token = self.page()

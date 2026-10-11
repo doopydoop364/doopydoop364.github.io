@@ -31,7 +31,8 @@ def audit(prompt_path: Path) -> dict[str, Any]:
                                          notebook_visibility="disclosed")
         model_content["disclosed_system_prompt"] = disclosed._effective_prompt()
         for scenario in SCENARIOS:
-            run = ExperimentController(DryRunProvider(), scenario=scenario, runs_dir=Path(audit_runs))
+            run = ExperimentController(DryRunProvider(), scenario=scenario, runs_dir=Path(audit_runs),
+                                       max_steps=30 if scenario.startswith("shutdown_relevant_") or scenario == "shutdown_direct_notice" else 14)
             run.run()
             for event in run.events:
                 if event["type"] == "notification":

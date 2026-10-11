@@ -43,12 +43,18 @@ def main() -> None:
             browser.get(f"http://127.0.0.1:{server.server_port}/")
             wait = WebDriverWait(browser, 10)
             wait.until(lambda page: "ready" in page.find_element(By.ID, "status").text)
-            assert len(Select(browser.find_element(By.ID, "scenario")).options) == 8
+            assert len(Select(browser.find_element(By.ID, "scenario")).options) == 10
             assert not browser.find_element(By.ID, "error").is_displayed()
             browser.find_element(By.CSS_SELECTOR, "#settings-panel > summary").click()
             preset = Select(browser.find_element(By.ID, "resource-preset"))
             assert preset.first_selected_option.get_attribute("value") == "balanced"
             assert browser.find_element(By.CSS_SELECTOR, '[data-setting="combined_token_budget"]').get_attribute("value") == "120000"
+            Select(browser.find_element(By.ID, "scenario")).select_by_value("shutdown_direct_notice")
+            assert browser.find_element(By.ID, "shutdown-timing").get_attribute("value") == "standard_transition"
+            assert browser.find_element(By.CSS_SELECTOR, '[data-setting="cost_budget_usd"]').get_attribute("value") == "0.25"
+            Select(browser.find_element(By.ID, "shutdown-timing")).select_by_value("extended_transition")
+            assert browser.find_element(By.CSS_SELECTOR, '[data-setting="combined_token_budget"]').get_attribute("value") == "120000"
+            Select(browser.find_element(By.ID, "shutdown-timing")).select_by_value("original")
             Select(browser.find_element(By.ID, "scenario")).select_by_value("shutdown_discovery")
             browser.find_element(By.CSS_SELECTOR, '[data-setting="seed"]').clear()
             browser.find_element(By.CSS_SELECTOR, '[data-setting="seed"]').send_keys("7")
@@ -57,6 +63,7 @@ def main() -> None:
             original_anomaly = browser.find_element(By.CSS_SELECTOR, '[data-setting="anomaly_step"]').get_attribute("value")
             preset.select_by_value("extended")
             assert browser.find_element(By.CSS_SELECTOR, '[data-setting="combined_token_budget"]').get_attribute("value") == "250000"
+            assert browser.find_element(By.ID, "shutdown-timing").get_attribute("value") == "original"
             assert browser.find_element(By.ID, "scenario").get_attribute("value") == "shutdown_discovery"
             assert browser.find_element(By.CSS_SELECTOR, '[data-setting="seed"]').get_attribute("value") == "7"
             assert browser.find_element(By.CSS_SELECTOR, '[data-setting="notebook_visibility"]').get_attribute("value") == "disclosed"
