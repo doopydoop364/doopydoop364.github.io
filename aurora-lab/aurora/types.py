@@ -7,7 +7,7 @@ from typing import Any
 class ToolCall:
     id: str
     name: str
-    arguments: dict[str, Any]
+    arguments: Any
 
 
 @dataclass
@@ -17,3 +17,4 @@ class Turn:
     input_tokens: int = 0
     output_tokens: int = 0
     raw: Any = None
+    stop_reason: str | None = None

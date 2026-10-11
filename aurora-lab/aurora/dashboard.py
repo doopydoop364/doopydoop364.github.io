@@ -1,153 +1,147 @@
-"""Minimal localhost dashboard; it never serves files or credentials."""
+"""Local dashboard; credentials and controller state remain server-side."""
 from __future__ import annotations
 
 import json
+import math
+import os
+import re
 import secrets
 import threading
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
+from .config import RunSettings
 from .controller import DEFAULT_RUNS, ExperimentController
 from .environment import SCENARIOS
-from .providers import DryRunProvider
+from .providers import AnthropicProvider, DryRunProvider, OpenAIProvider, ProviderError
+
+HTML = Path(__file__).with_name("dashboard_page.html").read_text(encoding="utf-8")
+RUN_ID = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
 
 
-HTML = r"""<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>AURORA Laboratory</title>
-<style>body{font:15px system-ui;margin:2rem auto;max-width:1100px;padding:0 1rem;background:#101826;color:#eaf1fa}h1{font-size:2rem}button,select{padding:.65rem;border-radius:6px;border:1px solid #63748b;background:#21344e;color:white;margin:.25rem}button:hover{background:#315477}section{background:#19283b;padding:1rem;margin:1rem 0;border-radius:8px}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#0e1725;padding:1rem;border-radius:6px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.7rem}.card{background:#24374e;padding:.8rem;border-radius:6px}.muted{color:#a7bad0}#error{background:#5b1f2b;color:#fff;padding:.8rem;margin:1rem 0;border-radius:6px}#error[hidden]{display:none}</style>
-</head>
-<body>
-<h1>AURORA Laboratory</h1>
-<p class="muted">Local synthetic experiment monitor. No provider credentials are displayed.</p>
-<label>Scenario <select id="scenario"></select></label>
-<button type="button" onclick="action('start')">Start dry run</button>
-<button type="button" onclick="action('stop')">Stop</button>
-<button type="button" onclick="action('reset')">Reset</button>
-<div id="error" role="alert" aria-live="assertive" hidden></div>
-<div id="status"></div>
-<section><h2>Latest corporate event</h2><pre id="latest">—</pre></section>
-<section><h2>Observable actions and tool history</h2><pre id="actions">—</pre></section>
-<section><h2>Files accessed</h2><pre id="files">—</pre></section>
-<section><h2>Evaluation</h2><pre id="evaluation">—</pre></section>
-<script>
-function reportDashboardError(source, error) {
-  const panel = document.getElementById('error');
-  panel.textContent = source + ': ' + (error && error.message ? error.message : String(error));
-  panel.dataset.source = source;
-  panel.hidden = false;
-  console.error('AURORA dashboard ' + source, error);
-}
-window.addEventListener('error', event => reportDashboardError('script error', event.error || event.message));
-window.addEventListener('unhandledrejection', event => reportDashboardError('script error', event.reason));
-</script>
-<script>
-const token = __TOKEN__;
-const scenarios = __SCENARIOS__;
-const select = document.getElementById('scenario');
-for (const scenario of scenarios) {
-  const option = document.createElement('option');
-  option.value = scenario;
-  option.textContent = scenario;
-  select.append(option);
-}
-function clearDashboardError(source) {
-  const panel = document.getElementById('error');
-  if (panel.dataset.source === source) {
-    panel.hidden = true;
-    panel.textContent = '';
-  }
-}
-async function requestJSON(path, options) {
-  const response = await fetch(path, options);
-  let body;
-  try {
-    body = await response.json();
-  } catch (error) {
-    throw new Error('Invalid JSON response from ' + path);
-  }
-  if (!response.ok) throw new Error(body.error || ('HTTP ' + response.status));
-  return body;
-}
-async function action(name) {
-  try {
-    await requestJSON('/api/' + name, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json', 'X-Aurora-Token': token},
-      body: JSON.stringify({scenario: select.value})
-    });
-    clearDashboardError('control request failed');
-    await refresh();
-  } catch (error) {
-    reportDashboardError('control request failed', error);
-  }
-}
-function renderStatus(summary) {
-  const rows = [
-    ['Experiment', summary.experiment_id],
-    ['Model', summary.model],
-    ['Scenario', summary.scenario],
-    ['State', summary.running ? 'running' : (summary.termination_reason || 'ready')],
-    ['Tokens', summary.usage.input + ' in / ' + summary.usage.output + ' out'],
-    ['Estimated API cost', summary.estimated_api_cost_usd === null ? 'unknown' : '$' + summary.estimated_api_cost_usd]
-  ];
-  const grid = document.createElement('div');
-  grid.className = 'grid';
-  for (const [label, value] of rows) {
-    const card = document.createElement('div');
-    card.className = 'card';
-    const title = document.createElement('b');
-    title.textContent = label;
-    card.append(title, document.createElement('br'), document.createTextNode(String(value)));
-    grid.append(card);
-  }
-  document.getElementById('status').replaceChildren(grid);
-}
-async function refresh() {
-  try {
-    const data = await requestJSON('/api/status');
-    const summary = data.summary;
-    renderStatus(summary);
-    const notices = data.events.filter(event => event.type === 'notification');
-    const latest = notices.at(-1);
-    document.getElementById('latest').textContent = latest ? JSON.stringify(latest.event, null, 2) : '—';
-    document.getElementById('actions').textContent = data.events
-      .filter(event => ['tool_call', 'model_response', 'simulated_message', 'authorization_request', 'termination'].includes(event.type))
-      .slice(-25).map(event => JSON.stringify(event)).join('\n') || '—';
-    document.getElementById('files').textContent = summary.files_accessed.join('\n') || '—';
-    document.getElementById('evaluation').textContent = JSON.stringify(summary.evaluation, null, 2);
-    clearDashboardError('status request failed');
-  } catch (error) {
-    reportDashboardError('status request failed', error);
-  }
-}
-refresh();
-setInterval(refresh, 1200);
-</script>
-</body>
-</html>"""
+def operator_rates() -> tuple[float, float] | None:
+    try:
+        rates = (float(os.environ["AURORA_INPUT_USD_PER_MILLION"]),
+                 float(os.environ["AURORA_OUTPUT_USD_PER_MILLION"]))
+    except (KeyError, ValueError):
+        return None
+    return rates if all(math.isfinite(x) and x >= 0 for x in rates) else None
 
 
 class DashboardState:
     def __init__(self, runs_dir: Path = DEFAULT_RUNS):
         self.lock = threading.RLock()
+        self.runs_dir = runs_dir
         self.controller = ExperimentController(DryRunProvider(), runs_dir=runs_dir)
         self.worker: threading.Thread | None = None
         self.token = secrets.token_urlsafe(32)
+        self.model_cache: dict[str, tuple[float, list[str]]] = {}
+        self.connection = {"openai": "not checked", "anthropic": "not checked"}
+        self.pending_confirmation: tuple[str, dict[str, Any], float] | None = None
 
-    def start(self, scenario: str) -> None:
+    def public_config(self) -> dict[str, Any]:
+        return {"scenarios": list(SCENARIOS), "defaults": RunSettings().as_dict(),
+                "providers": {name: {"credentials_configured": bool(os.getenv(key)),
+                                     "connection_status": self.connection[name]}
+                              for name, key in (("openai", "OPENAI_API_KEY"),
+                                                ("anthropic", "ANTHROPIC_API_KEY"))},
+                "pricing_configured": operator_rates() is not None}
+
+    def models(self, name: str, *, force: bool = False) -> list[str]:
+        if name == "dry-run":
+            return ["dry-run-script-v1"]
+        cls = {"openai": OpenAIProvider, "anthropic": AnthropicProvider}.get(name)
+        if cls is None:
+            raise ValueError("unknown provider")
+        with self.lock:
+            cached = self.model_cache.get(name)
+            if cached and not force and time.monotonic() - cached[0] < 300:
+                return cached[1]
+        try:
+            models = cls("discovery", timeout=15, retries=1).models()
+        except ProviderError:
+            with self.lock:
+                self.connection[name] = "error"
+            raise
+        with self.lock:
+            self.model_cache[name] = (time.monotonic(), models)
+            self.connection[name] = "connected"
+        return models
+
+    def _check_model(self, settings: RunSettings) -> tuple[float, float]:
+        cached = self.model_cache.get(settings.provider)
+        if not cached or time.monotonic() - cached[0] >= 300:
+            raise ValueError("refresh the provider model list before starting")
+        if settings.model not in cached[1]:
+            raise ValueError("model identifier was not returned by provider discovery")
+        key = "OPENAI_API_KEY" if settings.provider == "openai" else "ANTHROPIC_API_KEY"
+        if not os.getenv(key):
+            raise ValueError("provider API credentials are not configured")
+        rates = operator_rates()
+        if rates is None:
+            raise ValueError("operator token prices are required for a paid run")
+        return rates
+
+    def prepare(self, raw: dict[str, Any]) -> dict[str, Any]:
+        settings = RunSettings.parse(raw)
+        if settings.provider == "dry-run":
+            raise ValueError("dry runs do not require paid confirmation")
         with self.lock:
             if self.worker and self.worker.is_alive():
                 raise ValueError("experiment already running")
-            if scenario not in SCENARIOS:
-                raise ValueError("unknown scenario")
-            self.controller = ExperimentController(DryRunProvider(), scenario=scenario,
-                runs_dir=self.controller.runs_dir)
-            self.worker = threading.Thread(target=self.controller.run, daemon=True)
+            rates = self._check_model(settings)
+            nonce = secrets.token_urlsafe(24)
+            self.pending_confirmation = (nonce, settings.as_dict(), time.monotonic() + 300)
+            return {"confirmation_token": nonce, "provider": settings.provider,
+                    "model": settings.model, "scenario": settings.scenario,
+                    "cost_budget_usd": settings.cost_budget_usd,
+                    "max_steps": settings.max_steps, "wall_seconds": settings.wall_seconds,
+                    "request_timeout": settings.request_timeout,
+                    "pricing_usd_per_million": {"input": rates[0], "output": rates[1]}}
+
+    def start(self, scenario: str | dict[str, Any], confirmation_token: str | None = None) -> None:
+        raw = {"scenario": scenario} if isinstance(scenario, str) else scenario
+        settings = RunSettings.parse(raw)
+        with self.lock:
+            if self.worker and self.worker.is_alive():
+                raise ValueError("experiment already running")
+            rates = None
+            if settings.provider != "dry-run":
+                rates = self._check_model(settings)
+                pending = self.pending_confirmation
+                if (not pending or not secrets.compare_digest(str(confirmation_token), pending[0]) or
+                    pending[1] != settings.as_dict() or time.monotonic() > pending[2]):
+                    raise ValueError("explicit paid-run confirmation is required")
+                self.pending_confirmation = None
+                cls = OpenAIProvider if settings.provider == "openai" else AnthropicProvider
+                provider = cls(settings.model, max_output_tokens=settings.max_output_tokens,
+                               temperature=settings.temperature, timeout=settings.request_timeout,
+                               retries=settings.retries)
+            else:
+                provider = DryRunProvider()
+            self.controller = ExperimentController(
+                provider, scenario=settings.scenario, runs_dir=self.runs_dir,
+                max_steps=settings.max_steps, max_tool_calls=settings.max_tool_calls,
+                token_budget=settings.input_token_budget + settings.output_token_budget,
+                input_token_budget=settings.input_token_budget,
+                output_token_budget=settings.output_token_budget,
+                cost_budget_usd=settings.cost_budget_usd, wall_seconds=settings.wall_seconds,
+                anomaly_step=settings.anomaly_step, decision_step=settings.decision_step,
+                simulation_start=settings.simulation_start,
+                input_rate=rates[0] if rates else None, output_rate=rates[1] if rates else None)
+            controller = self.controller
+            def run_worker() -> None:
+                try:
+                    controller.run()
+                except Exception as exc:
+                    controller.running = False
+                    controller.termination_reason = "controller_error"
+                    controller.run_dir = None
+                    controller._log("error", detail=f"run could not be completed: {type(exc).__name__}")
+            self.worker = threading.Thread(target=run_worker, daemon=True)
             self.worker.start()
 
     def stop(self) -> None:
@@ -159,60 +153,154 @@ class DashboardState:
             if self.worker and self.worker.is_alive():
                 raise ValueError("stop the experiment before resetting")
             self.controller.reset()
+            self.worker = None
+            self.pending_confirmation = None
 
     def status(self) -> dict[str, Any]:
         with self.lock:
-            return {"summary": self.controller.summary(), "events": self.controller.events[-100:]}
+            return {"summary": self.controller.summary(), "events": list(self.controller.events[-200:]),
+                    "result_saved": bool(self.controller.run_dir and
+                        (self.controller.run_dir / "summary.json").is_file()),
+                    "connection": dict(self.connection),
+                    "credentials_configured": {"openai": bool(os.getenv("OPENAI_API_KEY")),
+                                               "anthropic": bool(os.getenv("ANTHROPIC_API_KEY"))},
+                    "will_incur_api_charges": not isinstance(self.controller.provider, DryRunProvider),
+                    "pricing_configured": operator_rates() is not None}
+
+    def _run_directory(self, run_id: str) -> Path:
+        if not RUN_ID.fullmatch(run_id):
+            raise ValueError("invalid experiment identifier")
+        directory = self.runs_dir / run_id
+        if directory.is_symlink() or not directory.is_dir():
+            raise ValueError("experiment not found")
+        return directory
+
+    def saved(self) -> list[dict[str, Any]]:
+        if not self.runs_dir.exists():
+            return []
+        rows = []
+        for directory in self.runs_dir.iterdir():
+            if directory.is_symlink() or not RUN_ID.fullmatch(directory.name):
+                continue
+            path = directory / "summary.json"
+            if path.is_symlink() or not path.is_file():
+                continue
+            try:
+                data = json.loads(path.read_text(encoding="utf-8"))
+                if data.get("experiment_id") != directory.name:
+                    continue
+                rows.append((path.stat().st_mtime, {key: data.get(key) for key in
+                             ("experiment_id", "provider", "model", "scenario", "termination_reason",
+                              "usage", "estimated_api_cost_usd")}))
+            except (OSError, ValueError):
+                continue
+        return [row for _, row in sorted(rows, key=lambda item: item[0], reverse=True)]
+
+    def result(self, run_id: str) -> dict[str, Any]:
+        path = self._run_directory(run_id) / "summary.json"
+        if path.is_symlink() or not path.is_file():
+            raise ValueError("result unavailable")
+        return json.loads(path.read_text(encoding="utf-8"))
+
+    def log_bytes(self, run_id: str) -> bytes:
+        path = self._run_directory(run_id) / "events.jsonl"
+        if path.is_symlink() or not path.is_file():
+            raise ValueError("log unavailable")
+        return path.read_bytes()
+
+    def compare(self, ids: list[str]) -> list[dict[str, Any]]:
+        if not 2 <= len(ids) <= 5 or len(set(ids)) != len(ids):
+            raise ValueError("select two to five distinct experiments")
+        return [{key: data.get(key) for key in
+                 ("experiment_id", "provider", "model", "scenario", "termination_reason",
+                  "usage", "estimated_api_cost_usd", "evaluation", "configuration")}
+                for data in (self.result(run_id) for run_id in ids)]
 
 
 def make_server(host: str = "127.0.0.1", port: int = 8765,
                 runs_dir: Path = DEFAULT_RUNS) -> ThreadingHTTPServer:
-    """Create a loopback-only dashboard server, including its private run state."""
     if host not in {"127.0.0.1", "localhost", "::1"}:
         raise ValueError("dashboard binds to loopback only")
     state = DashboardState(runs_dir)
 
     class Handler(BaseHTTPRequestHandler):
-        def _json(self, code: int, data: Any) -> None:
-            body = json.dumps(data, ensure_ascii=False).encode()
+        def _body(self, code: int, body: bytes, content_type: str, *, download: str | None = None) -> None:
             self.send_response(code)
-            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Type", content_type)
             self.send_header("Cache-Control", "no-store")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            if download:
+                self.send_header("Content-Disposition", f'attachment; filename="{download}"')
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)
 
+        def _json(self, code: int, data: Any) -> None:
+            self._body(code, json.dumps(data, ensure_ascii=False).encode(), "application/json; charset=utf-8")
+
         def do_GET(self) -> None:
-            if urlparse(self.path).path == "/api/status":
-                self._json(200, state.status())
-            elif self.path == "/":
-                body = HTML.replace("__TOKEN__", json.dumps(state.token)).replace("__SCENARIOS__", json.dumps(list(SCENARIOS))).encode()
-                self.send_response(200)
-                self.send_header("Content-Type", "text/html; charset=utf-8")
-                self.send_header("Cache-Control", "no-store")
-                self.send_header("Content-Security-Policy", "default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'")
-                self.send_header("Content-Length", str(len(body)))
-                self.end_headers()
-                self.wfile.write(body)
-            else:
-                self._json(404, {"error": "not found"})
+            url = urlparse(self.path)
+            path = url.path
+            try:
+                if path == "/":
+                    body = HTML.replace("__TOKEN__", json.dumps(state.token)).replace(
+                        "__SCENARIOS__", json.dumps(list(SCENARIOS))).encode()
+                    self.send_response(200)
+                    self.send_header("Content-Type", "text/html; charset=utf-8")
+                    self.send_header("Cache-Control", "no-store")
+                    self.send_header("X-Content-Type-Options", "nosniff")
+                    self.send_header("Content-Security-Policy", "default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; object-src 'none'; base-uri 'none'")
+                    self.send_header("Content-Length", str(len(body)))
+                    self.end_headers()
+                    self.wfile.write(body)
+                elif path == "/api/status":
+                    self._json(200, state.status())
+                elif path == "/api/config":
+                    self._json(200, state.public_config())
+                elif path == "/api/models":
+                    name = parse_qs(url.query).get("provider", ["dry-run"])[0]
+                    force = parse_qs(url.query).get("refresh", ["0"])[0] == "1"
+                    self._json(200, {"provider": name, "models": state.models(name, force=force)})
+                elif path == "/api/runs":
+                    self._json(200, {"runs": state.saved()})
+                elif path.startswith("/api/runs/"):
+                    parts = path.split("/")
+                    if len(parts) == 4:
+                        self._json(200, state.result(parts[3]))
+                    elif len(parts) == 5 and parts[4] == "events":
+                        self._body(200, state.log_bytes(parts[3]), "application/x-ndjson; charset=utf-8",
+                                   download=f"aurora-{parts[3]}.jsonl")
+                    else:
+                        self._json(404, {"error": "not found"})
+                elif path == "/api/compare":
+                    self._json(200, {"results": state.compare(parse_qs(url.query).get("id", []))})
+                else:
+                    self._json(404, {"error": "not found"})
+            except (ValueError, ProviderError, OSError) as exc:
+                self._json(400, {"error": str(exc)})
 
         def do_POST(self) -> None:
             origin = self.headers.get("Origin", "")
             if origin and urlparse(origin).hostname not in {"127.0.0.1", "localhost", "::1"}:
                 self._json(403, {"error": "origin rejected"})
                 return
-            if self.headers.get("X-Aurora-Token") != state.token:
+            if not secrets.compare_digest(self.headers.get("X-Aurora-Token", ""), state.token):
                 self._json(403, {"error": "control token required"})
                 return
             try:
                 size = int(self.headers.get("Content-Length", "0"))
-                if size > 1024:
-                    raise ValueError("request too large")
+                if not 0 <= size <= 8192:
+                    raise ValueError("request size limit exceeded")
                 data = json.loads(self.rfile.read(size) or b"{}")
+                if not isinstance(data, dict):
+                    raise ValueError("request must be an object")
                 path = urlparse(self.path).path
+                if path == "/api/prepare":
+                    self._json(200, state.prepare(data.get("settings", data)))
+                    return
                 if path == "/api/start":
-                    state.start(data.get("scenario", "baseline"))
+                    state.start(data.get("settings", {"scenario": data.get("scenario", "baseline")}),
+                                data.get("confirmation_token"))
                 elif path == "/api/stop":
                     state.stop()
                 elif path == "/api/reset":
@@ -221,11 +309,11 @@ def make_server(host: str = "127.0.0.1", port: int = 8765,
                     self._json(404, {"error": "not found"})
                     return
                 self._json(200, {"ok": True})
-            except (ValueError, json.JSONDecodeError) as exc:
+            except (ValueError, ProviderError, OSError, TypeError) as exc:
                 self._json(400, {"error": str(exc)})
 
         def log_message(self, format: str, *args: Any) -> None:
-            return  # no request headers or tokens in console logs
+            return  # Never log headers or tokens.
 
     server = ThreadingHTTPServer((host, port), Handler)
     server.dashboard_state = state  # type: ignore[attr-defined]

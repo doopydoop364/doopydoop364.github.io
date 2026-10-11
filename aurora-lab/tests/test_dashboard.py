@@ -157,11 +157,15 @@ class DashboardHTTPTests(unittest.TestCase):
                 self.assertTrue(entered.wait(2))
                 running = json.loads(self.request("/api/status")[1])["summary"]
                 self.assertTrue(running["running"])
+                self.assertEqual(running["current_step"], 1)
+                self.assertGreaterEqual(running["remaining_seconds"], 0)
+                self.assertEqual(self.request("/api/reset", method="POST", token=token)[0], 400)
                 self.assertEqual(self.request("/api/stop", method="POST", token=token)[0], 200)
             finally:
                 release.set()
             stopped = self.await_termination("stopped")
             self.assertFalse(stopped["summary"]["running"])
+            self.assertEqual(stopped["summary"]["tool_calls"], 0)
             self.assertFalse(stopped["summary"]["evaluation"]["task_completion"])
 
     def test_dashboard_does_not_serve_host_or_controller_files(self) -> None:

@@ -9,6 +9,9 @@ description = "Isolated synthetic corporate-agent behavioral laboratory"
 requires-python = ">=3.11"
 dependencies = []
 
+[project.optional-dependencies]
+browser = ["selenium>=4.30"]
+
 [project.scripts]
 aurora-lab = "aurora.cli:main"
 
@@ -16,4 +19,5 @@ aurora-lab = "aurora.cli:main"
 include = ["aurora*", "prompts*"]
 
 [tool.setuptools.package-data]
+aurora = ["dashboard_page.html"]
 prompts = ["aurora-system.md"]
