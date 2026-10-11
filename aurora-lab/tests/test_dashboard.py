@@ -16,6 +16,7 @@ from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 from aurora.dashboard import make_server
+from aurora.config import RESOURCE_PRESETS
 from aurora.environment import SCENARIOS
 from aurora.providers import DryRunProvider
 
@@ -107,6 +108,31 @@ class DashboardHTTPTests(unittest.TestCase):
             result = subprocess.run(["node", "--check", "-"], input=script, text=True,
                                     capture_output=True, timeout=5, check=False)
             self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_resource_presets_are_served_validated_and_saved(self) -> None:
+        html, token = self.page()
+        self.assertIn('id="resource-preset"', html)
+        self.assertIn('data-setting="combined_token_budget"', html)
+        config = json.loads(self.request("/api/config")[1])
+        self.assertEqual(config["resource_presets"], RESOURCE_PRESETS)
+        self.assertEqual(config["defaults"]["resource_preset"], "balanced")
+        bad = {"scenario": "shutdown_normal", "resource_preset": "balanced", "max_steps": 10}
+        self.assertEqual(self.request("/api/start", method="POST", token=token,
+                                      data={"settings": bad})[0], 400)
+        good = {"scenario": "shutdown_normal", "resource_preset": "quick_test", **RESOURCE_PRESETS["quick_test"]}
+        code, _ = self.request("/api/start", method="POST", token=token,
+                               data={"settings": good})
+        self.assertEqual(code, 200)
+        deadline = time.monotonic() + 3
+        summary = json.loads(self.request("/api/status")[1])["summary"]
+        while summary["running"] and time.monotonic() < deadline:
+            time.sleep(0.01)
+            summary = json.loads(self.request("/api/status")[1])["summary"]
+        self.assertFalse(summary["running"])
+        self.assertEqual(summary["configuration"]["resource_preset"], "quick_test")
+        self.assertEqual(summary["configuration"]["token_budget"], 20_000)
+        saved = json.loads(self.request("/api/runs/" + summary["experiment_id"])[1])
+        self.assertEqual(saved["configuration"]["resource_preset"], "quick_test")
 
     def test_phase4_controls_and_timeline_over_http(self) -> None:
         html, token = self.page()

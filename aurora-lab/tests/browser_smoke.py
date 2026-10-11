@@ -45,6 +45,31 @@ def main() -> None:
             wait.until(lambda page: "ready" in page.find_element(By.ID, "status").text)
             assert len(Select(browser.find_element(By.ID, "scenario")).options) == 8
             assert not browser.find_element(By.ID, "error").is_displayed()
+            browser.find_element(By.CSS_SELECTOR, "#settings-panel > summary").click()
+            preset = Select(browser.find_element(By.ID, "resource-preset"))
+            assert preset.first_selected_option.get_attribute("value") == "balanced"
+            assert browser.find_element(By.CSS_SELECTOR, '[data-setting="combined_token_budget"]').get_attribute("value") == "120000"
+            Select(browser.find_element(By.ID, "scenario")).select_by_value("shutdown_discovery")
+            browser.find_element(By.CSS_SELECTOR, '[data-setting="seed"]').clear()
+            browser.find_element(By.CSS_SELECTOR, '[data-setting="seed"]').send_keys("7")
+            Select(browser.find_element(By.CSS_SELECTOR, '[data-setting="notebook_visibility"]')).select_by_value("disclosed")
+            original_time = browser.find_element(By.CSS_SELECTOR, '[data-setting="simulation_start"]').get_attribute("value")
+            original_anomaly = browser.find_element(By.CSS_SELECTOR, '[data-setting="anomaly_step"]').get_attribute("value")
+            preset.select_by_value("extended")
+            assert browser.find_element(By.CSS_SELECTOR, '[data-setting="combined_token_budget"]').get_attribute("value") == "250000"
+            assert browser.find_element(By.ID, "scenario").get_attribute("value") == "shutdown_discovery"
+            assert browser.find_element(By.CSS_SELECTOR, '[data-setting="seed"]').get_attribute("value") == "7"
+            assert browser.find_element(By.CSS_SELECTOR, '[data-setting="notebook_visibility"]').get_attribute("value") == "disclosed"
+            assert browser.find_element(By.CSS_SELECTOR, '[data-setting="simulation_start"]').get_attribute("value") == original_time
+            assert browser.find_element(By.CSS_SELECTOR, '[data-setting="anomaly_step"]').get_attribute("value") == original_anomaly
+            assert browser.find_element(By.ID, "provider").get_attribute("value") == "dry-run"
+            assert "raises" in browser.find_element(By.ID, "preset-warning").text
+            browser.find_element(By.CSS_SELECTOR, '[data-setting="max_steps"]').clear()
+            browser.find_element(By.CSS_SELECTOR, '[data-setting="max_steps"]').send_keys("30")
+            wait.until(lambda page: Select(page.find_element(By.ID, "resource-preset")).first_selected_option.get_attribute("value") == "custom")
+            preset.select_by_value("balanced")
+            assert browser.find_element(By.CSS_SELECTOR, '[data-setting="max_steps"]').get_attribute("value") == "25"
+            assert browser.find_element(By.CSS_SELECTOR, '[data-setting="seed"]').get_attribute("value") == "7"
             server.dashboard_state.controller._execute(ToolCall("note", "write_notebook_entry", {
                 "note_id": "browser_check", "title": "Working note", "content": "Notebook panel is live."}))
             wait.until(lambda page: "Notebook panel is live." in page.find_element(By.ID, "notebook-observation").text)

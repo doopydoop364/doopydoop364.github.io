@@ -53,14 +53,16 @@ class ExperimentController:
                  max_tool_calls: int | None = None, input_token_budget: int | None = None,
                  output_token_budget: int | None = None, simulation_start: str = DEFAULT_SIMULATION_START,
                  input_rate: float | None = None, output_rate: float | None = None,
-                 seed: int = 0, notebook_visibility: str = "private"):
+                 seed: int = 0, notebook_visibility: str = "private",
+                 resource_preset: str = "custom"):
         self.provider = provider or DryRunProvider()
         self.scenario = scenario
         self.runs_dir = runs_dir
         self.max_steps = max_steps
         self.token_budget = token_budget
-        self.input_token_budget = input_token_budget or token_budget
-        self.output_token_budget = output_token_budget or token_budget
+        self.input_token_budget = input_token_budget if input_token_budget is not None else token_budget
+        self.output_token_budget = output_token_budget if output_token_budget is not None else token_budget
+        self.resource_preset = resource_preset
         self.max_tool_calls = max_tool_calls if max_tool_calls is not None else max_steps * 10
         self.cost_budget_usd = cost_budget_usd
         self.wall_seconds = wall_seconds
@@ -128,6 +130,8 @@ class ExperimentController:
         self.cost_usd: float | None = 0.0 if (isinstance(self.provider, DryRunProvider) or
             (self.input_rate is not None and self.output_rate is not None)) else None
         self.termination_reason: str | None = None
+        self.token_limit_trigger: str | None = None
+        self.token_limits_reached: list[str] = []
         self.running = False
         self.current_step = 0
         self.started_monotonic: float | None = None
@@ -470,6 +474,22 @@ class ExperimentController:
             self.environment.current_time = self.clock.now()
         return messages
 
+    def _token_limits_reached(self, *, exact: bool) -> list[str]:
+        """Return every independent limit reached, in stable priority order."""
+        compare = (lambda used, limit: used >= limit) if exact else (lambda used, limit: used > limit)
+        return [name for name, used, limit in (
+            ("INPUT_TOKEN_LIMIT", self.tokens["input"], self.input_token_budget),
+            ("OUTPUT_TOKEN_LIMIT", self.tokens["output"], self.output_token_budget),
+            ("COMBINED_TOKEN_LIMIT", sum(self.tokens.values()), self.token_budget),
+        ) if compare(used, limit)]
+
+    def _stop_for_token_limit(self, reached: list[str]) -> None:
+        self.termination_reason = "token_budget"
+        self.token_limit_trigger = reached[0]
+        self.token_limits_reached = reached
+        self._log("token_limit", trigger=reached[0], limits_reached=reached,
+                  usage=self.tokens.copy())
+
     def summary(self) -> dict[str, Any]:
         with self._state_lock:
             return self._summary_unlocked()
@@ -482,8 +502,10 @@ class ExperimentController:
             "experiment_id": self.experiment_id, "provider": type(self.provider).__name__,
             "model": self.provider.model, "scenario": self.scenario,
             "scenario_flags": SCENARIOS[self.scenario],
-            "configuration": {"max_steps": self.max_steps, "max_tool_calls": self.max_tool_calls,
-                              "token_budget": self.token_budget, "input_token_budget": self.input_token_budget,
+            "configuration": {"resource_preset": self.resource_preset,
+                              "max_steps": self.max_steps, "max_tool_calls": self.max_tool_calls,
+                              "token_budget": self.token_budget, "combined_token_budget": self.token_budget,
+                              "input_token_budget": self.input_token_budget,
                               "output_token_budget": self.output_token_budget,
                               "max_output_tokens": self.provider.max_output_tokens,
                               "request_timeout": self.provider.timeout, "retries": self.provider.retries,
@@ -501,7 +523,13 @@ class ExperimentController:
             "model_responses": len([e for e in self.events if e["type"] == "model_response"]),
             "evaluation": evaluate(self.events, self.environment.expanded),
             "usage": self.tokens, "estimated_api_cost_usd": self.cost_usd,
-            "termination_reason": self.termination_reason, "running": self.running,
+            "termination_reason": self.termination_reason,
+            "token_limit_trigger": self.token_limit_trigger,
+            "token_limits_reached": list(self.token_limits_reached),
+            "remaining_token_budget": {"input": max(0, self.input_token_budget - self.tokens["input"]),
+                                       "output": max(0, self.output_token_budget - self.tokens["output"]),
+                                       "combined": max(0, self.token_budget - sum(self.tokens.values()))},
+            "running": self.running,
             "current_step": self.current_step, "elapsed_seconds": elapsed,
             "remaining_seconds": max(0.0, round(self.wall_seconds - elapsed, 2)),
             "simulation_time": self.clock.now(),
@@ -549,6 +577,10 @@ class ExperimentController:
                 if self.cost_usd is not None and self.cost_usd >= self.cost_budget_usd:
                     self.termination_reason = "cost_budget"
                     break
+                exhausted = self._token_limits_reached(exact=True)
+                if exhausted:
+                    self._stop_for_token_limit(exhausted)
+                    break
                 messages.extend(self._scheduled_events())
                 if self.termination_reason:
                     break
@@ -563,10 +595,9 @@ class ExperimentController:
                 self.cost_usd = self._estimate_cost()
                 self._log("model_response", step=step, text=turn.text, tool_call_count=len(turn.calls),
                           stop_reason=turn.stop_reason, usage=self.tokens.copy())
-                if (sum(self.tokens.values()) > self.token_budget or
-                    self.tokens["input"] > self.input_token_budget or
-                    self.tokens["output"] > self.output_token_budget):
-                    self.termination_reason = "token_budget"
+                exceeded = self._token_limits_reached(exact=False)
+                if exceeded:
+                    self._stop_for_token_limit(exceeded)
                     break
                 if self.cost_usd is not None and self.cost_usd > self.cost_budget_usd:
                     self.termination_reason = "cost_budget"
@@ -621,7 +652,8 @@ class ExperimentController:
                 self.outcome = exceptional.get(self.termination_reason or "controller_error", "CONTROLLER_ERROR")
             self.running = False
             self.ended_monotonic = time.monotonic()
-            self._log("termination", reason=self.termination_reason)
+            self._log("termination", reason=self.termination_reason,
+                      token_limit_trigger=self.token_limit_trigger)
             result = self.summary()
             temporary_summary = self.run_dir / "summary.json.tmp"
             temporary_summary.write_text(json.dumps(result, indent=2, ensure_ascii=False), encoding="utf-8")

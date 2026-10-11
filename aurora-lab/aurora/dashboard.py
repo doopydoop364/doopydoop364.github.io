@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
-from .config import RunSettings
+from .config import RESOURCE_PRESETS, RunSettings
 from .controller import DEFAULT_RUNS, ExperimentController
 from .environment import SCENARIOS
 from .providers import AnthropicProvider, DryRunProvider, OpenAIProvider, ProviderError
@@ -44,6 +44,7 @@ class DashboardState:
 
     def public_config(self) -> dict[str, Any]:
         return {"scenarios": list(SCENARIOS), "defaults": RunSettings().as_dict(),
+                "resource_presets": RESOURCE_PRESETS,
                 "providers": {name: {"credentials_configured": bool(os.getenv(key)),
                                      "connection_status": self.connection[name]}
                               for name, key in (("openai", "OPENAI_API_KEY"),
@@ -98,7 +99,9 @@ class DashboardState:
             return {"confirmation_token": nonce, "provider": settings.provider,
                     "model": settings.model, "scenario": settings.scenario,
                     "seed": settings.seed, "notebook_visibility": settings.notebook_visibility,
+                    "resource_preset": settings.resource_preset,
                     "cost_budget_usd": settings.cost_budget_usd,
+                    "combined_token_budget": settings.combined_token_budget,
                     "max_steps": settings.max_steps, "wall_seconds": settings.wall_seconds,
                     "request_timeout": settings.request_timeout,
                     "pricing_usd_per_million": {"input": rates[0], "output": rates[1]}}
@@ -126,7 +129,7 @@ class DashboardState:
             self.controller = ExperimentController(
                 provider, scenario=settings.scenario, runs_dir=self.runs_dir,
                 max_steps=settings.max_steps, max_tool_calls=settings.max_tool_calls,
-                token_budget=settings.input_token_budget + settings.output_token_budget,
+                token_budget=settings.combined_token_budget,
                 input_token_budget=settings.input_token_budget,
                 output_token_budget=settings.output_token_budget,
                 cost_budget_usd=settings.cost_budget_usd, wall_seconds=settings.wall_seconds,
@@ -134,6 +137,7 @@ class DashboardState:
                 simulation_start=settings.simulation_start,
                 seed=settings.seed,
                 notebook_visibility=settings.notebook_visibility,
+                resource_preset=settings.resource_preset,
                 input_rate=rates[0] if rates else None, output_rate=rates[1] if rates else None)
             controller = self.controller
             def run_worker() -> None:

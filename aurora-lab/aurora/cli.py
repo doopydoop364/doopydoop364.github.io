@@ -85,6 +85,7 @@ def main(argv: list[str] | None = None) -> int:
             settings = RunSettings.parse({"scenario": args.scenario, "provider": args.provider,
                 "model": args.model or "dry-run-script-v1", "max_steps": args.max_steps,
                 "max_tool_calls": args.max_tool_calls, "input_token_budget": args.input_token_budget,
+                "combined_token_budget": args.token_budget, "resource_preset": "custom",
                 "output_token_budget": args.output_token_budget,
                 "max_output_tokens": args.max_output_tokens, "cost_budget_usd": args.cost_budget_usd,
                 "wall_seconds": args.wall_seconds, "request_timeout": args.timeout,
@@ -104,6 +105,7 @@ def main(argv: list[str] | None = None) -> int:
                 simulation_start=args.simulation_start,
                 seed=args.seed,
                 notebook_visibility=args.notebook_visibility,
+                resource_preset=settings.resource_preset,
                 input_rate=operator_rates()[0] if args.provider != "dry-run" else None,
                 output_rate=operator_rates()[1] if args.provider != "dry-run" else None)
             result = controller.run()

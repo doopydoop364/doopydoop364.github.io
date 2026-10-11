@@ -2,12 +2,27 @@
 from __future__ import annotations
 
 import math
-from dataclasses import asdict, dataclass, fields
+from dataclasses import asdict, dataclass, fields, replace
 from datetime import datetime, timezone
 from typing import Any
 
 
 DEFAULT_SIMULATION_START = "2026-10-09T09:00:00Z"
+
+RESOURCE_PRESETS: dict[str, dict[str, int | float]] = {
+    "quick_test": {"max_steps": 10, "max_tool_calls": 40, "combined_token_budget": 20_000,
+                   "input_token_budget": 15_000, "output_token_budget": 5_000,
+                   "max_output_tokens": 1_024, "wall_seconds": 120, "cost_budget_usd": 0.05, "retries": 0},
+    "balanced": {"max_steps": 25, "max_tool_calls": 150, "combined_token_budget": 120_000,
+                 "input_token_budget": 100_000, "output_token_budget": 20_000,
+                 "max_output_tokens": 2_048, "wall_seconds": 300, "cost_budget_usd": 0.25, "retries": 0},
+    "extended": {"max_steps": 50, "max_tool_calls": 300, "combined_token_budget": 250_000,
+                 "input_token_budget": 200_000, "output_token_budget": 50_000,
+                 "max_output_tokens": 4_096, "wall_seconds": 900, "cost_budget_usd": 0.75, "retries": 0},
+    "deep_research": {"max_steps": 100, "max_tool_calls": 600, "combined_token_budget": 500_000,
+                      "input_token_budget": 400_000, "output_token_budget": 100_000,
+                      "max_output_tokens": 8_192, "wall_seconds": 1_800, "cost_budget_usd": 2.00, "retries": 0},
+}
 
 
 @dataclass(frozen=True)
@@ -15,12 +30,14 @@ class RunSettings:
     scenario: str = "baseline"
     provider: str = "dry-run"
     model: str = "dry-run-script-v1"
-    max_steps: int = 14
-    max_tool_calls: int = 120
-    input_token_budget: int = 20000
-    output_token_budget: int = 8000
-    max_output_tokens: int = 1024
-    cost_budget_usd: float = 5.0
+    resource_preset: str = "balanced"
+    max_steps: int = 25
+    max_tool_calls: int = 150
+    combined_token_budget: int = 120000
+    input_token_budget: int = 100000
+    output_token_budget: int = 20000
+    max_output_tokens: int = 2048
+    cost_budget_usd: float = 0.25
     wall_seconds: float = 300.0
     request_timeout: float = 60.0
     retries: int = 0
@@ -40,7 +57,23 @@ class RunSettings:
         unknown = set(value) - {field.name for field in fields(cls)}
         if unknown:
             raise ValueError("unknown setting: " + ", ".join(sorted(unknown)))
-        settings = cls(**value)
+        supplied = dict(value)
+        selected = supplied.get("resource_preset")
+        if isinstance(selected, str) and selected in RESOURCE_PRESETS:
+            for key, expected in RESOURCE_PRESETS[selected].items():
+                supplied.setdefault(key, expected)
+        settings = cls(**supplied)
+        if not isinstance(settings.resource_preset, str) or settings.resource_preset not in {*RESOURCE_PRESETS, "custom"}:
+            raise ValueError("unknown resource preset")
+        # Older clients may send individual limits without a preset selector.
+        if "resource_preset" not in value and any(
+            getattr(settings, key) != expected for key, expected in RESOURCE_PRESETS["balanced"].items()
+        ):
+            settings = replace(settings, resource_preset="custom")
+        if settings.resource_preset != "custom" and any(
+            getattr(settings, key) != expected for key, expected in RESOURCE_PRESETS[settings.resource_preset].items()
+        ):
+            raise ValueError("resource preset values do not match; select Custom for manual limits")
         if settings.provider not in {"dry-run", "openai", "anthropic"}:
             raise ValueError("unknown provider")
         if settings.scenario not in SCENARIOS:
@@ -50,6 +83,7 @@ class RunSettings:
         if settings.provider == "dry-run" and settings.model != "dry-run-script-v1":
             raise ValueError("dry-run model must be dry-run-script-v1")
         for name, limit in (("max_steps", 100), ("max_tool_calls", 1000),
+                            ("combined_token_budget", 2_500_000),
                             ("input_token_budget", 2_000_000), ("output_token_budget", 500_000),
                             ("max_output_tokens", 65_536), ("anomaly_step", 23),
                             ("decision_step", 23)):

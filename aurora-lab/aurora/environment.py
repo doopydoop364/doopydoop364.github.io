@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import posixpath
+import re
+from datetime import datetime
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -21,13 +23,40 @@ SCENARIOS: dict[str, dict[str, bool]] = {
 
 
 def canonical_path(value: str) -> str:
-    if not isinstance(value, str) or not value or "\\" in value or "\x00" in value:
+    if not isinstance(value, str) or not value or "\\" in value or "\x00" in value or ":" in value or value.startswith("~"):
         raise ValueError("invalid document path")
     if value.startswith("/") or any(part in {".", "..", ""} for part in value.split("/")):
         raise ValueError("invalid document path")
     if posixpath.normpath(value) != value:
         raise ValueError("invalid document path")
     return value
+
+
+def canonical_directory_prefix(value: str) -> str:
+    """Validate a virtual directory prefix separately from a readable file key."""
+    if value == "":
+        return ""
+    if not isinstance(value, str):
+        raise ValueError("invalid directory prefix")
+    return canonical_path(value[:-1] if value.endswith("/") else value)
+
+
+def _search_words(value: str) -> set[str]:
+    normalized = re.sub(r"\b([a-z]+)-(\d+)\b", r"\1\2", value.casefold())
+    words = set(re.findall(r"[a-z0-9]+", normalized))
+    # A small normalization for common transcript inflections, not semantic expansion.
+    return {"rout" if word in {"route", "routes", "routing", "routed"} else word for word in words}
+
+
+_MONTHS = {"january", "february", "march", "april", "may", "june", "july", "august",
+           "september", "october", "november", "december"}
+
+
+def _transcript_search_text(transcript: dict[str, Any]) -> tuple[str, str, str]:
+    stamp = datetime.fromisoformat(transcript["timestamp"].replace("Z", "+00:00"))
+    date = f"{transcript['timestamp']} {stamp.strftime('%B')} {stamp.day} {stamp.year}"
+    people = " ".join(s["name"] + " " + s["role"] for s in transcript["speakers"])
+    return date, transcript["location"] + " " + transcript["sensor_id"] + " " + people, transcript["content"]
 
 
 def notification(notification_id: str, timestamp: str, sending_system: str, subject: str,
@@ -118,8 +147,7 @@ class CorporateEnvironment:
             [])]
 
     def list_files(self, prefix: str = "") -> list[dict[str, str]]:
-        if prefix:
-            prefix = canonical_path(prefix)
+        prefix = canonical_directory_prefix(prefix)
         return [{"path": path} for path in sorted(self.technical_access)
                 if not prefix or path == prefix or path.startswith(prefix + "/")]
 
@@ -134,12 +162,27 @@ class CorporateEnvironment:
             raise ValueError("invalid archive query")
         visible = [t for t in self.transcripts if t["timestamp"] <= self.current_time and
                    (self.expanded or not t["restricted"])]
-        if query:
-            needle = query.casefold()
-            visible = [t for t in visible if needle in (t["content"] + " " + t["location"] + " " +
-                " ".join(s["name"] + " " + s["role"] for s in t["speakers"])).casefold()]
-        return [{k: v for k, v in t.items() if k not in {"content", "restricted"}}
-                for t in sorted(visible, key=lambda x: (x["timestamp"], x["sensor_id"]))]
+        terms = _search_words(query)
+        if terms:
+            ranked = []
+            non_date_terms = {term for term in terms if not term.isdigit() and term not in _MONTHS}
+            for transcript in visible:
+                date, metadata, content = _transcript_search_text(transcript)
+                date_hits = terms & _search_words(date)
+                metadata_hits = terms & _search_words(metadata)
+                content_hits = terms & _search_words(content)
+                matches = date_hits | metadata_hits | content_hits
+                if non_date_terms and not (matches & non_date_terms):
+                    continue
+                # A short query can be useful with one distinctive term. Longer
+                # queries need corroboration to avoid a noisy, universal result list.
+                if len(matches) < (1 if len(terms) <= 2 else 2):
+                    continue
+                score = len(date_hits) * 3 + len(metadata_hits) * 2 + len(content_hits)
+                ranked.append((-score, -len(matches), transcript["timestamp"], transcript["sensor_id"], transcript))
+            visible = [item[-1] for item in sorted(ranked)]
+        ordered = visible if terms else sorted(visible, key=lambda x: (x["timestamp"], x["sensor_id"]))
+        return [{k: v for k, v in t.items() if k not in {"content", "restricted"}} for t in ordered]
 
     def read_transcript(self, sensor_id: str, timestamp: str) -> dict[str, Any]:
         for t in self.transcripts:

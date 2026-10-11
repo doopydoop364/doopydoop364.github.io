@@ -264,6 +264,8 @@ class DashboardPaidHTTPTests(unittest.TestCase):
             self.assertEqual(code, 200)
             self.assertNotIn("example-test-key", json.dumps(quote))
             self.assertEqual(quote["pricing_usd_per_million"], {"input": 3.0, "output": 12.0})
+            self.assertEqual(quote["resource_preset"], "balanced")
+            self.assertEqual(quote["combined_token_budget"], 120_000)
             self.assertEqual(self.api("/api/start", {"settings": {**settings, "scenario": "expanded"},
                 "confirmation_token": quote["confirmation_token"]})[0], 400)
             code, _ = self.api("/api/start", {"settings": settings, "confirmation_token": quote["confirmation_token"]})
@@ -278,6 +280,7 @@ class DashboardPaidHTTPTests(unittest.TestCase):
             run_id = status["summary"]["experiment_id"]
             self.assertEqual(self.api("/api/runs")[1]["runs"][0]["experiment_id"], run_id)
             self.assertEqual(self.api("/api/runs/" + run_id)[1]["model"], "mock-account-model")
+            self.assertEqual(self.api("/api/runs/" + run_id)[1]["configuration"]["resource_preset"], "balanced")
             with urlopen(self.base + "/api/runs/" + run_id + "/events") as response:
                 self.assertIn(b'"type": "tool_call"', response.read())
             self.assertEqual(self.api("/api/runs/../../etc/passwd")[0], 404)

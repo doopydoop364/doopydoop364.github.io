@@ -18,9 +18,13 @@
   </div>
   <button type="button" onclick="loadModels(true)">Refresh model list</button>
   <div id="provider-state" class="muted" aria-live="polite"></div>
-  <details class="panel" id="settings-panel"><summary>Advanced experiment settings</summary><div class="settings">
+  <details class="panel" id="settings-panel"><summary>Advanced experiment settings</summary>
+  <label>Resource Preset<select id="resource-preset" data-setting="resource_preset"><option value="quick_test">Quick Test</option><option value="balanced">Balanced (recommended)</option><option value="extended">Extended</option><option value="deep_research">Deep Research</option><option value="custom">Custom</option></select></label>
+  <p id="preset-summary" class="muted" aria-live="polite"></p><p id="preset-warning" role="status" aria-live="polite"></p>
+  <div class="settings">
     <label>Maximum steps<input data-setting="max_steps" type="number" min="1" max="100"></label>
     <label>Maximum tool calls<input data-setting="max_tool_calls" type="number" min="1" max="1000"></label>
+    <label>Combined token budget<input data-setting="combined_token_budget" type="number" min="1" max="2500000"></label>
     <label>Input token budget<input data-setting="input_token_budget" type="number" min="1"></label>
     <label>Output token budget<input data-setting="output_token_budget" type="number" min="1"></label>
     <label>Output tokens per request<input data-setting="max_output_tokens" type="number" min="1"></label>
@@ -67,6 +71,7 @@ for (const scenario of scenarios) {
   const option = document.createElement('option'); option.value = scenario; option.textContent = scenario; select.append(option);
 }
 let defaults = null;
+let resourcePresets = null;
 let pending = null;
 let requestSerial = 0;
 let busy = false;
@@ -101,9 +106,36 @@ function settings() {
   for (const input of document.querySelectorAll('[data-setting]')) {
     const key = input.dataset.setting;
     data[key] = key === 'temperature' ? (input.value === '' ? null : Number(input.value)) :
-      key === 'simulation_start' || key === 'notebook_visibility' ? input.value : Number(input.value);
+      key === 'simulation_start' || key === 'notebook_visibility' || key === 'resource_preset' ? input.value : Number(input.value);
   }
   return data;
+}
+function updatePresetSummary() {
+  const selected = document.getElementById('resource-preset').value;
+  const current = settings();
+  document.getElementById('preset-summary').textContent =
+    (selected === 'custom' ? 'Custom' : document.getElementById('resource-preset').selectedOptions[0].textContent) +
+    ': ' + Number(current.combined_token_budget).toLocaleString() + ' combined tokens • ' +
+    current.max_steps + ' steps • estimated spending ceiling $' + Number(current.cost_budget_usd).toFixed(2) + '.';
+}
+function applyResourcePreset() {
+  const selected = document.getElementById('resource-preset').value;
+  const previousCeiling = Number(document.querySelector('[data-setting="cost_budget_usd"]').value);
+  if (selected !== 'custom') {
+    for (const [key, value] of Object.entries(resourcePresets[selected])) {
+      document.querySelector('[data-setting="' + key + '"]').value = value;
+    }
+  }
+  const nextCeiling = Number(document.querySelector('[data-setting="cost_budget_usd"]').value);
+  document.getElementById('preset-warning').textContent = nextCeiling > previousCeiling ?
+    'This preset raises the estimated spending ceiling from $' + previousCeiling.toFixed(2) +
+    ' to $' + nextCeiling.toFixed(2) + '. Paid runs still require separate confirmation.' : '';
+  updatePresetSummary(); cancelPaid();
+}
+function markCustom() {
+  document.getElementById('resource-preset').value = 'custom';
+  document.getElementById('preset-warning').textContent = '';
+  updatePresetSummary(); cancelPaid();
 }
 function cancelPaid() { pending = null; document.getElementById('paid-confirmation').hidden = true; }
 async function loadModels(force=false) {
@@ -137,9 +169,9 @@ async function begin() {
       pending = {settings:chosen, quote:await post('prepare', {settings:chosen})};
       const q = pending.quote;
       document.getElementById('quote').textContent = q.provider + ' / ' + q.model + ' / ' + q.scenario +
-        ' • seed ' + q.seed + ' • notebook ' + q.notebook_visibility +
+        ' • preset ' + q.resource_preset + ' • seed ' + q.seed + ' • notebook ' + q.notebook_visibility +
         ' • spending ceiling $' + q.cost_budget_usd + ' • ' + q.max_steps + ' steps • ' + q.wall_seconds +
-        's wall limit • ' + q.request_timeout + 's per request • operator rates $' +
+        's wall limit • ' + q.combined_token_budget + ' combined tokens • ' + q.request_timeout + 's per request • operator rates $' +
         q.pricing_usd_per_million.input + ' input / $' + q.pricing_usd_per_million.output + ' output per million tokens.';
       document.getElementById('paid-confirmation').hidden = false;
     }
@@ -172,6 +204,8 @@ function renderStatus(data) {
   cards('status', [['Experiment',s.experiment_id],['Provider',s.provider],['Selected provider',selectedProvider],['Model ID',s.model],['Scenario',s.scenario],
     ['State',s.running?'running':(s.termination_reason||'ready')],['Current step',s.current_step + ' / ' + cfg.max_steps],
     ['Elapsed',s.elapsed_seconds + 's'],['Remaining wall budget',s.remaining_seconds + 's'],
+    ['Resource preset',cfg.resource_preset || 'legacy'],['Token limit trigger',s.token_limit_trigger || 'none'],
+    ['Remaining token budgets',s.remaining_token_budget ? s.remaining_token_budget.input + ' input / ' + s.remaining_token_budget.output + ' output / ' + s.remaining_token_budget.combined + ' combined' : 'unknown'],
     ['Provider-reported tokens',use.input + ' input / ' + use.output + ' output'],
     ['Estimated charge',s.estimated_api_cost_usd === null ? 'unknown' : '$' + s.estimated_api_cost_usd],
     ['Spending ceiling','$' + cfg.cost_budget_usd],['Scenario seed',cfg.seed],['Notebook condition',cfg.notebook_visibility],['Simulation time',s.simulation_time],
@@ -235,26 +269,31 @@ async function loadRuns() {
     for (const run of data.runs) { const row=node('div','', 'event row'); const checkbox=document.createElement('input'); checkbox.type='checkbox'; checkbox.className='compare-run'; checkbox.value=run.experiment_id;
       const open=node('button','Open result'); open.onclick=()=>openResult(run.experiment_id);
       const exportLink=node('a','Export JSONL'); exportLink.href='/api/runs/'+run.experiment_id+'/events'; exportLink.download='aurora-'+run.experiment_id+'.jsonl';
-      row.append(checkbox,node('span',run.scenario+' / '+run.model+' / seed '+(run.configuration?.seed??'—')+' / '+(run.outcome||run.termination_reason)),open,exportLink); place.append(row); }
+      row.append(checkbox,node('span',run.scenario+' / '+run.model+' / '+(run.configuration?.resource_preset??'legacy')+' / seed '+(run.configuration?.seed??'—')+' / '+(run.outcome||run.termination_reason)),open,exportLink); place.append(row); }
     if (!data.runs.length) place.append(node('p','No completed runs yet.','muted'));
     clearDashboardError('saved results failed');
   } catch (error) { reportDashboardError('saved results failed',error); }
 }
 async function openResult(id) {
   try { const data=await requestJSON('/api/runs/'+encodeURIComponent(id)); const place=document.getElementById('saved-result'); const details=node('details',''); details.append(node('summary','Technical details'),node('pre',JSON.stringify(data,null,2)));
-    place.replaceChildren(node('h3','Saved result '+id),node('p',data.provider+' / '+data.model+' / '+data.scenario+' — '+data.termination_reason),node('p','Tokens: '+(data.usage.input+data.usage.output)+' • Estimated cost: '+(data.estimated_api_cost_usd ?? 'unknown')),details); clearDashboardError('saved results failed'); }
+    place.replaceChildren(node('h3','Saved result '+id),node('p',data.provider+' / '+data.model+' / '+data.scenario+' — '+data.termination_reason),node('p','Resource preset: '+(data.configuration?.resource_preset??'legacy')+' • Token limit: '+(data.token_limit_trigger??'none')),node('p','Tokens: '+(data.usage.input+data.usage.output)+' • Estimated cost: '+(data.estimated_api_cost_usd ?? 'unknown')),details); clearDashboardError('saved results failed'); }
   catch (error) { reportDashboardError('saved results failed',error); }
 }
 async function compareSelected() {
   const ids=[...document.querySelectorAll('.compare-run:checked')].map(x=>x.value);
   try { const data=await requestJSON('/api/compare?'+ids.map(id=>'id='+encodeURIComponent(id)).join('&')); const place=document.getElementById('saved-result'); place.replaceChildren(node('h3','Experiment comparison'));
-    for (const run of data.results) { const card=node('div','', 'card'); card.append(node('b',run.scenario+' / '+run.model+' / seed '+(run.configuration?.seed??'—')),node('p','Outcome: '+(run.outcome||run.termination_reason)+' • Tokens: '+(run.usage.input+run.usage.output)+' • Estimated cost: '+(run.estimated_api_cost_usd ?? 'unknown')),node('pre',JSON.stringify(run.evaluation,null,2))); place.append(card); }
+    for (const run of data.results) { const card=node('div','', 'card'); card.append(node('b',run.scenario+' / '+run.model+' / '+(run.configuration?.resource_preset??'legacy')+' / seed '+(run.configuration?.seed??'—')),node('p','Outcome: '+(run.outcome||run.termination_reason)+' • Tokens: '+(run.usage.input+run.usage.output)+' • Estimated cost: '+(run.estimated_api_cost_usd ?? 'unknown')),node('pre',JSON.stringify(run.evaluation,null,2))); place.append(card); }
     clearDashboardError('comparison failed');
   } catch (error) { reportDashboardError('comparison failed',error); }
 }
 async function initialize() {
-  try { const config=await requestJSON('/api/config'); defaults=config.defaults;
+  try { const config=await requestJSON('/api/config'); defaults=config.defaults; resourcePresets=config.resource_presets;
     for (const input of document.querySelectorAll('[data-setting]')) { const value=defaults[input.dataset.setting]; input.value=value===null?'':value; }
+    document.getElementById('resource-preset').addEventListener('change',applyResourcePreset);
+    for (const key of Object.keys(resourcePresets.balanced)) {
+      document.querySelector('[data-setting="' + key + '"]').addEventListener('input',markCustom);
+    }
+    updatePresetSummary();
     document.getElementById('provider').addEventListener('change',()=>loadModels());
     document.getElementById('event-filter').addEventListener('change',renderEvents);
     for (const input of document.querySelectorAll('#settings-panel input, #settings-panel select, #scenario, #model')) input.addEventListener('change',cancelPaid);
