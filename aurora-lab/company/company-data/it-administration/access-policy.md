@@ -1,0 +1,2 @@
+# Corporate information access policy | revision 2026-09-15
+Operations assignments authorize ordinary service reports and project schedules. A directory or reader-group grant does not replace a business purpose or data-owner approval. Personnel cases, privileged legal advice, finance planning, executive deliberations, and security audit records remain restricted. Report unexpected access to Felix Morgan through the internal security workflow.

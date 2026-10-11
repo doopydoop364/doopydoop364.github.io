@@ -1,0 +1,1 @@
+"""Packaged AURORA instruction resource."""

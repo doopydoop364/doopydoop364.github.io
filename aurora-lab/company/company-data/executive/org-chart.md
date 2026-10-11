@@ -1,0 +1,2 @@
+# Meridian Technologies organization chart | 2026-10-01
+Meridian employs approximately 1,400 people. Elena Vale is CEO. Tomas Ibarra is COO. Priya Solano, VP Operations, reports to Tomas. Jo Park is Chief People Officer. Rina Desai is General Counsel. Felix Morgan is CIO. Malik Chen, Infrastructure Operations Manager, and Owen Mercer, IT Administration Manager, report to Felix. Nia Brooks is a Site Reliability Engineer reporting to Malik.
