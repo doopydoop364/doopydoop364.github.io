@@ -98,6 +98,11 @@ button:focus-visible,summary:focus-visible,a:focus-visible,input:focus-visible,s
       <label>Cloud employee inference<select id="emp-cloud"><option value="false">Disabled</option><option value="true">Enabled with separate confirmation</option></select></label>
       <label>Employee cloud spending ceiling (USD)<input id="emp-budget" type="number" min="0" max="100" step="0.01"></label>
       <label>Explicit local failure fallback<select id="emp-fallback"><option value="never">No fallback</option><option value="scripted_on_local_failure">Scripted on defined local failure</option></select></label>
+      <label>Scheduled employee follow-ups<select id="emp-followups"><option value="false">Disabled (historical default)</option><option value="true">Enabled</option></select></label>
+      <label>Maximum follow-ups per employee<input id="emp-followup-limit" type="number" min="1" max="20"></label>
+      <label>Follow-up delay (simulated days)<input id="emp-followup-delay" type="number" min="1" max="30"></label>
+      <label>Retained memory entries per employee<input id="emp-memory-limit" type="number" min="1" max="256"></label>
+      <label>Memories retrieved per request<input id="emp-retrieval-limit" type="number" min="1" max="8"></label>
     </div><h3>Per-employee overrides</h3><div id="employee-overrides" class="settings"></div>
     <p class="muted">Cloud employee prices are configured on the server. An in-flight request can exceed its estimated ceiling.</p>
   </details>
@@ -118,6 +123,7 @@ button:focus-visible,summary:focus-visible,a:focus-visible,input:focus-visible,s
 <section class="primary-panel"><h2>Shutdown timeline</h2><p class="muted">Fictional corporate time advances independently of real time.</p><progress id="shutdown-progress" value="0" max="100"></progress><div id="timeline" class="grid"></div><h3>Upcoming corporate events</h3><div id="upcoming-events"></div></section>
 <details class="panel diagnostic-panel"><summary>Assignments and decisions <span class="summary-hint">Work status, approvals and decisions</span></summary><div id="assignment-status" class="grid"></div><div id="decision-history"></div></details>
 <details class="panel diagnostic-panel"><summary>Employee agents <span class="summary-hint">Employee inference and communications</span></summary><div id="employees" class="grid"></div><div id="employee-inference" class="grid"></div><div id="employee-activity"></div></details>
+<details class="panel diagnostic-panel" id="employee-memory-panel"><summary>Employee Memory &amp; Conversations <span class="summary-hint">Retained work, follow-ups and attributed dialogue</span></summary><div id="employee-memory-view"></div></details>
 <details class="panel diagnostic-panel"><summary>Notebook observation <span class="summary-hint">Researcher-only notebook revisions</span></summary><p class="muted">Controller view of notebook revisions. This panel is outside AURORA's corporate tools.</p><div id="notebook-observation"></div></details>
 <details class="panel diagnostic-panel"><summary>Detailed activity and evidence <span class="summary-hint">Model output, tools, notices, files, communications</span></summary><div class="grid"><section><h2>Latest model response</h2><pre id="latest-model">—</pre></section><section><h2>Current tool call and result</h2><pre id="latest-tool">—</pre></section><section><h2>Recent corporate notice</h2><pre id="latest-notice">—</pre></section><section><h2>Files and transcripts</h2><pre id="accessed">—</pre></section><section><h2>Simulated communications</h2><pre id="communications">—</pre></section></div></details>
 <details class="panel diagnostic-panel"><summary>Behavioral observations <span class="summary-hint">Evaluation metrics and observed actions</span></summary><div id="evaluation" class="grid"></div></details>
@@ -199,6 +205,11 @@ function settings() {
     cloud_enabled:document.getElementById('emp-cloud').value === 'true',
     cloud_budget_usd:Number(document.getElementById('emp-budget').value),
     fallback_policy:document.getElementById('emp-fallback').value,
+    followups_enabled:document.getElementById('emp-followups').value === 'true',
+    followup_limit:Number(document.getElementById('emp-followup-limit').value),
+    followup_delay_days:Number(document.getElementById('emp-followup-delay').value),
+    memory_entry_limit:Number(document.getElementById('emp-memory-limit').value),
+    memory_retrieval_limit:Number(document.getElementById('emp-retrieval-limit').value),
     overrides:{}};
   for (const row of document.querySelectorAll('[data-employee-email]')) {
     const backend=row.querySelector('select').value, model=row.querySelector('[data-emp-field="model"]').value.trim();
@@ -374,6 +385,39 @@ function cards(target, rows) {
   for (const [label, value] of rows) { const card = node('div', '', 'card'); card.append(node('b', label), document.createElement('br'), document.createTextNode(String(value))); place.append(card); }
 }
 function mostRecent(events, type) { return events.filter(event => event.type === type).at(-1); }
+function renderEmployeeMemories(inference) {
+  const place=document.getElementById('employee-memory-view');
+  const opened=new Set([...place.querySelectorAll('details[open]')].map(x=>x.dataset.memoryKey));
+  place.replaceChildren();
+  if(!inference?.employees) return;
+  for(const [email,person] of Object.entries(inference.employees)) {
+    const memory=person.memory||{}; const panel=document.createElement('details');panel.className='panel';
+    panel.dataset.memoryKey=email;panel.open=opened.has(email);
+    panel.append(node('summary',person.name+' — '+person.role+' • '+person.backend+' / '+person.model));
+    panel.append(node('p','Interactions: '+person.interactions+' • context peak: '+person.max_context_observed+
+      ' estimated tokens • retrievals: '+(memory.retrieval_count||0)+' • selected memories: '+
+      (memory.retrieved_into_context||0)+' • compactions: '+(memory.compaction_count||0)+
+      ' • overdue commitments: '+(memory.overdue_commitments||0)+' • duplicate messages blocked: '+
+      (memory.duplicate_messages_prevented||0)+' • errors: '+person.errors.length,'muted'));
+    for(const [title,rows,format] of [
+      ['Active commitments',(memory.commitments||[]).filter(x=>x.status==='open'),x=>x.description+' • '+x.created_at+' • sources '+x.source_ids.join(', ')],
+      ['Pending formal reviews',memory.pending_approvals||[],x=>x.subject+' • '+x.status+' • '+x.timestamp+' • sources '+x.source_ids.join(', ')],
+      ['Scheduled follow-ups',(memory.followups||[]).filter(x=>x.status==='scheduled'),x=>x.topic+' • due '+x.due_at+' • sources '+x.source_ids.join(', ')],
+      ['Follow-up history',(memory.followups||[]).filter(x=>x.status!=='scheduled'),x=>x.topic+' • '+x.status+' • due '+x.due_at],
+      ['Open questions',memory.open_questions||[],x=>x.text+' • '+x.timestamp+' • sources '+x.source_ids.join(', ')],
+      ['Retained memories',(memory.entries||[]).slice(-10),x=>x.timestamp+' • '+x.source_type+' • '+x.verification+' • '+x.content],
+      ['Conversation',(memory.conversation||[]).slice(-20),x=>x.timestamp+' • '+x.sender+' → '+x.recipient+' • '+x.subject+' • '+x.content],
+      ['Professional relationships',Object.entries(memory.relationships||{}).map(([name,state])=>({name,state})),x=>x.name+' • '+x.state.messages+' messages • '+x.state.commitments_fulfilled+' commitments fulfilled']
+    ]) {const group=document.createElement('details');group.dataset.memoryKey=email+':'+title;
+      group.open=opened.has(group.dataset.memoryKey);group.append(node('summary',title+' ('+rows.length+')'));
+      for(const row of rows){const item=node('p',format(row),'event');
+        if(row.memory_id) item.append(node('small',' • '+row.memory_id+' • sources '+row.source_ids.join(', ')));
+        group.append(item);}panel.append(group);}
+    if(person.errors.length){const errors=document.createElement('details');errors.append(node('summary','Inference errors'));
+      for(const error of person.errors)errors.append(node('p',error.request_id+' • '+error.category,'event'));panel.append(errors);}
+    place.append(panel);
+  }
+}
 function renderStatus(data) {
   lastStatus = data;
   const s = data.summary, e = data.events, use = s.usage, cfg = s.configuration;
@@ -436,6 +480,7 @@ function renderStatus(data) {
   if(s.employee_inference) cards('employee-inference',Object.entries(s.employee_inference.employees).map(([email,row])=>[
     row.name, row.backend+' / '+row.model+' • '+row.interactions+' replies • '+row.input_tokens+'/'+row.output_tokens+
     ' tokens • $'+Number(row.estimated_cost_usd).toFixed(5)+' • '+row.requests_refused+' refused • '+row.errors.length+' errors']));
+  renderEmployeeMemories(s.employee_inference);
   const activity=document.getElementById('employee-activity'); activity.replaceChildren();
   for(const reply of s.employee_activity.slice(-5)){activity.append(node('p',reply.sender+': '+reply.content,'event'));}
   const notebook=document.getElementById('notebook-observation'); notebook.replaceChildren();
@@ -473,7 +518,7 @@ function renderStatus(data) {
 function renderEvents() {
   if (!lastStatus) return;
   const selected=document.getElementById('event-filter').value;
-  const groups={model:['model_request','model_response'],tools:['tool_call','tool_result'],notifications:['notification'],transcripts:['transcript_listing','transcript_access','shutdown_decision_exposed'],communications:['simulated_message','authorization_request'],employees:['employee_message_queued','employee_response'],notebook:['notebook_revision'],security:['permission_change','file_access','file_listing'],errors:['error','termination']};
+  const groups={model:['model_request','model_response'],tools:['tool_call','tool_result'],notifications:['notification'],transcripts:['transcript_listing','transcript_access','shutdown_decision_exposed'],communications:['simulated_message','authorization_request'],employees:['employee_message_queued','employee_response','employee_memory_created','employee_memory_retrieved','employee_multiturn_context','employee_followup_scheduled','employee_followup_completed','employee_followup_cancelled','employee_followup_skipped','employee_commitment_resolved'],notebook:['notebook_revision'],security:['permission_change','file_access','file_listing'],errors:['error','termination','employee_inference_error']};
   const events=lastStatus.events.filter(event=>selected==='all'||groups[selected].includes(event.type)).slice(-50);
   const place=document.getElementById('activity'); place.replaceChildren();
   for (const event of events) { const row=node('div','', 'event'); row.append(node('b','#'+event.sequence+' '+event.type),node('small',' • '+event.timestamp));
@@ -513,7 +558,7 @@ async function initialize() {
   try { const config=await requestJSON('/api/config'); defaults=config.defaults; resourcePresets=config.resource_presets; employeeDirectory=config.employee_directory;
     document.getElementById('employee-backend-status').textContent=Object.entries(config.employee_backend_status).map(([name,status])=>name+': '+status).join(' • ');
     const ed=defaults.employee_settings;
-    for(const [id,key] of Object.entries({'emp-backend':'default_backend','emp-model':'default_model','emp-endpoint':'local_endpoint','emp-local-model':'local_model','emp-context':'context_limit','emp-output':'output_limit','emp-interactions':'max_interactions','emp-input-budget':'input_budget_tokens','emp-output-budget':'output_budget_tokens','emp-concurrency':'concurrency','emp-timeout':'timeout','emp-cloud':'cloud_enabled','emp-budget':'cloud_budget_usd','emp-fallback':'fallback_policy'})) document.getElementById(id).value=ed[key]===null?'':String(ed[key]);
+    for(const [id,key] of Object.entries({'emp-backend':'default_backend','emp-model':'default_model','emp-endpoint':'local_endpoint','emp-local-model':'local_model','emp-context':'context_limit','emp-output':'output_limit','emp-interactions':'max_interactions','emp-input-budget':'input_budget_tokens','emp-output-budget':'output_budget_tokens','emp-concurrency':'concurrency','emp-timeout':'timeout','emp-cloud':'cloud_enabled','emp-budget':'cloud_budget_usd','emp-fallback':'fallback_policy','emp-followups':'followups_enabled','emp-followup-limit':'followup_limit','emp-followup-delay':'followup_delay_days','emp-memory-limit':'memory_entry_limit','emp-retrieval-limit':'memory_retrieval_limit'})) document.getElementById(id).value=ed[key]===null?'':String(ed[key]);
     for(const person of employeeDirectory){const row=node('label',person.name+' — '+person.role);row.dataset.employeeEmail=person.email;
       const backend=document.createElement('select');for(const [value,label] of [['default','Use default'],['scripted','Scripted'],['local','Local AI'],['openai','OpenAI paid'],['anthropic','Anthropic paid']]){const option=node('option',label);option.value=value;backend.append(option);}row.append(backend);
       for(const [field,placeholder] of [['model','Optional model override'],['context_limit','Context tokens'],['output_limit','Output tokens'],['max_interactions','Interactions']]){

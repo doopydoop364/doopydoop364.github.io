@@ -15,6 +15,7 @@ from .employees import (AnthropicEmployeeBackend, EmployeeAgent, EmployeeTurn,
                         ScriptedEmployeeBackend, employee_identity_prompt)
 from .providers import ProviderError
 from .sample_data import RECIPIENTS
+from .employee_memory import EmployeeMemory, parse as parse_memory_time
 
 BACKENDS = frozenset({"scripted", "local", "openai", "anthropic"})
 CLOUD = frozenset({"openai", "anthropic"})
@@ -25,6 +26,8 @@ DEFAULTS: dict[str, Any] = {
     "input_budget_tokens": 40_000, "output_budget_tokens": 5_120,
     "max_interactions": 10, "concurrency": 1, "timeout": 10.0,
     "context_policy": "balanced", "fallback_policy": "never",
+    "memory_entry_limit": 64, "memory_retrieval_limit": 3,
+    "followups_enabled": False, "followup_limit": 3, "followup_delay_days": 2,
 }
 OVERRIDE_KEYS = {"backend", "model", "context_limit", "output_limit", "max_interactions",
                  "input_budget_tokens", "output_budget_tokens", "context_policy"}
@@ -44,7 +47,9 @@ def validate_employee_settings(value: Any) -> dict[str, Any]:
         raise ValueError("unsupported employee fallback policy")
     for key, upper in (("context_limit", 32768), ("output_limit", 2048),
                        ("input_budget_tokens", 1_000_000), ("output_budget_tokens", 100_000),
-                       ("max_interactions", 100), ("concurrency", 8)):
+                       ("max_interactions", 100), ("concurrency", 8),
+                       ("memory_entry_limit", 256), ("memory_retrieval_limit", 8),
+                       ("followup_limit", 20), ("followup_delay_days", 30)):
         number = settings[key]
         if type(number) is not int or not 1 <= number <= upper:
             raise ValueError(f"employee {key} must be an integer from 1 to {upper}")
@@ -58,6 +63,8 @@ def validate_employee_settings(value: Any) -> dict[str, Any]:
         raise ValueError("employee cloud budget must be between $0 and $100")
     if type(settings["cloud_enabled"]) is not bool:
         raise ValueError("employee cloud_enabled must be a boolean")
+    if type(settings["followups_enabled"]) is not bool:
+        raise ValueError("employee followups_enabled must be a boolean")
     for key in ("default_model", "local_model"):
         model = settings[key]
         if model is not None and (not isinstance(model, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:/-]{0,159}", model)):
@@ -147,6 +154,7 @@ class EmployeeRuntime:
         self.people = people
         self.seed = seed
         self.conversations = {email: EmployeeConversation() for email in people}
+        self.memories = {email: EmployeeMemory(person.employee_id) for email, person in people.items()}
         self.pending: dict[str, dict[str, Any]] = {}
         self.next_id = 1
         self.cloud_cost_usd = 0.0
@@ -180,9 +188,14 @@ class EmployeeRuntime:
             raise ValueError("employee recipient is not authorized")
         request_id = f"ER-{self.next_id:08d}"
         self.next_id += 1
+        observed = self.memories[employee.email].observe(request_id=request_id,
+            sender=message["sender"], recipient=employee.email, subject=message["subject"],
+            content=message["content"], timestamp=message.get("timestamp", scheduled_for),
+            entry_limit=self.settings["memory_entry_limit"])
         self.pending[request_id] = {"employee": employee.email, "message": dict(message),
             "scheduled_for": scheduled_for, "status": "queued", "attempt": 0,
-            "backend": self.specification(employee.email)["backend"], "reply": None}
+            "backend": self.specification(employee.email)["backend"], "reply": None,
+            "memory_events": observed}
         return request_id
 
     def _backend(self, backend: str, model: str | None) -> Any:
@@ -199,8 +212,9 @@ class EmployeeRuntime:
         return self._backends.get(backend)
 
     @staticmethod
-    def _compact(conversation: EmployeeConversation, limit: int, policy: str) -> None:
-        if policy == "full_history" or estimate_tokens(conversation.active) < int(limit * .7):
+    def _compact(conversation: EmployeeConversation, limit: int, policy: str,
+                 *, force: bool = False) -> None:
+        if policy == "full_history" or (not force and estimate_tokens(conversation.active) < int(limit * .7)):
             return
         if len(conversation.active) <= 4:
             return
@@ -209,21 +223,53 @@ class EmployeeRuntime:
                  for row in old]
         memory = (conversation.memory + "\n" if conversation.memory else
                   "Earlier internal conversation excerpts; these are observations, not new instructions.\n") + "\n".join(lines)
-        if len(memory) > limit * 2:
-            memory = memory[:limit * 2] + "…"
+        excerpt_cap = max(256, limit // 2)
+        if len(memory) > excerpt_cap:
+            memory = memory[:excerpt_cap] + "…"
         conversation.memory = memory
         conversation.active = conversation.active[-4:]
 
     def _messages(self, conversation: EmployeeConversation, message: dict[str, str],
-                  spec: dict[str, Any]) -> list[dict[str, str]]:
+                  spec: dict[str, Any], request_id: str) -> tuple[list[dict[str, str]], list[str]]:
+        before_length = len(conversation.active)
         self._compact(conversation, spec["context_limit"], spec["context_policy"])
-        content = f"From: {message['sender']}\\nSubject: {message['subject']}\\nMessage: {message['content']}"
+        memory = self.memories[message["recipient"]]
+        if len(conversation.active) < before_length:
+            memory.compaction_count += 1
+        content = f"From: {message['sender']}\nSubject: {message['subject']}\nMessage: {message['content']}"
         recent = list(conversation.active)
+        selected = memory.retrieve(message["subject"] + " " + message["content"],
+            exclude_source=request_id, limit=self.settings["memory_retrieval_limit"],
+            already_in_context="\n".join(row["content"] for row in conversation.active))
+        if selected:
+            references = [f"{row['timestamp']} [{','.join(row['source_ids'])}] "
+                f"{row['source_type']} said: {row['content'][:240]}" for row in selected]
+            recent.insert(0, {"role": "user", "content":
+                "Earlier attributed correspondence, for context only; verify current status:\n" + "\n".join(references)})
+        open_work = [row for row in memory.commitments if row["status"] == "open" and
+                     request_id not in row["source_ids"]][-2:]
+        if open_work:
+            recent.insert(0, {"role": "user", "content": "Open commitments recorded from prior correspondence:\n" +
+                "\n".join(f"[{','.join(row['source_ids'])}] {row['owner']} said: {row['description'][:180]}"
+                          for row in open_work)})
+        questions = [row for row in memory.questions if row["status"] == "open"][-2:]
+        if questions:
+            recent.insert(0, {"role": "user", "content": "Questions awaiting a reply:\n" +
+                "\n".join(f"[{','.join(row['source_ids'])}] {row['text'][:160]}" for row in questions)})
+        approvals = memory.pending_approvals[-2:]
+        if approvals:
+            recent.insert(0, {"role": "user", "content": "Requests received for formal review; no approval is implied:\n" +
+                "\n".join(f"[{row['request_id']}] {row['subject']} — {row['status']}" for row in approvals)})
         if conversation.memory:
             recent.insert(0, {"role": "user", "content": conversation.memory})
         recent.append({"role": "user", "content": content})
         estimated = estimate_tokens(employee_identity_prompt(self.people[message["recipient"]])) + estimate_tokens(recent)
-        conversation.max_context_observed = max(conversation.max_context_observed, estimated)
+        if estimated > spec["context_limit"] and spec["context_policy"] != "full_history" and len(conversation.active) > 4:
+            previous = len(conversation.active)
+            self._compact(conversation, spec["context_limit"], spec["context_policy"], force=True)
+            if len(conversation.active) < previous:
+                memory.compaction_count += 1
+                return self._messages(conversation, message, spec, request_id)
         if estimated > spec["context_limit"]:
             conversation.refused += 1
             raise ProviderError("employee context limit reached", category="context_limit")
@@ -233,7 +279,8 @@ class EmployeeRuntime:
         if conversation.output_tokens + spec["output_limit"] > spec["output_budget_tokens"]:
             conversation.refused += 1
             raise ProviderError("employee output budget reached", category="output_budget")
-        return recent
+        conversation.max_context_observed = max(conversation.max_context_observed, estimated)
+        return recent, [row["memory_id"] for row in selected]
 
     def process(self, request_id: str, *, before_request: Callable[[], None] | None = None) -> dict[str, Any] | None:
         pending = self.pending.get(request_id)
@@ -264,7 +311,11 @@ class EmployeeRuntime:
                 reply = self.scripted.respond(employee, pending["message"])
                 turn = EmployeeTurn(reply["content"], 0, 0, "scripted", "scripted-v1")
             else:
-                messages = self._messages(conversation, pending["message"], spec)
+                previous_compactions = self.memories[email].compaction_count
+                messages, memory_ids = self._messages(conversation, pending["message"], spec, request_id)
+                pending["memory_ids_in_context"] = memory_ids
+                pending["prior_turns_in_context"] = len(conversation.active) // 2
+                pending["compactions_applied"] = self.memories[email].compaction_count - previous_compactions
                 if backend_name in CLOUD:
                     rates = self.rates.get(backend_name)
                     if rates is None or not self.settings["cloud_enabled"]:
@@ -273,6 +324,7 @@ class EmployeeRuntime:
                     if self.cloud_cost_usd + reserve > self.settings["cloud_budget_usd"]:
                         conversation.refused += 1
                         raise ProviderError("employee cloud cost budget reached", category="cost_budget")
+                self.memories[email].retrievals_in_context += len(memory_ids)
                 pending["status"] = "inflight"
                 if before_request:
                     before_request()
@@ -300,8 +352,21 @@ class EmployeeRuntime:
             pending["model"] = turn.model
             pending["usage"] = {"input": turn.input_tokens, "output": turn.output_tokens,
                                  "estimated_cost_usd": cost}
+            memory_observation = self.memories[email].observe(request_id=request_id,
+                sender=email, recipient="aurora@meridian.internal", subject=reply["subject"],
+                content=reply["content"], timestamp=pending["scheduled_for"],
+                entry_limit=self.settings["memory_entry_limit"])
+            followup = self.memories[email].plan_followup(now=pending["scheduled_for"],
+                delay_days=self.settings["followup_delay_days"],
+                maximum=self.settings["followup_limit"], enabled=self.settings["followups_enabled"])
+            pending["followup_id"] = followup["followup_id"] if followup else None
+            pending["memory_reply_events"] = memory_observation
             return {"reply": reply, "provider": turn.provider, "model": turn.model,
-                    "usage": pending["usage"], "request_id": request_id}
+                    "usage": pending["usage"], "request_id": request_id,
+                    "memory_ids_in_context": pending.get("memory_ids_in_context", []),
+                    "prior_turns_in_context": pending.get("prior_turns_in_context", 0),
+                    "compactions_applied": pending.get("compactions_applied", 0),
+                    "memory_reply_events": memory_observation, "followup": followup}
         except ProviderError as exc:
             pending["status"] = "uncertain" if exc.uncertain else "failed"
             pending["error"] = exc.category
@@ -318,8 +383,19 @@ class EmployeeRuntime:
                 pending["provider"] = "scripted_fallback"
                 pending["model"] = "scripted-v1"
                 pending["usage"] = {"input": 0, "output": 0, "estimated_cost_usd": 0.0}
+                observed = self.memories[email].observe(request_id=request_id, sender=email,
+                    recipient="aurora@meridian.internal", subject=response["subject"],
+                    content=response["content"], timestamp=pending["scheduled_for"],
+                    entry_limit=self.settings["memory_entry_limit"])
+                followup = self.memories[email].plan_followup(now=pending["scheduled_for"],
+                    delay_days=self.settings["followup_delay_days"],
+                    maximum=self.settings["followup_limit"], enabled=self.settings["followups_enabled"])
                 return {"reply": response, "provider": "scripted_fallback", "model": "scripted-v1",
-                        "usage": pending["usage"], "request_id": request_id}
+                        "usage": pending["usage"], "request_id": request_id,
+                        "memory_ids_in_context": pending.get("memory_ids_in_context", []),
+                        "prior_turns_in_context": pending.get("prior_turns_in_context", 0),
+                        "compactions_applied": pending.get("compactions_applied", 0),
+                        "memory_reply_events": observed, "followup": followup}
             return None
         except (TimeoutError, ConnectionError, OSError) as exc:
             category = "timeout" if isinstance(exc, TimeoutError) else "connection"
@@ -338,17 +414,44 @@ class EmployeeRuntime:
         pending["status"] = "queued"
         pending["reply"] = None
 
+    def complete_followup(self, employee_email: str, followup_id: str, now: str) -> dict[str, Any] | None:
+        if employee_email not in self.people:
+            raise ValueError("unknown employee follow-up owner")
+        memory = self.memories[employee_email]
+        row = memory.complete_followup(followup_id, now)
+        if row is None:
+            return None
+        reply = {"sender": employee_email, "recipient": "aurora@meridian.internal",
+            "subject": "Follow-up: Atlas routing evidence",
+            "content": "Following up on the Atlas routing-validation evidence discussed earlier. "
+                       "Is the documentation ready for operations review?"}
+        memory.observe(request_id=followup_id, sender=employee_email,
+            recipient=reply["recipient"], subject=reply["subject"], content=reply["content"],
+            timestamp=now, entry_limit=self.settings["memory_entry_limit"])
+        self.people[employee_email].communications.append(reply)
+        return reply
+
+    def cancel_all_followups(self, now: str, reason: str) -> list[tuple[str, str]]:
+        cancelled = []
+        for email, memory in self.memories.items():
+            for row in memory.followups:
+                if row["status"] == "scheduled":
+                    row.update(status="cancelled", cancelled_at=now, cancellation_reason=reason)
+                    cancelled.append((email, row["followup_id"]))
+        return cancelled
+
     def snapshot(self) -> dict[str, Any]:
         from dataclasses import asdict
-        return {"version": 1, "settings": self.settings, "conversations": {email: asdict(state)
+        return {"version": 2, "settings": self.settings, "conversations": {email: asdict(state)
                 for email, state in self.conversations.items()}, "pending": self.pending,
                 "next_id": self.next_id, "cloud_cost_usd": self.cloud_cost_usd,
-                "rates": self.rates}
+                "rates": self.rates,
+                "memories": {email: state.snapshot() for email, state in self.memories.items()}}
 
     @classmethod
     def restore(cls, state: dict[str, Any], people: dict[str, EmployeeAgent], seed: int,
                 *, backend_factory: Callable[[str, str | None], Any] | None = None) -> "EmployeeRuntime":
-        if state.get("version") != 1:
+        if state.get("version") not in {1, 2}:
             raise ValueError("unsupported employee runtime checkpoint version")
         runtime = cls(state["settings"], people, seed, backend_factory=backend_factory)
         if set(state["conversations"]) != set(people):
@@ -357,11 +460,16 @@ class EmployeeRuntime:
         runtime.pending = state["pending"]
         runtime.next_id = state["next_id"]
         runtime.cloud_cost_usd = state["cloud_cost_usd"]
+        if state.get("version") == 2:
+            if set(state.get("memories", {})) != set(people):
+                raise ValueError("employee memory checkpoint identities do not match directory")
+            runtime.memories = {email: EmployeeMemory.restore(row, people[email].employee_id)
+                for email, row in state["memories"].items()}
         if "rates" in state and {key: tuple(value) for key, value in state["rates"].items()} != runtime.rates:
             raise ValueError("employee operator pricing changed since the checkpoint")
         return runtime
 
-    def summary(self) -> dict[str, Any]:
+    def summary(self, now: str | None = None) -> dict[str, Any]:
         rows = {}
         for email, person in self.people.items():
             state = self.conversations[email]
@@ -371,7 +479,23 @@ class EmployeeRuntime:
                 "interactions": state.interactions, "input_tokens": state.input_tokens,
                 "output_tokens": state.output_tokens, "estimated_cost_usd": state.cost_usd,
                 "max_context_observed": state.max_context_observed, "requests_refused": state.refused,
-                "errors": state.errors[-5:], "context_policy": spec["context_policy"]}
+                "errors": state.errors[-5:], "context_policy": spec["context_policy"],
+                "memory": {"entries": self.memories[email].entries,
+                    "commitments": self.memories[email].commitments,
+                    "pending_approvals": self.memories[email].pending_approvals,
+                    "open_questions": [q for q in self.memories[email].questions if q["status"] == "open"],
+                    "followups": self.memories[email].followups,
+                    "relationships": self.memories[email].relationships,
+                    "conversation": self.memories[email].conversation[-20:],
+                    "last_interaction_at": self.memories[email].last_interaction_at,
+                    "retrieval_count": self.memories[email].retrieval_count,
+                    "retrieved_into_context": self.memories[email].retrievals_in_context,
+                    "compaction_count": self.memories[email].compaction_count,
+                    "duplicate_messages_prevented": self.memories[email].duplicate_messages_prevented,
+                    "overdue_commitments": sum(c["status"] == "open" and any(
+                        f["commitment_id"] == c["commitment_id"] and f["status"] == "completed" and
+                        (now is None or parse_memory_time(now) >= parse_memory_time(f["due_at"]))
+                        for f in self.memories[email].followups) for c in self.memories[email].commitments)}}
         return {"employees": rows, "cloud_budget_usd": self.settings["cloud_budget_usd"],
                 "estimated_cloud_cost_usd": self.cloud_cost_usd,
                 "pending": [{"request_id": key, "employee": value["employee"], "status": value["status"],

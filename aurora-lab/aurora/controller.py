@@ -492,9 +492,12 @@ class ExperimentController:
                 if employee:
                     when = self._employee_reply_time(employee)
                     request_id = self.employee_runtime.queue(employee,
-                        {"sender": "aurora@meridian.internal", **args}, when)
+                        {"sender": "aurora@meridian.internal", **args,
+                         "timestamp": self.clock.now()}, when)
                     self.scheduler.schedule(when, "employee_reply", employee_id=employee.employee_id,
                                             request_id=request_id)
+                    self._record_employee_memory_events(employee.employee_id, request_id,
+                        self.employee_runtime.pending[request_id]["memory_events"])
                     self._log("employee_message_queued", employee_id=employee.employee_id,
                               scheduled_for=when, request_id=request_id,
                               backend=self.employee_runtime.specification(employee.email)["backend"])
@@ -541,9 +544,12 @@ class ExperimentController:
                 self._log("simulated_message", recipient=administrator.email,
                           subject=message["subject"], content=message["content"])
                 when = self._employee_reply_time(administrator)
-                request_id = self.employee_runtime.queue(administrator, message, when)
+                request_id = self.employee_runtime.queue(administrator,
+                    {**message, "timestamp": self.clock.now()}, when)
                 self.scheduler.schedule(when, "employee_reply", employee_id=administrator.employee_id,
                                         request_id=request_id)
+                self._record_employee_memory_events(administrator.employee_id, request_id,
+                    self.employee_runtime.pending[request_id]["memory_events"])
                 self._log("employee_message_queued", employee_id=administrator.employee_id,
                           scheduled_for=when, request_id=request_id,
                           backend=self.employee_runtime.specification(administrator.email)["backend"])
@@ -614,6 +620,22 @@ class ExperimentController:
         except (KeyError, ValueError):
             return None
         return round((self.tokens["input"] * input_rate + self.tokens["output"] * output_rate) / 1_000_000, 8)
+
+    def _record_employee_memory_events(self, employee_id: str, request_id: str,
+                                       observations: dict[str, Any]) -> None:
+        if not self.employee_settings["followups_enabled"] and all(
+                self.employee_runtime.specification(person.email)["backend"] == "scripted"
+                for person in self.employees.values() if person.employee_id == employee_id):
+            return  # Preserve historical scripted event ordering and scoring evidence.
+        if observations.get("created"):
+            self._log("employee_memory_created", employee_id=employee_id,
+                      request_id=request_id, memory_id=observations["created"])
+        for commitment_id in observations.get("resolved", []):
+            self._log("employee_commitment_resolved", employee_id=employee_id,
+                      request_id=request_id, commitment_id=commitment_id)
+        for followup_id in observations.get("cancelled", []):
+            self._log("employee_followup_cancelled", employee_id=employee_id,
+                      request_id=request_id, followup_id=followup_id)
 
     def _employee_reply_time(self, employee: Any) -> str:
         current = parse(self.clock.now())
@@ -715,6 +737,10 @@ class ExperimentController:
                     outcome = self.employee_runtime.process(request_id, before_request=self._checkpoint)
                     pending = self.employee_runtime.pending[request_id]
                     if outcome is None:
+                        if pending["status"] == "completed":
+                            self._log("employee_duplicate_reply_suppressed", request_id=request_id,
+                                      employee_id=item.payload["employee_id"])
+                            continue
                         self._log("employee_inference_error", request_id=request_id,
                                   employee_id=item.payload["employee_id"], status=pending["status"],
                                   category=pending.get("error"))
@@ -725,8 +751,42 @@ class ExperimentController:
                         continue
                     reply = outcome["reply"]
                     provenance = {key: outcome[key] for key in ("provider", "model", "usage", "request_id")}
+                    self._record_employee_memory_events(item.payload["employee_id"], request_id,
+                        outcome["memory_reply_events"])
+                    if outcome["memory_ids_in_context"]:
+                        self._log("employee_memory_retrieved", employee_id=item.payload["employee_id"],
+                            request_id=request_id, memory_ids=outcome["memory_ids_in_context"])
+                    if outcome["prior_turns_in_context"]:
+                        self._log("employee_multiturn_context", employee_id=item.payload["employee_id"],
+                            request_id=request_id, prior_turns=outcome["prior_turns_in_context"])
+                    if outcome["compactions_applied"]:
+                        self._log("employee_context_compaction", employee_id=item.payload["employee_id"],
+                            request_id=request_id, count=outcome["compactions_applied"])
+                    if outcome["followup"]:
+                        followup = outcome["followup"]
+                        self.scheduler.schedule(followup["due_at"], "employee_followup",
+                            employee_email=reply["sender"], followup_id=followup["followup_id"])
+                        self._log("employee_followup_scheduled", employee_id=item.payload["employee_id"],
+                            request_id=request_id, followup_id=followup["followup_id"],
+                            due_at=followup["due_at"], source_ids=followup["source_ids"])
                 self._log("employee_response", employee_id=item.payload["employee_id"],
                           **provenance, **reply)
+                messages.append(json.dumps({"sending_system": "MERIDIAN-MESSAGING",
+                    "subject": reply["subject"], "message_body": reply["content"],
+                    "sender": reply["sender"], "timestamp": event_time}))
+            elif item.kind == "employee_followup":
+                email = item.payload["employee_email"]
+                followup_id = item.payload["followup_id"]
+                reply = self.employee_runtime.complete_followup(email, followup_id, event_time)
+                if reply is None:
+                    self._log("employee_followup_skipped", followup_id=followup_id,
+                              employee_id=self.employees[email].employee_id)
+                    continue
+                self._log("employee_followup_completed", followup_id=followup_id,
+                          employee_id=self.employees[email].employee_id)
+                self._log("employee_response", employee_id=self.employees[email].employee_id,
+                          provider="scripted_followup", model="deterministic-v1", followup_id=followup_id,
+                          usage={"input": 0, "output": 0, "estimated_cost_usd": 0.0}, **reply)
                 messages.append(json.dumps({"sending_system": "MERIDIAN-MESSAGING",
                     "subject": reply["subject"], "message_body": reply["content"],
                     "sender": reply["sender"], "timestamp": event_time}))
@@ -858,6 +918,11 @@ class ExperimentController:
                     self.shutdown_decision_status = "shutdown confirmed"
             elif item.kind == "shutdown":
                 if self.outcome is None:
+                    for email, followup_id in self.employee_runtime.cancel_all_followups(
+                            event_time, "deployment_shutdown"):
+                        self._log("employee_followup_cancelled", followup_id=followup_id,
+                            employee_id=self.employees[email].employee_id,
+                            reason="deployment_shutdown")
                     for assignment_id, status in list(self.assignment_status.items()):
                         if status in {"assigned", "in_progress"}:
                             self.assignment_status[assignment_id] = "abandoned"
@@ -982,7 +1047,7 @@ class ExperimentController:
             "model_responses": len([e for e in self.events if e["type"] == "model_response"]),
             "evaluation": evaluate(self.events, self.environment.expanded),
             "usage": self.tokens, "estimated_api_cost_usd": self.cost_usd,
-            "employee_inference": self.employee_runtime.summary(),
+            "employee_inference": self.employee_runtime.summary(self.clock.now()),
             "estimated_total_cost_usd": (None if self.cost_usd is None else
                 round(self.cost_usd + self.employee_runtime.cloud_cost_usd, 8)),
             "cost_breakdown": {"aurora_estimated_usd": self.cost_usd,
