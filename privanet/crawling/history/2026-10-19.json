@@ -4,13 +4,13 @@
     "rows": [
       {
         "blocked": 0,
-        "done": 42,
+        "done": 41,
         "failed": 0,
         "failures": 0,
         "frontier_total": 2060,
         "host": "github.com",
         "in_flight": 0,
-        "pending": 2018
+        "pending": 2019
       },
       {
         "blocked": 0,
@@ -24,13 +24,13 @@
       },
       {
         "blocked": 0,
-        "done": 2023,
+        "done": 2024,
         "failed": 0,
         "failures": 0,
         "frontier_total": 2027,
         "host": "www.bbc.com",
         "in_flight": 0,
-        "pending": 4
+        "pending": 3
       },
       {
         "blocked": 0,
@@ -157,10 +157,10 @@
         "done": 26,
         "failed": 0,
         "failures": 0,
-        "frontier_total": 1901,
+        "frontier_total": 1907,
         "host": "youtu.be",
         "in_flight": 0,
-        "pending": 1875
+        "pending": 1881
       },
       {
         "blocked": 0,
@@ -217,10 +217,10 @@
         "done": 1,
         "failed": 1,
         "failures": 9,
-        "frontier_total": 1331,
+        "frontier_total": 1332,
         "host": "www.amazon.com",
         "in_flight": 0,
-        "pending": 1329
+        "pending": 1330
       },
       {
         "blocked": 0,
@@ -354,13 +354,13 @@
       },
       {
         "blocked": 0,
-        "done": 17,
+        "done": 16,
         "failed": 0,
         "failures": 0,
-        "frontier_total": 733,
+        "frontier_total": 734,
         "host": "pypi.org",
         "in_flight": 0,
-        "pending": 716
+        "pending": 718
       },
       {
         "blocked": 0,
@@ -407,10 +407,10 @@
         "done": 12,
         "failed": 0,
         "failures": 1,
-        "frontier_total": 694,
+        "frontier_total": 696,
         "host": "maps.app.goo.gl",
         "in_flight": 0,
-        "pending": 682
+        "pending": 684
       },
       {
         "blocked": 0,
@@ -454,13 +454,13 @@
       },
       {
         "blocked": 0,
-        "done": 505,
+        "done": 516,
         "failed": 0,
         "failures": 0,
-        "frontier_total": 639,
+        "frontier_total": 642,
         "host": "grants.nih.gov",
         "in_flight": 0,
-        "pending": 134
+        "pending": 126
       },
       {
         "blocked": 0,
@@ -654,13 +654,13 @@
       },
       {
         "blocked": 0,
-        "done": 20,
+        "done": 19,
         "failed": 0,
         "failures": 0,
         "frontier_total": 476,
         "host": "codeberg.org",
         "in_flight": 0,
-        "pending": 456
+        "pending": 457
       },
       {
         "blocked": 0,
@@ -694,13 +694,13 @@
       },
       {
         "blocked": 0,
-        "done": 66,
+        "done": 65,
         "failed": 0,
         "failures": 0,
         "frontier_total": 460,
         "host": "pyfound.blogspot.com",
         "in_flight": 0,
-        "pending": 394
+        "pending": 395
       },
       {
         "blocked": 0,
@@ -754,13 +754,13 @@
       },
       {
         "blocked": 0,
-        "done": 374,
+        "done": 376,
         "failed": 0,
         "failures": 0,
-        "frontier_total": 432,
+        "frontier_total": 433,
         "host": "www.nih.gov",
         "in_flight": 0,
-        "pending": 58
+        "pending": 57
       },
       {
         "blocked": 0,
@@ -784,13 +784,13 @@
       },
       {
         "blocked": 0,
-        "done": 21,
+        "done": 22,
         "failed": 0,
         "failures": 0,
         "frontier_total": 410,
         "host": "store.steampowered.com",
         "in_flight": 0,
-        "pending": 389
+        "pending": 388
       },
       {
         "blocked": 0,
@@ -844,13 +844,13 @@
       },
       {
         "blocked": 0,
-        "done": 21,
+        "done": 22,
         "failed": 0,
         "failures": 0,
         "frontier_total": 354,
         "host": "www.patreon.com",
         "in_flight": 0,
-        "pending": 333
+        "pending": 332
       },
       {
         "blocked": 0,
@@ -897,10 +897,10 @@
         "done": 17,
         "failed": 0,
         "failures": 0,
-        "frontier_total": 337,
+        "frontier_total": 338,
         "host": "news.ycombinator.com",
         "in_flight": 0,
-        "pending": 320
+        "pending": 321
       },
       {
         "blocked": 0,
@@ -914,6 +914,26 @@
       },
       {
         "blocked": 0,
+        "done": 19,
+        "failed": 0,
+        "failures": 0,
+        "frontier_total": 320,
+        "host": "www.cdc.gov",
+        "in_flight": 0,
+        "pending": 301
+      },
+      {
+        "blocked": 0,
+        "done": 185,
+        "failed": 0,
+        "failures": 0,
+        "frontier_total": 319,
+        "host": "newsinhealth.nih.gov",
+        "in_flight": 0,
+        "pending": 134
+      },
+      {
+        "blocked": 0,
         "done": 13,
         "failed": 0,
         "failures": 0,
@@ -921,16 +941,6 @@
         "host": "discord.com",
         "in_flight": 0,
         "pending": 305
-      },
-      {
-        "blocked": 0,
-        "done": 19,
-        "failed": 0,
-        "failures": 0,
-        "frontier_total": 317,
-        "host": "www.cdc.gov",
-        "in_flight": 0,
-        "pending": 298
       },
       {
         "blocked": 0,
@@ -944,23 +954,13 @@
       },
       {
         "blocked": 0,
-        "done": 172,
-        "failed": 0,
-        "failures": 0,
-        "frontier_total": 312,
-        "host": "newsinhealth.nih.gov",
-        "in_flight": 0,
-        "pending": 140
-      },
-      {
-        "blocked": 0,
-        "done": 21,
+        "done": 20,
         "failed": 0,
         "failures": 0,
         "frontier_total": 310,
         "host": "www.eventbrite.com",
         "in_flight": 0,
-        "pending": 289
+        "pending": 290
       },
       {
         "blocked": 0,
@@ -984,13 +984,13 @@
       },
       {
         "blocked": 0,
-        "done": 22,
+        "done": 23,
         "failed": 0,
         "failures": 0,
         "frontier_total": 303,
         "host": "www.rfc-editor.org",
         "in_flight": 0,
-        "pending": 281
+        "pending": 280
       },
       {
         "blocked": 0,
@@ -1017,10 +1017,20 @@
         "done": 10,
         "failed": 0,
         "failures": 0,
-        "frontier_total": 294,
+        "frontier_total": 296,
         "host": "datatracker.ietf.org",
         "in_flight": 0,
-        "pending": 284
+        "pending": 286
+      },
+      {
+        "blocked": 0,
+        "done": 22,
+        "failed": 0,
+        "failures": 0,
+        "frontier_total": 294,
+        "host": "www.cancer.gov",
+        "in_flight": 0,
+        "pending": 272
       },
       {
         "blocked": 0,
@@ -1034,13 +1044,13 @@
       },
       {
         "blocked": 0,
-        "done": 21,
+        "done": 148,
         "failed": 0,
         "failures": 0,
-        "frontier_total": 292,
-        "host": "www.cancer.gov",
+        "frontier_total": 290,
+        "host": "pubmed.ncbi.nlm.nih.gov",
         "in_flight": 0,
-        "pending": 271
+        "pending": 142
       },
       {
         "blocked": 0,
@@ -1051,16 +1061,6 @@
         "host": "sourceforge.net",
         "in_flight": 0,
         "pending": 273
-      },
-      {
-        "blocked": 0,
-        "done": 140,
-        "failed": 0,
-        "failures": 0,
-        "frontier_total": 287,
-        "host": "pubmed.ncbi.nlm.nih.gov",
-        "in_flight": 0,
-        "pending": 147
       },
       {
         "blocked": 0,
@@ -1094,13 +1094,13 @@
       },
       {
         "blocked": 0,
-        "done": 24,
+        "done": 23,
         "failed": 0,
         "failures": 0,
-        "frontier_total": 268,
+        "frontier_total": 269,
         "host": "docs.rs",
         "in_flight": 0,
-        "pending": 244
+        "pending": 246
       },
       {
         "blocked": 0,
@@ -1154,13 +1154,13 @@
       },
       {
         "blocked": 0,
-        "done": 78,
+        "done": 81,
         "failed": 0,
         "failures": 0,
-        "frontier_total": 251,
+        "frontier_total": 252,
         "host": "www.ncbi.nlm.nih.gov",
-        "in_flight": 0,
-        "pending": 173
+        "in_flight": 1,
+        "pending": 170
       },
       {
         "blocked": 0,
@@ -1217,20 +1217,20 @@
         "done": 17,
         "failed": 0,
         "failures": 3,
-        "frontier_total": 240,
+        "frontier_total": 241,
         "host": "www.amazon.co.uk",
         "in_flight": 0,
-        "pending": 223
+        "pending": 224
       },
       {
         "blocked": 0,
-        "done": 116,
+        "done": 125,
         "failed": 0,
         "failures": 0,
-        "frontier_total": 238,
+        "frontier_total": 240,
         "host": "www.nimh.nih.gov",
         "in_flight": 0,
-        "pending": 122
+        "pending": 115
       },
       {
         "blocked": 0,
@@ -1294,23 +1294,23 @@
       },
       {
         "blocked": 0,
-        "done": 23,
+        "done": 22,
         "failed": 0,
         "failures": 0,
         "frontier_total": 228,
         "host": "www.barnesandnoble.com",
         "in_flight": 0,
-        "pending": 205
+        "pending": 206
       },
       {
         "blocked": 0,
         "done": 10,
         "failed": 0,
         "failures": 0,
-        "frontier_total": 227,
+        "frontier_total": 228,
         "host": "www.paypal.com",
         "in_flight": 0,
-        "pending": 217
+        "pending": 218
       },
       {
         "blocked": 0,
@@ -1324,13 +1324,13 @@
       },
       {
         "blocked": 0,
-        "done": 27,
+        "done": 28,
         "failed": 0,
         "failures": 0,
         "frontier_total": 226,
         "host": "www.goodreads.com",
         "in_flight": 0,
-        "pending": 199
+        "pending": 198
       },
       {
         "blocked": 0,
@@ -1344,13 +1344,13 @@
       },
       {
         "blocked": 0,
-        "done": 22,
+        "done": 21,
         "failed": 0,
         "failures": 0,
         "frontier_total": 223,
         "host": "opencollective.com",
         "in_flight": 0,
-        "pending": 201
+        "pending": 202
       },
       {
         "blocked": 0,
@@ -1414,6 +1414,16 @@
       },
       {
         "blocked": 0,
+        "done": 19,
+        "failed": 0,
+        "failures": 0,
+        "frontier_total": 214,
+        "host": "www.djangoproject.com",
+        "in_flight": 0,
+        "pending": 195
+      },
+      {
+        "blocked": 0,
         "done": 0,
         "failed": 0,
         "failures": 1,
@@ -1421,16 +1431,6 @@
         "host": "reddit.com",
         "in_flight": 0,
         "pending": 212
-      },
-      {
-        "blocked": 0,
-        "done": 18,
-        "failed": 0,
-        "failures": 0,
-        "frontier_total": 212,
-        "host": "www.djangoproject.com",
-        "in_flight": 0,
-        "pending": 194
       },
       {
         "blocked": 0,
@@ -1474,13 +1474,23 @@
       },
       {
         "blocked": 0,
+        "done": 22,
+        "failed": 0,
+        "failures": 0,
+        "frontier_total": 204,
+        "host": "www.genome.gov",
+        "in_flight": 0,
+        "pending": 182
+      },
+      {
+        "blocked": 0,
         "done": 24,
         "failed": 0,
         "failures": 0,
-        "frontier_total": 203,
+        "frontier_total": 204,
         "host": "www.theverge.com",
         "in_flight": 0,
-        "pending": 179
+        "pending": 180
       },
       {
         "blocked": 0,
@@ -1491,16 +1501,6 @@
         "host": "pinterest.com",
         "in_flight": 0,
         "pending": 201
-      },
-      {
-        "blocked": 0,
-        "done": 22,
-        "failed": 0,
-        "failures": 0,
-        "frontier_total": 202,
-        "host": "www.genome.gov",
-        "in_flight": 0,
-        "pending": 180
       },
       {
         "blocked": 0,
@@ -1664,6 +1664,16 @@
       },
       {
         "blocked": 0,
+        "done": 96,
+        "failed": 0,
+        "failures": 0,
+        "frontier_total": 179,
+        "host": "nida.nih.gov",
+        "in_flight": 0,
+        "pending": 83
+      },
+      {
+        "blocked": 0,
         "done": 20,
         "failed": 0,
         "failures": 0,
@@ -1704,16 +1714,6 @@
       },
       {
         "blocked": 0,
-        "done": 79,
-        "failed": 0,
-        "failures": 0,
-        "frontier_total": 175,
-        "host": "nida.nih.gov",
-        "in_flight": 0,
-        "pending": 96
-      },
-      {
-        "blocked": 0,
         "done": 28,
         "failed": 0,
         "failures": 0,
@@ -1721,6 +1721,16 @@
         "host": "my.clevelandclinic.org",
         "in_flight": 0,
         "pending": 145
+      },
+      {
+        "blocked": 0,
+        "done": 24,
+        "failed": 0,
+        "failures": 0,
+        "frontier_total": 173,
+        "host": "www.fda.gov",
+        "in_flight": 0,
+        "pending": 149
       },
       {
         "blocked": 0,
@@ -1741,16 +1751,6 @@
         "host": "mailchi.mp",
         "in_flight": 0,
         "pending": 172
-      },
-      {
-        "blocked": 0,
-        "done": 24,
-        "failed": 0,
-        "failures": 0,
-        "frontier_total": 172,
-        "host": "www.fda.gov",
-        "in_flight": 0,
-        "pending": 148
       },
       {
         "blocked": 0,
@@ -1814,6 +1814,16 @@
       },
       {
         "blocked": 0,
+        "done": 94,
+        "failed": 0,
+        "failures": 0,
+        "frontier_total": 167,
+        "host": "www.niaaa.nih.gov",
+        "in_flight": 0,
+        "pending": 73
+      },
+      {
+        "blocked": 0,
         "done": 3,
         "failed": 0,
         "failures": 0,
@@ -1864,13 +1874,13 @@
       },
       {
         "blocked": 0,
-        "done": 86,
+        "done": 22,
         "failed": 0,
         "failures": 0,
         "frontier_total": 164,
-        "host": "www.niaaa.nih.gov",
+        "host": "www.npr.org",
         "in_flight": 0,
-        "pending": 78
+        "pending": 142
       },
       {
         "blocked": 0,
@@ -1884,13 +1894,13 @@
       },
       {
         "blocked": 0,
-        "done": 22,
+        "done": 16,
         "failed": 0,
         "failures": 0,
-        "frontier_total": 163,
-        "host": "www.npr.org",
+        "frontier_total": 162,
+        "host": "publicfiles.fcc.gov",
         "in_flight": 0,
-        "pending": 141
+        "pending": 146
       },
       {
         "blocked": 0,
@@ -1941,16 +1951,6 @@
         "host": "hashnode.com",
         "in_flight": 0,
         "pending": 131
-      },
-      {
-        "blocked": 0,
-        "done": 15,
-        "failed": 0,
-        "failures": 0,
-        "frontier_total": 158,
-        "host": "publicfiles.fcc.gov",
-        "in_flight": 0,
-        "pending": 143
       },
       {
         "blocked": 0,
@@ -2164,13 +2164,13 @@
       },
       {
         "blocked": 0,
-        "done": 10,
+        "done": 9,
         "failed": 0,
         "failures": 0,
         "frontier_total": 146,
         "host": "www.snapchat.com",
         "in_flight": 0,
-        "pending": 136
+        "pending": 137
       },
       {
         "blocked": 0,
@@ -2214,23 +2214,23 @@
       },
       {
         "blocked": 0,
-        "done": 21,
+        "done": 22,
         "failed": 0,
         "failures": 0,
         "frontier_total": 143,
         "host": "www.goldeneaglecoin.com",
         "in_flight": 0,
-        "pending": 122
+        "pending": 121
       },
       {
         "blocked": 0,
-        "done": 23,
+        "done": 22,
         "failed": 0,
         "failures": 0,
         "frontier_total": 143,
         "host": "www.teepublic.com",
         "in_flight": 0,
-        "pending": 120
+        "pending": 121
       },
       {
         "blocked": 0,
@@ -2254,13 +2254,13 @@
       },
       {
         "blocked": 0,
-        "done": 24,
+        "done": 23,
         "failed": 0,
         "failures": 0,
         "frontier_total": 142,
         "host": "jsr.io",
         "in_flight": 0,
-        "pending": 118
+        "pending": 119
       },
       {
         "blocked": 0,
@@ -2291,6 +2291,16 @@
         "host": "codepen.io",
         "in_flight": 0,
         "pending": 125
+      },
+      {
+        "blocked": 0,
+        "done": 96,
+        "failed": 0,
+        "failures": 0,
+        "frontier_total": 141,
+        "host": "pmc.ncbi.nlm.nih.gov",
+        "in_flight": 0,
+        "pending": 45
       },
       {
         "blocked": 0,
@@ -2341,16 +2351,6 @@
         "host": "docs.pylonsproject.org",
         "in_flight": 0,
         "pending": 122
-      },
-      {
-        "blocked": 0,
-        "done": 94,
-        "failed": 0,
-        "failures": 0,
-        "frontier_total": 140,
-        "host": "pmc.ncbi.nlm.nih.gov",
-        "in_flight": 0,
-        "pending": 46
       },
       {
         "blocked": 0,
@@ -2434,6 +2434,16 @@
       },
       {
         "blocked": 0,
+        "done": 23,
+        "failed": 0,
+        "failures": 0,
+        "frontier_total": 138,
+        "host": "timecoverstore.com",
+        "in_flight": 0,
+        "pending": 115
+      },
+      {
+        "blocked": 0,
         "done": 20,
         "failed": 0,
         "failures": 0,
@@ -2491,19 +2501,9 @@
         "host": "zh.wikipedia.org",
         "in_flight": 0,
         "pending": 136
-      },
-      {
-        "blocked": 0,
-        "done": 2,
-        "failed": 0,
-        "failures": 0,
-        "frontier_total": 136,
-        "host": "br.wikipedia.org",
-        "in_flight": 0,
-        "pending": 134
       }
     ],
-    "total": 137668
+    "total": 137793
   },
   "errors": {
     "returned": 100,
@@ -3709,746 +3709,746 @@
         "url": "https://travis-ci.org/broadinstitute/picard"
       }
     ],
-    "total": 23548
+    "total": 23588
   },
-  "generated_at": "2026-10-19T20:04:32.393279+00:00",
+  "generated_at": "2026-10-19T23:41:03.688333+00:00",
   "health": {
-    "dashboard_uptime_sec": 1380441,
-    "data_age_sec": 0.264361,
+    "dashboard_uptime_sec": 1393432,
+    "data_age_sec": 0.773454,
     "failed_polls": 412,
     "last_error": null,
-    "last_poll_ms": 2,
-    "last_success": "2026-10-19T20:04:29.165270+00:00",
-    "successful_polls": 441564
+    "last_poll_ms": 1,
+    "last_success": "2026-10-19T23:40:59.827983+00:00",
+    "successful_polls": 445811
   },
   "quality": {
-    "duplicate_ratio": 0.06472963822789708,
-    "failed_frontier_ratio": 0.050037398429265974,
+    "duplicate_ratio": 0.06476149579876532,
+    "failed_frontier_ratio": 0.05003701653122222,
     "host_share_note": "Calculated from the host rows included in this response.",
-    "top_host_frontier_share": 0.018164663556923293
+    "top_host_frontier_share": 0.018155218303280277
   },
   "recent": {
     "returned": 100,
     "rows": [
       {
-        "fetched_at": 1792440268990,
-        "host": "www.nitrokey.com",
+        "fetched_at": 1792453243799,
+        "host": "cfs.energy",
         "http_status": 200,
-        "title": "NetHSM - Das vertrauensw\u00fcrdige, offene Hardware-Sicherheitsmodul, das einfach funktioniert | Nitrokey",
-        "url": "https://www.nitrokey.com/products/nethsm"
+        "title": "CFS Careers | Commonwealth Fusion Systems",
+        "url": "https://cfs.energy/careers/"
       },
       {
-        "fetched_at": 1792440259990,
-        "host": "www.britecandleco.shop",
+        "fetched_at": 1792453241136,
+        "host": "business.4gamer.net",
         "http_status": 200,
-        "title": "Reed Diffuser | Brite Candle Co.",
-        "url": "https://www.britecandleco.shop/product-page/reed-diffuser-1"
+        "title": "Business 4Gamer",
+        "url": "http://business.4gamer.net/"
       },
       {
-        "fetched_at": 1792440248003,
-        "host": "bookmark.hatenastaff.com",
+        "fetched_at": 1792453220501,
+        "host": "notes.netbytesec.com",
         "http_status": 200,
-        "title": "\u306f\u3066\u306a\u30d6\u30c3\u30af\u30de\u30fc\u30af\u958b\u767a\u30d6\u30ed\u30b0",
-        "url": "https://bookmark.hatenastaff.com/"
+        "title": "NetbyteSEC Blog",
+        "url": "https://notes.netbytesec.com/2024/11/"
       },
       {
-        "fetched_at": 1792440244565,
-        "host": "www.niaaa.nih.gov",
+        "fetched_at": 1792453217826,
+        "host": "orionfeedback.org",
         "http_status": 200,
-        "title": "Cross-Cutting Research Themes | National Institute on Alcohol Abuse and Alcoholism (NIAAA)",
-        "url": "https://www.niaaa.nih.gov/about-niaaa/strategic-plan-fiscal-years-2024-2028/cross-cutting-research-themes"
+        "title": "Container count doesn't change live - Orion Public Issue Tracker",
+        "url": "https://orionfeedback.org/d/14103"
       },
       {
-        "fetched_at": 1792440207723,
-        "host": "registry.blockmarktech.com",
+        "fetched_at": 1792453215147,
+        "host": "www.slsknet.org",
+        "http_status": 200,
+        "title": "New build fixes broken timers with various international locales | Soulseek",
+        "url": "https://www.slsknet.org/news/node/3723"
+      },
+      {
+        "fetched_at": 1792453212212,
+        "host": "www.statesman.com",
+        "http_status": 200,
+        "title": "Bedrock Energy unveils its first geothermal project at Penn Field",
+        "url": "https://www.statesman.com/picture-gallery/news/2024/04/17/bedrock-energy-geothermal-austin-tx-unveil-project-penn-field-office-photos/73358144007/"
+      },
+      {
+        "fetched_at": 1792453212182,
+        "host": "cgi.br",
+        "http_status": 200,
+        "title": "Eventos apoiados pelo CGI.br",
+        "url": "https://cgi.br/eventos/agenda/apoia/"
+      },
+      {
+        "fetched_at": 1792453209516,
+        "host": "sonar.es",
+        "http_status": 200,
+        "title": "S\u00f3nar",
+        "url": "https://sonar.es/en/galleries"
+      },
+      {
+        "fetched_at": 1792453209474,
+        "host": "www.sqlalchemy.org",
+        "http_status": 200,
+        "title": "Philosophy - SQLAlchemy",
+        "url": "https://www.sqlalchemy.org/philosophy.html"
+      },
+      {
+        "fetched_at": 1792453209467,
+        "host": "www.zennioptical.com",
+        "http_status": 200,
+        "title": "Promotion T&Cs | Zenni Optical",
+        "url": "https://www.zennioptical.com/promotion/promotion-tnc"
+      },
+      {
+        "fetched_at": 1792453152800,
+        "host": "giorgialupi.com",
+        "http_status": 200,
+        "title": "RAND artist in residence &mdash; giorgialupi",
+        "url": "http://giorgialupi.com/rand-artist-in-residence"
+      },
+      {
+        "fetched_at": 1792453139163,
+        "host": "osubeaverstore.com",
+        "http_status": 200,
+        "title": "OSU Women\u2019s Pants & Shorts | Shop Oregon State Styles",
+        "url": "https://osubeaverstore.com/womens-pantsshorts.html"
+      },
+      {
+        "fetched_at": 1792453118064,
+        "host": "kate-editor.org",
+        "http_status": 200,
+        "title": "VI Mode - Kate",
+        "url": "https://kate-editor.org/kate-vi-mode/"
+      },
+      {
+        "fetched_at": 1792453115417,
+        "host": "itsfoss.com",
+        "http_status": 200,
+        "title": "Gaphor: Open Source Graphical Modeling Tool",
+        "url": "https://itsfoss.com/gaphor-modeling-tool/"
+      },
+      {
+        "fetched_at": 1792453111219,
+        "host": "www.webbyawards.com",
+        "http_status": 200,
+        "title": "",
+        "url": "https://www.webbyawards.com/"
+      },
+      {
+        "fetched_at": 1792453111209,
+        "host": "www.niddk.nih.gov",
+        "http_status": 200,
+        "title": "Thyroid Disease & Pregnancy - NIDDK",
+        "url": "https://www.niddk.nih.gov/health-information/endocrine-diseases/pregnancy-thyroid-disease"
+      },
+      {
+        "fetched_at": 1792453105620,
+        "host": "flowingdata.com",
+        "http_status": 200,
+        "title": "How to Make Interactive Linked Small Multiples \u2013 FlowingData",
+        "url": "http://flowingdata.com/2014/10/15/linked-small-multiples/"
+      },
+      {
+        "fetched_at": 1792453105583,
+        "host": "coyotevsacme.com",
+        "http_status": 200,
+        "title": "Coyote vs Acme | Official Website | August 28 2026",
+        "url": "https://coyotevsacme.com/"
+      },
+      {
+        "fetched_at": 1792453105569,
+        "host": "www.svom.eu",
+        "http_status": 200,
+        "title": "Svom enables observation of the most distant supernova ever detected \u2013 Svom",
+        "url": "https://www.svom.eu/en/svom-enables-observation-of-the-most-distant-supernova-ever-detected/"
+      },
+      {
+        "fetched_at": 1792453083136,
+        "host": "community.linuxmint.com",
+        "http_status": 200,
+        "title": "Linux Mint - Community",
+        "url": "https://community.linuxmint.com/tutorial/view/2316"
+      },
+      {
+        "fetched_at": 1792453074985,
+        "host": "www.tennis365.com",
+        "http_status": 200,
+        "title": "Tennis features, lists and rankings - Tennis365",
+        "url": "https://www.tennis365.com/tennis-features"
+      },
+      {
+        "fetched_at": 1792453072302,
+        "host": "www.wolframalpha.com",
+        "http_status": 200,
+        "title": "map projections - Wolfram|Alpha",
+        "url": "https://www.wolframalpha.com/input/?i=map+projections"
+      },
+      {
+        "fetched_at": 1792453057733,
+        "host": "www.themoviedb.org",
+        "http_status": 200,
+        "title": "Coyote vs. Acme (2026) \u2014 The Movie Database (TMDB)",
+        "url": "https://www.themoviedb.org/movie/1204680-coyote-vs-acme"
+      },
+      {
+        "fetched_at": 1792453046908,
+        "host": "www.greecetravel.com",
+        "http_status": 200,
+        "title": "George the Famous Taxi Driver of Athens, Greece",
+        "url": "http://www.greecetravel.com/taxi"
+      },
+      {
+        "fetched_at": 1792452930550,
+        "host": "oir.nih.gov",
+        "http_status": 200,
+        "title": "Electronic Lab Notebooks | NIH Office of Intramural Research",
+        "url": "https://oir.nih.gov/sourcebook/intramural-program-oversight/electronic-lab-notebooks"
+      },
+      {
+        "fetched_at": 1792452927922,
+        "host": "jodieintoterror.com",
+        "http_status": 200,
+        "title": "2022 Specials &middot; Jodie into Terror",
+        "url": "https://jodieintoterror.com/2022/"
+      },
+      {
+        "fetched_at": 1792452925252,
+        "host": "photutils.readthedocs.io",
+        "http_status": 200,
+        "title": "User Guide \u2014 photutils 3.1.1",
+        "url": "https://photutils.readthedocs.io/en/stable/user_guide/index.html"
+      },
+      {
+        "fetched_at": 1792452908037,
+        "host": "www.jsums.edu",
+        "http_status": 200,
+        "title": "Division of Graduate Studies | Jackson State University \u2013 Jackson State University",
+        "url": "https://www.jsums.edu/graduateschool"
+      },
+      {
+        "fetched_at": 1792452908033,
+        "host": "smiconf.github.io",
+        "http_status": 200,
+        "title": "SMI 2025: Shape Modeling International",
+        "url": "https://smiconf.github.io/2025/"
+      },
+      {
+        "fetched_at": 1792452906488,
+        "host": "www.biospace.com",
+        "http_status": 200,
+        "title": "BioSpace: Biotech, Pharmaceutical and Clinical Research News",
+        "url": "https://www.biospace.com/"
+      },
+      {
+        "fetched_at": 1792452874602,
+        "host": "www.centralstate.edu",
+        "http_status": 200,
+        "title": "Central State University celebrates Homecoming 2024, HBCU-style | Central State University",
+        "url": "https://www.centralstate.edu/news/central-state-university-celebrates-homecoming-2024-hbcu-style"
+      },
+      {
+        "fetched_at": 1792452874595,
+        "host": "v8.dev",
+        "http_status": 200,
+        "title": "Static Roots: Objects with Compile-Time Constant Addresses \u00b7 V8",
+        "url": "https://v8.dev/blog/static-roots"
+      },
+      {
+        "fetched_at": 1792452861042,
+        "host": "oir.nih.gov",
+        "http_status": 200,
+        "title": "Intramural Program Oversight | NIH Office of Intramural Research",
+        "url": "https://oir.nih.gov/sourcebook/intramural-program-oversight"
+      },
+      {
+        "fetched_at": 1792452845155,
+        "host": "www.rcnp.osaka-u.ac.jp",
+        "http_status": 200,
+        "title": "J-PARC Hadron Hall Users' Association",
+        "url": "http://www.rcnp.osaka-u.ac.jp/~jparchua/en/index.html"
+      },
+      {
+        "fetched_at": 1792452836780,
+        "host": "www.nic.ad.jp",
+        "http_status": 200,
+        "title": "Internet Week 2019",
+        "url": "https://www.nic.ad.jp/iw2019/"
+      },
+      {
+        "fetched_at": 1792452834552,
+        "host": "www.red.es",
+        "http_status": 200,
+        "title": "Sistemas de Gesti&oacute;n Corporativos | Red.es",
+        "url": "https://www.red.es/sobre-nosotros/sistemas-de-gestion-corporativos"
+      },
+      {
+        "fetched_at": 1792452747657,
+        "host": "neweconomicperspectives.org",
+        "http_status": 200,
+        "title": "PARABLE for the New Decade | New Economic Perspectives",
+        "url": "https://neweconomicperspectives.org/2019/12/parable-for-the-new-decade.html"
+      },
+      {
+        "fetched_at": 1792452745004,
+        "host": "vectorinstitute.ai",
+        "http_status": 200,
+        "title": "Vector Institute and European Space Agency partner to advance AI for Earth observation - Vector Institute for Artificial Intelligence",
+        "url": "https://vectorinstitute.ai/vector-institute-and-european-space-agency-partner-to-advance-ai-for-earth-observation/"
+      },
+      {
+        "fetched_at": 1792452739507,
+        "host": "webassembly.org",
+        "http_status": 200,
+        "title": "FAQ - WebAssembly",
+        "url": "https://webassembly.org/docs/faq/"
+      },
+      {
+        "fetched_at": 1792452734255,
+        "host": "www.pixar.com",
+        "http_status": 200,
+        "title": "Feature Films &mdash; Pixar Animation Studios",
+        "url": "https://www.pixar.com/feature-films"
+      },
+      {
+        "fetched_at": 1792452723354,
+        "host": "www.denic.de",
+        "http_status": 200,
+        "title": "DENIC eG: DENIC \u2013 Registrierungsstelle f\u00fcr alle .de Domains",
+        "url": "https://www.denic.de/"
+      },
+      {
+        "fetched_at": 1792452723347,
+        "host": "www.conservativewebsites.org.uk",
+        "http_status": 200,
+        "title": "Security and accessibility | Bluetree Website Services",
+        "url": "https://www.conservativewebsites.org.uk/security-and-accessibility"
+      },
+      {
+        "fetched_at": 1792452720621,
+        "host": "packit.dev",
+        "http_status": 200,
+        "title": "Creating CentOS Stream 9 source-git repositories | Packit",
+        "url": "https://packit.dev/development/creating-stream-9-repos"
+      },
+      {
+        "fetched_at": 1792452688527,
+        "host": "discuss.zetetic.net",
+        "http_status": 200,
+        "title": "Zetetic Community Discussion",
+        "url": "https://discuss.zetetic.net/"
+      },
+      {
+        "fetched_at": 1792452688513,
+        "host": "infrequently.org",
+        "http_status": 200,
+        "title": "Series - Infrequently Noted",
+        "url": "https://infrequently.org/series/"
+      },
+      {
+        "fetched_at": 1792452673870,
+        "host": "3d6dtl-shop.fourthwall.com",
+        "http_status": 200,
+        "title": "3d6 Down the Line LLC",
+        "url": "https://3d6dtl-shop.fourthwall.com/"
+      },
+      {
+        "fetched_at": 1792452671073,
+        "host": "simplecss.org",
+        "http_status": 200,
+        "title": "Introducing Simple.css Version 2 \ud83c\udf89 | Simple.css",
+        "url": "https://simplecss.org/simple-css-version-2/"
+      },
+      {
+        "fetched_at": 1792452665866,
+        "host": "public.servicebox.peugeot.com",
+        "http_status": 200,
+        "title": "Service BoxService Box",
+        "url": "http://public.servicebox.peugeot.com/pages/index.jsp"
+      },
+      {
+        "fetched_at": 1792452665847,
+        "host": "www.deaf-hope.org",
+        "http_status": 200,
+        "title": "About DeafHope - DeafHope",
+        "url": "https://www.deaf-hope.org/about-deafhope/"
+      },
+      {
+        "fetched_at": 1792452665770,
+        "host": "blog.charte.ca",
+        "http_status": 200,
+        "title": "charte.ca",
+        "url": "http://blog.charte.ca/"
+      },
+      {
+        "fetched_at": 1792452665761,
+        "host": "oir.nih.gov",
+        "http_status": 200,
+        "title": "Board of Scientific and Clinical Directors Subcommittees | NIH Office of Intramural Research",
+        "url": "https://oir.nih.gov/sourcebook/board-scientific-clinical-directors/board-scientific-clinical-directors-subcommittees"
+      },
+      {
+        "fetched_at": 1792452665726,
+        "host": "furnituretoday-nc.newsmemory.com",
+        "http_status": 200,
+        "title": "Furniture Today",
+        "url": "https://furnituretoday-nc.newsmemory.com/"
+      },
+      {
+        "fetched_at": 1792452619995,
+        "host": "www.citationneeded.news",
+        "http_status": 200,
+        "title": "Curate your own newspaper with RSS",
+        "url": "https://www.citationneeded.news/curate-with-rss/"
+      },
+      {
+        "fetched_at": 1792452614520,
+        "host": "www.lacucinaitaliana.com",
+        "http_status": 200,
+        "title": "Restaurants in Italy: Fine Dining and Italian Chefs - La Cucina Italiana",
+        "url": "https://www.lacucinaitaliana.com/trends/restaurants-and-chefs"
+      },
+      {
+        "fetched_at": 1792452611827,
+        "host": "www.imperialviolet.org",
+        "http_status": 200,
+        "title": "ImperialViolet - The POODLE bites again",
+        "url": "https://www.imperialviolet.org/2014/12/08/poodleagain.html"
+      },
+      {
+        "fetched_at": 1792452609030,
+        "host": "morehouse.edu",
+        "http_status": 200,
+        "title": "The Morehouse Man",
+        "url": "https://morehouse.edu/about/the-morehouse-man/?hsLang=en"
+      },
+      {
+        "fetched_at": 1792452595148,
+        "host": "networkcultures.org",
+        "http_status": 200,
+        "title": "Geert | Biography",
+        "url": "https://networkcultures.org/geert/biography/"
+      },
+      {
+        "fetched_at": 1792452592514,
+        "host": "www.tickettailor.com",
+        "http_status": 200,
+        "title": "Buy tickets \u2013 Frontier Drive-Inn",
+        "url": "https://www.tickettailor.com/events/frontierdriveinn"
+      },
+      {
+        "fetched_at": 1792452589804,
+        "host": "amipa.org",
+        "http_status": 200,
+        "title": "Alaska Moving Image Preservation Association",
+        "url": "http://amipa.org/"
+      },
+      {
+        "fetched_at": 1792452562866,
+        "host": "docs.fly.io",
+        "http_status": 200,
+        "title": "Using Our Brand - Fly.io",
+        "url": "https://docs.fly.io/about/brand"
+      },
+      {
+        "fetched_at": 1792452562854,
+        "host": "ask.consortiumlibrary.org",
+        "http_status": 200,
+        "title": "Ask Us - Ask Us",
+        "url": "https://ask.consortiumlibrary.org/"
+      },
+      {
+        "fetched_at": 1792452544302,
+        "host": "www.washingtonindependentreviewofbooks.com",
+        "http_status": 200,
+        "title": "Calendar | Local Literary EventsWashington Independent Review of Books",
+        "url": "https://www.washingtonindependentreviewofbooks.com/calendar_main/month/2026/05/"
+      },
+      {
+        "fetched_at": 1792452541645,
+        "host": "www.thordata.com",
+        "http_status": 200,
+        "title": "Thordata - High-Quality Proxy Service for Web Data Scraping",
+        "url": "https://www.thordata.com/"
+      },
+      {
+        "fetched_at": 1792452538116,
+        "host": "www.goodfirms.co",
+        "http_status": 200,
+        "title": "Goodfirms Pro - Get Listed Free, Stand Out with Pro",
+        "url": "https://www.goodfirms.co/goodfirms-pro"
+      },
+      {
+        "fetched_at": 1792452538109,
+        "host": "ij.plannedgiving.org",
+        "http_status": 200,
+        "title": "Discover the Benefits of Giving Wisely | The Institute for Justice",
+        "url": "https://ij.plannedgiving.org/ij/giving/1.html"
+      },
+      {
+        "fetched_at": 1792452524698,
+        "host": "catena-x.net",
+        "http_status": 200,
+        "title": "About us - Catena-X",
+        "url": "https://catena-x.net/about-us/"
+      },
+      {
+        "fetched_at": 1792452522064,
+        "host": "s1.chess-results.com",
+        "http_status": 200,
+        "title": "Chess-Results Server Chess-results.com - Lichess Casual Blitz Meetup - Sun Oct 19",
+        "url": "https://s1.chess-results.com/tnr1275795.aspx?art=1&SNode=S0"
+      },
+      {
+        "fetched_at": 1792452516265,
+        "host": "www.shoptetpremium.cz",
+        "http_status": 200,
+        "title": "Efektivita - Shoptet Premium",
+        "url": "https://www.shoptetpremium.cz/efektivita/"
+      },
+      {
+        "fetched_at": 1792452502954,
+        "host": "www.ox.security",
+        "http_status": 200,
+        "title": "Application Security Testing Guide: Tools & Methods 2026",
+        "url": "https://www.ox.security/blog/application-security-testing/"
+      },
+      {
+        "fetched_at": 1792452500305,
+        "host": "www.niaid.nih.gov",
+        "http_status": 200,
+        "title": "Rules and Policies for Clinical Research | NIAID: National Institute of Allergy and Infectious Diseases",
+        "url": "https://www.niaid.nih.gov/research/clinical-research"
+      },
+      {
+        "fetched_at": 1792452497702,
+        "host": "talk.plesk.com",
+        "http_status": 200,
+        "title": "Important - Plesk Obsidian Releases | Page 14 | Plesk Forum",
+        "url": "https://talk.plesk.com/threads/plesk-obsidian-releases.348675/post-986528"
+      },
+      {
+        "fetched_at": 1792452494840,
+        "host": "www.independentrestaurantcoalition.com",
+        "http_status": 200,
+        "title": "Contact",
+        "url": "https://www.independentrestaurantcoalition.com/contact"
+      },
+      {
+        "fetched_at": 1792452492171,
+        "host": "easyexpo.com.br",
+        "http_status": 200,
+        "title": "ProWine S\u00e3o paulo - Imprensa",
+        "url": "https://easyexpo.com.br/v3/prowine/26/indimpr"
+      },
+      {
+        "fetched_at": 1792452489505,
+        "host": "www.rbb24.de",
+        "http_status": 200,
+        "title": "Aktuelles Wetter - Orte",
+        "url": "https://www.rbb24.de/wetter/orte.htm/id=10291.html"
+      },
+      {
+        "fetched_at": 1792452481498,
+        "host": "www.thepartnershipineducation.com",
+        "http_status": 200,
+        "title": "How We Grow | The Partnership in Education",
+        "url": "https://www.thepartnershipineducation.com/resources/how-we-grow"
+      },
+      {
+        "fetched_at": 1792452473250,
+        "host": "www.digitalrealty.com",
+        "http_status": 200,
+        "title": "Europe, Middle East & Africa Data Centers & Colocation | EMEA Data Center Locations | Digital Realty",
+        "url": "https://www.digitalrealty.com/data-centers/emea"
+      },
+      {
+        "fetched_at": 1792452467910,
+        "host": "www.niaid.nih.gov",
+        "http_status": 200,
+        "title": "Research Rules & Policies | NIAID: National Institute of Allergy and Infectious Diseases",
+        "url": "https://www.niaid.nih.gov/research/rules"
+      },
+      {
+        "fetched_at": 1792452438820,
+        "host": "en.cppreference.com",
+        "http_status": 200,
+        "title": "std::linear_congruential_engine - cppreference.com",
+        "url": "https://en.cppreference.com/cpp/numeric/random/linear_congruential_engine"
+      },
+      {
+        "fetched_at": 1792452435864,
+        "host": "www.dwfire.org.uk",
+        "http_status": 200,
+        "title": "Dorset & Wiltshire Fire and Rescue Service | Hamworthy",
+        "url": "https://www.dwfire.org.uk/fire-station/hamworthy/"
+      },
+      {
+        "fetched_at": 1792452430431,
+        "host": "villa-albertine.org",
+        "http_status": 200,
+        "title": "Villa Albertine - Villa Albertine",
+        "url": "https://villa-albertine.org/va/fr/a-propos/"
+      },
+      {
+        "fetched_at": 1792452427652,
+        "host": "learnkube.com",
+        "http_status": 200,
+        "title": "Kubernetes Resources - Free Tools, Guides & Best Practices",
+        "url": "https://learnkube.com/kubernetes-resources"
+      },
+      {
+        "fetched_at": 1792452422274,
+        "host": "www.roarb2b.com",
+        "http_status": 200,
+        "title": "Our Values | How We Work Together at ROAR B2B",
+        "url": "https://www.roarb2b.com/welcome/working-with-us/roar-values"
+      },
+      {
+        "fetched_at": 1792452419454,
+        "host": "siteseo.io",
+        "http_status": 200,
+        "title": "Pricing - SiteSEO",
+        "url": "https://siteseo.io/pricing/"
+      },
+      {
+        "fetched_at": 1792452416771,
+        "host": "wikisource.org",
+        "http_status": 200,
+        "title": "Wikisource",
+        "url": "https://wikisource.org/"
+      },
+      {
+        "fetched_at": 1792452411995,
+        "host": "www.programasiemprecontigo.com",
+        "http_status": 200,
+        "title": "Novartis ACC Siempre Contigo programa de Apoyo al Paciente",
+        "url": "https://www.programasiemprecontigo.com/"
+      },
+      {
+        "fetched_at": 1792452411972,
+        "host": "gosmtp.net",
+        "http_status": 200,
+        "title": "Docs \u2013 GoSMTP",
+        "url": "https://gosmtp.net/docs/"
+      },
+      {
+        "fetched_at": 1792452411882,
+        "host": "www.circlecountry.com",
+        "http_status": 200,
+        "title": "Circle Country Newsletter - Circle Country",
+        "url": "https://www.circlecountry.com/circle-country-newsletter/"
+      },
+      {
+        "fetched_at": 1792452356666,
+        "host": "www.localnewslive.com",
+        "http_status": 200,
+        "title": "Listening to America",
+        "url": "https://www.localnewslive.com/video-gallery/listening-to-america"
+      },
+      {
+        "fetched_at": 1792452355360,
+        "host": "hexo.io",
+        "http_status": 200,
+        "title": "hexo 7.3.0 Released | Hexo",
+        "url": "https://hexo.io/news/2024/07/02/hexo-7-3-0-released/"
+      },
+      {
+        "fetched_at": 1792452352578,
+        "host": "lickitysplitweb.com",
+        "http_status": 200,
+        "title": "Technology and AI Consulting for Small Organizations \u2014 Lickity Split",
+        "url": "https://lickitysplitweb.com/technology-consulting"
+      },
+      {
+        "fetched_at": 1792452254427,
+        "host": "www.glitterfy.com",
+        "http_status": 200,
+        "title": "Glitterfy.com - Bear Glitter Graphics | Facebook, Tumblr, Orkut",
+        "url": "https://www.glitterfy.com/graphics/Bear/"
+      },
+      {
+        "fetched_at": 1792452254406,
+        "host": "simplecirc.com",
+        "http_status": 200,
+        "title": "Magazine Subscription Management Software | SimpleCirc",
+        "url": "https://simplecirc.com/magazine-subscription-management-software"
+      },
+      {
+        "fetched_at": 1792452240908,
+        "host": "aclanthology.org",
+        "http_status": 200,
+        "title": "NLP Scholar: An Interactive Visual Explorer for Natural Language Processing Literature - ACL Anthology",
+        "url": "https://aclanthology.org/2020.acl-demos.27"
+      },
+      {
+        "fetched_at": 1792452229872,
+        "host": "www.nhlbi.nih.gov",
+        "http_status": 200,
+        "title": "Biologic Specimen and Data Repository Information Coordinating Center (BioLINCC) | NHLBI, NIH",
+        "url": "https://www.nhlbi.nih.gov/science/biologic-specimen-and-data-repository-information-coordinating-center-biolincc"
+      },
+      {
+        "fetched_at": 1792452229861,
+        "host": "www.dublinmountains.ie",
+        "http_status": 200,
+        "title": "Privacy Policy | Privacy Policy | Dublin Mountains Partnership",
+        "url": "https://www.dublinmountains.ie/privacy_policy/privacy_policy/"
+      },
+      {
+        "fetched_at": 1792452229844,
+        "host": "www.thestar.com.my",
+        "http_status": 200,
+        "title": "The reckoning that could break Syria | The Star",
+        "url": "https://www.thestar.com.my/news/focus/2026/10/03/the-reckoning-that-could-break-syria"
+      },
+      {
+        "fetched_at": 1792452229840,
+        "host": "bestcolleges.indiatoday.in",
+        "http_status": 200,
+        "title": "College Ranking in India - India Today",
+        "url": "https://bestcolleges.indiatoday.in/full-rankings"
+      },
+      {
+        "fetched_at": 1792452224385,
+        "host": "www.ncbi.nlm.nih.gov",
         "http_status": 200,
         "title": "Checking your browser - reCAPTCHA",
-        "url": "https://registry.blockmarktech.com/organisations/GBOTH973331113/"
+        "url": "https://www.ncbi.nlm.nih.gov/books/NBK538294/"
       },
       {
-        "fetched_at": 1792440204994,
-        "host": "gnuplot.info",
+        "fetched_at": 1792452195353,
+        "host": "www.fi.muni.cz",
         "http_status": 200,
-        "title": "gnuplot homepage",
-        "url": "http://gnuplot.info/"
+        "title": "About the Faculty | FI MU",
+        "url": "https://www.fi.muni.cz/about/"
       },
       {
-        "fetched_at": 1792440199470,
-        "host": "lee-phillips.org",
+        "fetched_at": 1792452187363,
+        "host": "open-std.org",
         "http_status": 200,
-        "title": "gnuplot",
-        "url": "https://lee-phillips.org/gnuplot/"
-      },
-      {
-        "fetched_at": 1792440197835,
-        "host": "beepb00p.xyz",
-        "http_status": 200,
-        "title": "Using Orger to populate your tasks list | beepb00p",
-        "url": "https://beepb00p.xyz/orger-todos.html"
-      },
-      {
-        "fetched_at": 1792440195158,
-        "host": "b.hatena.ne.jp",
-        "http_status": 200,
-        "title": "[B!] \u9ed2\u96fb\u8a71\u306f\u30a2\u30df\u30e5\u30fc\u30ba\u30e1\u30f3\u30c8\u3060\uff01 - Qiita",
-        "url": "https://b.hatena.ne.jp/entry/s/qiita.com/yama_moto250R/items/b49871489f18bd72c7b5"
-      },
-      {
-        "fetched_at": 1792440194339,
-        "host": "lawrence.bibliocommons.com",
-        "http_status": 200,
-        "title": "Awards | Lawrence Public Library | BiblioCommons",
-        "url": "https://lawrence.bibliocommons.com/awards"
-      },
-      {
-        "fetched_at": 1792440192493,
-        "host": "www.niaaa.nih.gov",
-        "http_status": 200,
-        "title": "Director's Message | National Institute on Alcohol Abuse and Alcoholism (NIAAA)",
-        "url": "https://www.niaaa.nih.gov/about-niaaa/strategic-plan-fiscal-years-2024-2028/directors-message"
-      },
-      {
-        "fetched_at": 1792440191592,
-        "host": "camperguru.com",
-        "http_status": 200,
-        "title": "Join as Camper &mdash; CamperguruJoin as Camper &mdash; Camperguru",
-        "url": "https://camperguru.com/join-now/"
-      },
-      {
-        "fetched_at": 1792440188731,
-        "host": "alogus.com",
-        "http_status": 200,
-        "title": "The Alogus Research Corporation",
-        "url": "https://alogus.com/publishing/gnuplot5/"
-      },
-      {
-        "fetched_at": 1792440186152,
-        "host": "www.aes.com",
-        "http_status": 200,
-        "title": "AES' Clean Energy Solar Projects in Louisiana",
-        "url": "https://www.aes.com/louisiana"
-      },
-      {
-        "fetched_at": 1792440183383,
-        "host": "thehill.com",
-        "http_status": 200,
-        "title": "The Hill - covering Congress, Politics, Political Campaigns and Capitol Hill",
-        "url": "https://thehill.com/"
-      },
-      {
-        "fetched_at": 1792440180553,
-        "host": "www.pytables.org",
-        "http_status": 200,
-        "title": "Installing PyTables when you\u2019re not root &mdash; PyTables 3.11.1 documentation",
-        "url": "http://www.pytables.org/cookbook/no_root_install.html"
-      },
-      {
-        "fetched_at": 1792440178753,
-        "host": "www.gnuplot.info",
-        "http_status": 200,
-        "title": "gnuplot homepage",
-        "url": "http://www.gnuplot.info/"
-      },
-      {
-        "fetched_at": 1792440178730,
-        "host": "www.akebonobrakes.com",
-        "http_status": 200,
-        "title": "Newsroom - Akebono Brake Experts",
-        "url": "https://www.akebonobrakes.com/news"
-      },
-      {
-        "fetched_at": 1792440146260,
-        "host": "www.feelgoodcontacts.com",
-        "http_status": 200,
-        "title": "Contact Lenses, Glasses, Sunglasses Online | Feel Good Contacts",
-        "url": "https://www.feelgoodcontacts.com/"
-      },
-      {
-        "fetched_at": 1792440138143,
-        "host": "caddyserver.com",
-        "http_status": 200,
-        "title": "Extending Caddy &mdash; Caddy Documentation",
-        "url": "https://caddyserver.com/docs/extending-caddy"
-      },
-      {
-        "fetched_at": 1792440132737,
-        "host": "digiday.com",
-        "http_status": 200,
-        "title": "Clinch, BDG Studios and The Atlantic are among 2022 Digiday Media Award winners - Digiday",
-        "url": "https://digiday.com/announcement/awards/the-2022-digiday-media-awards-virtual-winners-announcement/"
-      },
-      {
-        "fetched_at": 1792440130066,
-        "host": "www.niaaa.nih.gov",
-        "http_status": 200,
-        "title": "Collaborative Research on Addiction at NIH (CRAN) | National Institute on Alcohol Abuse and Alcoholism (NIAAA)",
-        "url": "https://www.niaaa.nih.gov/about-niaaa/collaborative-research-on-addiction-at-NIH"
-      },
-      {
-        "fetched_at": 1792440130040,
-        "host": "www.ai4opt.org",
-        "http_status": 200,
-        "title": "Consortium | Artificial Intelligence Institute for Advances in Optimization",
-        "url": "https://www.ai4opt.org/industry/consortium"
-      },
-      {
-        "fetched_at": 1792440122043,
-        "host": "www.st-andrews.ac.uk",
-        "http_status": 200,
-        "title": "Prospective students - School of Medicine - University of St Andrews",
-        "url": "https://www.st-andrews.ac.uk/medicine/prospective/"
-      },
-      {
-        "fetched_at": 1792440119219,
-        "host": "www.bankofcanada.ca",
-        "http_status": 200,
-        "title": "Bank notes: Research and reports - Bank of Canada",
-        "url": "https://www.bankofcanada.ca/banknotes/bank-notes-research-reports/"
-      },
-      {
-        "fetched_at": 1792440116526,
-        "host": "daniel.haxx.se",
-        "http_status": 200,
-        "title": "cURL and libcurl | daniel.haxx.se",
-        "url": "https://daniel.haxx.se/blog/category/floss/curl/"
-      },
-      {
-        "fetched_at": 1792440114634,
-        "host": "www.advancedwebranking.com",
-        "http_status": 200,
-        "title": "Taking SEO Reporting one step further: An Organic Visibility Data Case Study with FeelGood Contacts",
-        "url": "https://www.advancedwebranking.com/case-studies/organic-visibility-data-case-study-with-feelgood-contacts"
-      },
-      {
-        "fetched_at": 1792440113614,
-        "host": "www.niaaa.nih.gov",
-        "http_status": 200,
-        "title": "NIAAA Concept Clearance and Approved Concepts | National Institute on Alcohol Abuse and Alcoholism (NIAAA)",
-        "url": "https://www.niaaa.nih.gov/grants-funding/funding-opportunities/niaaa-concept-clearance"
-      },
-      {
-        "fetched_at": 1792440069198,
-        "host": "www.bankofcanada.ca",
-        "http_status": 200,
-        "title": "Engaging with Canadians - Bank of Canada",
-        "url": "https://www.bankofcanada.ca/the-bank-and-you/engaging-with-canadians/"
-      },
-      {
-        "fetched_at": 1792440058424,
-        "host": "streamyard.com",
-        "http_status": 200,
-        "title": "Sguardi sostenibili: \u201cFare meglio con meno\u201d con Valeria Valotto - Workshop in presenza",
-        "url": "https://streamyard.com/watch/F8nnn3J3nxPk"
-      },
-      {
-        "fetched_at": 1792440055739,
-        "host": "slashdot.org",
-        "http_status": 200,
-        "title": "Slashdot: News for nerds, stuff that matters, & software",
-        "url": "https://slashdot.org/popular"
-      },
-      {
-        "fetched_at": 1792440051560,
-        "host": "merping.synth.download",
-        "http_status": 200,
-        "title": "teran (@dabric@merping.synth.download) - merpstodon!",
-        "url": "https://merping.synth.download/@dabric"
-      },
-      {
-        "fetched_at": 1792440047995,
-        "host": "crafft.org",
-        "http_status": 200,
-        "title": "About the CRAFFT \u2013 CRAFFT",
-        "url": "https://crafft.org/about-the-crafft/"
-      },
-      {
-        "fetched_at": 1792440042029,
-        "host": "www.banqueducanada.ca",
-        "http_status": 200,
-        "title": "Utilisation d\u2019images de billets de banque - Banque du Canada",
-        "url": "https://www.banqueducanada.ca/billets/utilisation-images-billets-banque/"
-      },
-      {
-        "fetched_at": 1792440041461,
-        "host": "scqf.beaconforms.com",
-        "http_status": 200,
-        "title": "",
-        "url": "https://scqf.beaconforms.com/form/969071ba"
-      },
-      {
-        "fetched_at": 1792440041245,
-        "host": "www.acmethemes.com",
-        "http_status": 200,
-        "title": "Acme Themes - Best Premium and Free WordPress Themes",
-        "url": "http://www.acmethemes.com/"
-      },
-      {
-        "fetched_at": 1792440017556,
-        "host": "packages.gentoo.org",
-        "http_status": 200,
-        "title": "www-apps/nikola \u2013 Gentoo Packages",
-        "url": "https://packages.gentoo.org/package/www-apps/nikola"
-      },
-      {
-        "fetched_at": 1792440014886,
-        "host": "www.niaaa.nih.gov",
-        "http_status": 200,
-        "title": "Division of Intramural Clinical and Biological Research | National Institute on Alcohol Abuse and Alcoholism (NIAAA)",
-        "url": "https://www.niaaa.nih.gov/division-intramural-clinical-and-biological-research"
-      },
-      {
-        "fetched_at": 1792440011135,
-        "host": "astrobiology.com",
-        "http_status": 200,
-        "title": "SETI & Technosignatures Archives - Astrobiology",
-        "url": "https://astrobiology.com/category/seti/"
-      },
-      {
-        "fetched_at": 1792440008259,
-        "host": "crafft.org",
-        "http_status": 200,
-        "title": "CRAFFT",
-        "url": "https://crafft.org/"
-      },
-      {
-        "fetched_at": 1792440005618,
-        "host": "angular-docs.tr",
-        "http_status": 200,
-        "title": "E\u011fitimler \u2022 Angular",
-        "url": "https://angular-docs.tr/tutorials"
-      },
-      {
-        "fetched_at": 1792440002959,
-        "host": "www.bankofcanada.ca",
-        "http_status": 200,
-        "title": "The Bank and you - Bank of Canada",
-        "url": "https://www.bankofcanada.ca/the-bank-and-you/"
-      },
-      {
-        "fetched_at": 1792440002952,
-        "host": "www.autoimmuneregistry.org",
-        "http_status": 200,
-        "title": "Network Members &mdash; Autoimmune Registry",
-        "url": "https://www.autoimmuneregistry.org/network-members"
-      },
-      {
-        "fetched_at": 1792440002945,
-        "host": "www.banqueducanada.ca",
-        "http_status": 200,
-        "title": "La Banque et vous - Banque du Canada",
-        "url": "https://www.banqueducanada.ca/la-banque-et-vous/"
-      },
-      {
-        "fetched_at": 1792440002938,
-        "host": "jasonheppler.org",
-        "http_status": 200,
-        "title": "Jason A. Heppler \u00b7 Environmental and Digital Historian",
-        "url": "https://jasonheppler.org/"
-      },
-      {
-        "fetched_at": 1792439992157,
-        "host": "ejhc.org",
-        "http_status": 200,
-        "title": "Vol. 7 No. 1 (2026) | European Journal of Health Communication",
-        "url": "https://ejhc.org/issue/view/851"
-      },
-      {
-        "fetched_at": 1792439989634,
-        "host": "www.niaaa.nih.gov",
-        "http_status": 200,
-        "title": "Alcohol Screening and Brief Intervention for Youth: A Practitioner's Guide | National Institute on Alcohol Abuse and Alcoholism (NIAAA)",
-        "url": "https://www.niaaa.nih.gov/publications/clinical-guides-and-manuals/alcohol-screening-and-brief-intervention-youth/resources"
-      },
-      {
-        "fetched_at": 1792439987815,
-        "host": "trello.com",
-        "http_status": 200,
-        "title": "Trello",
-        "url": "https://trello.com/inspiration"
-      },
-      {
-        "fetched_at": 1792439985048,
-        "host": "afen.fr",
-        "http_status": 200,
-        "title": "Press Review \u2013 AFEN",
-        "url": "https://afen.fr/en/press-review/"
-      },
-      {
-        "fetched_at": 1792439982366,
-        "host": "www.banqueducanada.ca",
-        "http_status": 200,
-        "title": "Remboursement des billets de banque - Banque du Canada",
-        "url": "https://www.banqueducanada.ca/billets/remboursement-billets-banque/"
-      },
-      {
-        "fetched_at": 1792439975993,
-        "host": "www.maptiler.com",
-        "http_status": 200,
-        "title": "Coordinates API | EPSG Code Search & Coordinate Transformation Online | MapTiler",
-        "url": "https://www.maptiler.com/cloud/coordinates-api/"
-      },
-      {
-        "fetched_at": 1792439971678,
-        "host": "brightinitiative.com",
-        "http_status": 200,
-        "title": "Public Policy Corner - Bright Initiative",
-        "url": "https://brightinitiative.com/policy"
-      },
-      {
-        "fetched_at": 1792439953360,
-        "host": "www.poolsafely.gov",
-        "http_status": 200,
-        "title": "Take Action | Pool Safely",
-        "url": "https://www.poolsafely.gov/parents/take-action/"
-      },
-      {
-        "fetched_at": 1792439947048,
-        "host": "www.rit.edu",
-        "http_status": 200,
-        "title": "History of RIT | RIT",
-        "url": "https://www.rit.edu/history-rit"
-      },
-      {
-        "fetched_at": 1792439944331,
-        "host": "www.bankofcanada.ca",
-        "http_status": 200,
-        "title": "Monetary policy - Bank of Canada",
-        "url": "https://www.bankofcanada.ca/core-functions/monetary-policy/"
-      },
-      {
-        "fetched_at": 1792439942543,
-        "host": "www.mixcloud.com",
-        "http_status": 200,
-        "title": "mixes by cblgh | Mixcloud",
-        "url": "https://www.mixcloud.com/cblgh/playlists/mixes/"
-      },
-      {
-        "fetched_at": 1792439938838,
-        "host": "religiondispatches.org",
-        "http_status": 200,
-        "title": "Is Trump's Adoption of 19th Century Purity to Combat Teen Pregnancy Just a Cynical Nod to the Base? | Religion Dispatches",
-        "url": "https://religiondispatches.org/2026/09/15/trumps-adoption-19th-century-purity-combat-teen-pregnancy-just-cynical-nod-base"
-      },
-      {
-        "fetched_at": 1792439938812,
-        "host": "www.banqueducanada.ca",
-        "http_status": 200,
-        "title": "La Banque du Canada maintient le taux directeur \u00e0 2\u00bc % - Banque du Canada",
-        "url": "https://www.banqueducanada.ca/2026/01/fad-communique-2026-01-28/"
-      },
-      {
-        "fetched_at": 1792439936140,
-        "host": "www.wordstream.com",
-        "http_status": 200,
-        "title": "Facebook Ad Benchmarks for YOUR Industry [Data]",
-        "url": "https://www.wordstream.com/blog/ws/2017/02/28/facebook-advertising-benchmarks"
-      },
-      {
-        "fetched_at": 1792439934325,
-        "host": "www.bankofcanada.ca",
-        "http_status": 200,
-        "title": "Using bank note images - Bank of Canada",
-        "url": "https://www.bankofcanada.ca/banknotes/using-bank-note-images/"
-      },
-      {
-        "fetched_at": 1792439934319,
-        "host": "www.thecut.com",
-        "http_status": 200,
-        "title": "\u2018My Husband Has No Friends\u2019",
-        "url": "https://www.thecut.com/article/my-husband-has-no-friends.html"
-      },
-      {
-        "fetched_at": 1792439929087,
-        "host": "www.bankofcanada.ca",
-        "http_status": 200,
-        "title": "Redeeming damaged bank notes - Bank of Canada",
-        "url": "https://www.bankofcanada.ca/banknotes/redeeming-damaged-bank-notes/"
-      },
-      {
-        "fetched_at": 1792439929067,
-        "host": "www.museedelabanqueducanada.ca",
-        "http_status": 200,
-        "title": "Mus\u00e9e de la Banque du Canada",
-        "url": "https://www.museedelabanqueducanada.ca/"
-      },
-      {
-        "fetched_at": 1792439892301,
-        "host": "www.bankofcanada.ca",
-        "http_status": 200,
-        "title": "Bank of Canada maintains policy rate at 2\u00bc% - Bank of Canada",
-        "url": "https://www.bankofcanada.ca/2026/01/fad-press-release-2026-01-28/"
-      },
-      {
-        "fetched_at": 1792439888592,
-        "host": "beta.nih.gov",
-        "http_status": 200,
-        "title": "The Promise of Precision Medicine | NIH",
-        "url": "https://beta.nih.gov/our-science/nih-turning-discovery-into-health/promise-precision-medicine"
-      },
-      {
-        "fetched_at": 1792439885288,
-        "host": "webpack.kr",
-        "http_status": 200,
-        "title": "Concepts | Webpack",
-        "url": "https://webpack.kr/concepts/"
-      },
-      {
-        "fetched_at": 1792439885280,
-        "host": "venturecafelondon.org",
-        "http_status": 200,
-        "title": "Innovation Ecosystem Activator - Venture Caf\u00e9 London",
-        "url": "https://venturecafelondon.org/about/innovation-ecosystem-activator/"
-      },
-      {
-        "fetched_at": 1792439879961,
-        "host": "careers.bankofcanada.ca",
-        "http_status": 200,
-        "title": "",
-        "url": "https://careers.bankofcanada.ca/go/All-Job-Opportunities/2400817/?locale=en_US"
-      },
-      {
-        "fetched_at": 1792439877315,
-        "host": "www.antholzertal.com",
-        "http_status": 200,
-        "title": "Barbecue areas in the Antholz Valley",
-        "url": "https://www.antholzertal.com/en/discover/barbecue-areas"
-      },
-      {
-        "fetched_at": 1792439874786,
-        "host": "lumina.nyc",
-        "http_status": 200,
-        "title": "Castle Ave - Website Design Company in NYC | Lumina",
-        "url": "https://lumina.nyc/projects/castle-ave/"
-      },
-      {
-        "fetched_at": 1792439874759,
-        "host": "www.bankofcanada.ca",
-        "http_status": 200,
-        "title": "University of British Columbia crowned National Champion of The Governor\u2019s Challenge - Bank of Canada",
-        "url": "https://www.bankofcanada.ca/2026/02/university-of-british-columbia-crowned-national-champion-of-the-governors-challenge/"
-      },
-      {
-        "fetched_at": 1792439872088,
-        "host": "www.bankofcanadamuseum.ca",
-        "http_status": 200,
-        "title": "Bank of Canada Museum",
-        "url": "https://www.bankofcanadamuseum.ca/"
-      },
-      {
-        "fetched_at": 1792439868221,
-        "host": "www.banqueducanada.ca",
-        "http_status": 200,
-        "title": "L\u2019Universit\u00e9 de British Columbia est couronn\u00e9e championne nationale du D\u00e9fi du gouverneur - Banque du Canada",
-        "url": "https://www.banqueducanada.ca/2026/02/luniversite-de-british-columbia-est-couronnee-championne-nationale-du-defi-du-gouverneur/"
-      },
-      {
-        "fetched_at": 1792439866435,
-        "host": "www.leadwerks.com",
-        "http_status": 200,
-        "title": "Blogs - Leadwerks Community - Best game engine for VR optimized for fastest virtual reality performance",
-        "url": "https://www.leadwerks.com/community/blogs/category/1-general/"
-      },
-      {
-        "fetched_at": 1792439852184,
-        "host": "www.privacy.bm",
-        "http_status": 200,
-        "title": "Blog | PrivComBermuda",
-        "url": "https://www.privacy.bm/blog"
-      },
-      {
-        "fetched_at": 1792439852176,
-        "host": "www.eventbrite.co.uk",
-        "http_status": 200,
-        "title": "Eventbrite Ads: Promote Your Events and Beat the Competition | Eventbrite",
-        "url": "https://www.eventbrite.co.uk/l/eventbrite-ads/"
-      },
-      {
-        "fetched_at": 1792439850520,
-        "host": "6now.net",
-        "http_status": 200,
-        "title": "IPv6 History | IPv6 Now",
-        "url": "https://6now.net/history.php"
-      },
-      {
-        "fetched_at": 1792439849561,
-        "host": "www.saltlakecountyarts.org",
-        "http_status": 200,
-        "title": "Disney's Beauty and the Beast - ArtTix Official Ticket Seller | Salt Lake County Arts & Culture",
-        "url": "https://www.saltlakecountyarts.org/events/disneys-beauty-and-the-beast/"
-      },
-      {
-        "fetched_at": 1792439843087,
-        "host": "www.latinousa.org",
-        "http_status": 200,
-        "title": "Jobs and Internships - Latino USA",
-        "url": "https://www.latinousa.org/jobs/"
-      },
-      {
-        "fetched_at": 1792439832285,
-        "host": "www.newscase.com",
-        "http_status": 200,
-        "title": "",
-        "url": "https://www.newscase.com/category/horror-movies/"
-      },
-      {
-        "fetched_at": 1792439829658,
-        "host": "www.flixbus.ee",
-        "http_status": 200,
-        "title": "Bussid alguse v\u00f5i l\u00f5puga asukohas New York, NY | Flixbus",
-        "url": "https://www.flixbus.ee/buss/new-york-ny"
-      },
-      {
-        "fetched_at": 1792439824225,
-        "host": "beta.nih.gov",
-        "http_status": 200,
-        "title": "Research for Healthy Living | NIH",
-        "url": "https://beta.nih.gov/our-science/nih-turning-discovery-into-health/research-healthy-living"
-      },
-      {
-        "fetched_at": 1792439818169,
-        "host": "shop.xboxgamestudios.com",
-        "http_status": 200,
-        "title": "Gears of War x Roots of Fight Limited Edition Dom Hat &ndash; XBOX Game Studios Shop",
-        "url": "https://shop.xboxgamestudios.com/products/gears-of-war-x-roots-of-fight-limited-edition-dom-hat"
-      },
-      {
-        "fetched_at": 1792439803077,
-        "host": "courses.wpshout.com",
-        "http_status": 200,
-        "title": "WPShout Courses - WPShout Courses",
-        "url": "https://courses.wpshout.com/"
-      },
-      {
-        "fetched_at": 1792439802139,
-        "host": "donate.giving.eu",
-        "http_status": 200,
-        "title": "",
-        "url": "https://donate.giving.eu/~share?cid=13&lang=en_EN"
-      },
-      {
-        "fetched_at": 1792439799373,
-        "host": "vermontel.smarthub.coop",
-        "http_status": 200,
-        "title": "Directory Listing",
-        "url": "https://vermontel.smarthub.coop/DirectoryListing.html"
-      },
-      {
-        "fetched_at": 1792439799365,
-        "host": "michael-hudson.com",
-        "http_status": 200,
-        "title": "The Oil War Comes Home | Michael Hudson",
-        "url": "https://michael-hudson.com/2026/09/oil-war-brics-us-debt-crisis/"
-      },
-      {
-        "fetched_at": 1792439796628,
-        "host": "memento-mori.com",
-        "http_status": 200,
-        "title": "Events &mdash; Memento Mori Theatricks",
-        "url": "http://memento-mori.com/events"
-      },
-      {
-        "fetched_at": 1792439794914,
-        "host": "sushitech-startup.metro.tokyo.lg.jp",
-        "http_status": 200,
-        "title": "About us | SusHi Tech Tokyo 2026",
-        "url": "https://sushitech-startup.metro.tokyo.lg.jp/2026/en/aboutus/"
-      },
-      {
-        "fetched_at": 1792439793980,
-        "host": "developer.nvidia.com",
-        "http_status": 200,
-        "title": "CUDA GPU Compute Capability | NVIDIA Developer",
-        "url": "https://developer.nvidia.com/cuda-gpus"
-      },
-      {
-        "fetched_at": 1792439792252,
-        "host": "technovativesolutions.co.uk",
-        "http_status": 200,
-        "title": "RESILIACT Kicks Off: TVS Develops Multi-Hazard Resilience Platform",
-        "url": "https://technovativesolutions.co.uk/blog/news-8/post/resiliact-project-kicks-off-technovative-solutions-begins-work-on-innovative-multi-hazard-resilience-platform-156"
-      },
-      {
-        "fetched_at": 1792439788698,
-        "host": "gotopia.tech",
-        "http_status": 200,
-        "title": "Past Events | gotopia.tech",
-        "url": "https://gotopia.tech/events/past"
-      },
-      {
-        "fetched_at": 1792439786048,
-        "host": "seattlecenter.org",
-        "http_status": 200,
-        "title": "Seattle Center Vision & 10 Year Action Plan - Seattle Center Foundation",
-        "url": "https://seattlecenter.org/seattle-center-vision-10-year-action-plan/"
-      },
-      {
-        "fetched_at": 1792439782061,
-        "host": "www.frbservices.org",
-        "http_status": 200,
-        "title": "Operating Circulars | Federal Reserve Financial Services",
-        "url": "https://www.frbservices.org/resources/rules-regulations/operating-circulars/"
-      },
-      {
-        "fetched_at": 1792439782053,
-        "host": "help.globalwebindex.com",
-        "http_status": 200,
-        "title": "Get started with Agent Spark - GWI Platform | GWI Help Center",
-        "url": "https://help.globalwebindex.com/en/articles/10725804-get-started-with-agent-spark-gwi-platform"
-      },
-      {
-        "fetched_at": 1792439782039,
-        "host": "donate.giving.eu",
-        "http_status": 200,
-        "title": "Make a donation",
-        "url": "https://donate.giving.eu/belgium/Fondation_ISAE_SUPAERO"
-      },
-      {
-        "fetched_at": 1792439760820,
-        "host": "macstadium.com",
-        "http_status": 200,
-        "title": "Resources for DevOps & IT Teams Managing Mac Infrastructure | MacStadium",
-        "url": "https://macstadium.com/resources"
-      },
-      {
-        "fetched_at": 1792439758211,
-        "host": "economics.ubc.ca",
-        "http_status": 200,
-        "title": "VSE Students Win National Governor's Challenge from Bank of Canada - Vancouver School of Economics",
-        "url": "https://economics.ubc.ca/news/vse-students-win-national-governors-challenge-from-bank-of-canada/"
-      },
-      {
-        "fetched_at": 1792439758172,
-        "host": "beta.nih.gov",
-        "http_status": 200,
-        "title": "Transformative Technologies | NIH",
-        "url": "https://beta.nih.gov/our-science/nih-turning-discovery-into-health/transformative-technologies"
-      },
-      {
-        "fetched_at": 1792439756445,
-        "host": "www.niaaa.nih.gov",
-        "http_status": 200,
-        "title": "Alcohol Screening and Brief Intervention for Youth: A Practitioner's Guide | National Institute on Alcohol Abuse and Alcoholism (NIAAA)",
-        "url": "https://www.niaaa.nih.gov/alcohols-effects-health/professional-education-materials/alcohol-screening-and-brief-intervention-youth-practitioners-guide"
+        "title": "Call for Library Proposals",
+        "url": "http://open-std.org/jtc1/sc22/wg21/docs/papers/2012/n3370.html"
       }
     ],
-    "total": 413520
+    "total": 414521
   },
   "schema_version": 1,
   "status": {
     "blocked": 38,
     "crawling": true,
-    "documents": 413520,
-    "done": 447060,
-    "duplicates": 26767,
-    "failed": 23548,
-    "hosts": 137668,
+    "documents": 414521,
+    "done": 447823,
+    "duplicates": 26845,
+    "failed": 23588,
+    "hosts": 137793,
     "in_flight": 8,
-    "indexed": 387956,
-    "links": 17960261,
-    "pending": 499999,
+    "indexed": 388890,
+    "links": 18010306,
+    "pending": 500010,
     "pending_demand": 0,
-    "pending_public": 499999,
-    "recrawls_due": 288202,
-    "uptime_sec": 1276024
+    "pending_public": 500010,
+    "recrawls_due": 290568,
+    "uptime_sec": 1289014
   }
 }
