@@ -151,4 +151,8 @@ def declare(p, ram_banks=RAM_BANKS):
     S.BOOT_IMAGE = p.list("BOOT_IMAGE (loaded at 0000:7C00)", [])
     S.TEST_LIMIT = v("test: instruction limit", 100000)
     S.TEST_DONE = v("test: finished")
+    S.TEST_OP = v("test: memory op (1-3 read b/w/d, 4-6 write b/w/d)")
+    S.TEST_ADDR = v("test: memory address")
+    S.TEST_VAL = v("test: memory value")
+    S.TEST_RES = v("test: memory result")
     return S

@@ -1,0 +1,212 @@
+"""Random x86 test-program generator for differential testing.
+
+Emits Intel-syntax assembly (assembled by GNU as) restricted to the
+instruction subset Scratch86 implements.  Programs are short straight-line
+sequences with a few forward branches; memory operands are kept inside small
+preloaded windows so that results are comparable with the reference emulator.
+"""
+import random
+
+R8 = ["al", "cl", "dl", "bl", "ah", "ch", "dh", "bh"]
+R16 = ["ax", "cx", "dx", "bx", "sp", "bp", "si", "di"]
+R32 = ["eax", "ecx", "edx", "ebx", "esp", "ebp", "esi", "edi"]
+SEGS_USED = {"ds": 0x1000, "es": 0x2000, "ss": 0x3000}
+ALU = ["add", "or", "adc", "sbb", "and", "sub", "xor", "cmp"]
+CC = ["o", "no", "b", "ae", "e", "ne", "be", "a", "s", "ns", "p", "np", "l", "ge", "le", "g"]
+INTERESTING = [0, 1, 2, 0x7F, 0x80, 0xFF, 0x100, 0x7FFF, 0x8000, 0xFFFF, 0x10000, 0x7FFFFFFF,
+               0x80000000, 0xFFFFFFFF, 0x12345678, 0xDEADBEEF]
+
+
+class Gen:
+    def __init__(self, seed, allow32=True):
+        self.r = random.Random(seed)
+        self.allow32 = allow32
+        self.label = 0
+
+    def val(self, bits):
+        r = self.r
+        if r.random() < 0.5:
+            v = r.choice(INTERESTING)
+        else:
+            v = r.getrandbits(bits)
+        return v & ((1 << bits) - 1)
+
+    def sval(self, bits):
+        """Immediate as a signed number for assembler friendliness."""
+        v = self.val(bits)
+        return v
+
+    def reg(self, bits):
+        return {8: R8, 16: R16, 32: R32}[bits][self.r.randrange(8)]
+
+    def mem(self, bits=None):
+        r = self.r
+        seg = r.choice(["", "", "", "ds:", "es:", "ss:"])
+        if self.allow32 and r.random() < 0.3:
+            base = r.choice(["eax", "ebx", "ecx", "edx", "esi", "edi", "ebp"])
+            if r.random() < 0.5:
+                idx = r.choice(["eax", "ebx", "ecx", "edx", "esi", "edi", "ebp"])
+                sc = r.choice([1, 2, 4, 8])
+                ea = "%s+%s*%d" % (base, idx, sc)
+            else:
+                ea = base
+            if r.random() < 0.6:
+                ea += "%+d" % r.randrange(-100, 200)
+            if r.random() < 0.1:
+                ea = "esp+%d" % r.randrange(0, 64)
+        else:
+            ea = r.choice(["bx+si", "bx+di", "bp+si", "bp+di", "si", "di", "bx", "bp"])
+            if r.random() < 0.6:
+                ea += "%+d" % r.randrange(-100, 200 if r.random() < 0.7 else 300)
+            if r.random() < 0.08:
+                ea = "%d" % r.randrange(0, 0x200)
+        return "%s[%s]" % (seg, ea)
+
+    def ptr(self, bits):
+        return {8: "byte ptr ", 16: "word ptr ", 32: "dword ptr "}[bits]
+
+    def bits(self):
+        return self.r.choice([8, 16, 16, 32] if self.allow32 else [8, 16])
+
+    def rm(self, bits):
+        if self.r.random() < 0.5:
+            return self.reg(bits)
+        return self.ptr(bits) + self.mem()
+
+    def one(self):
+        r = self.r
+        k = r.choice(["alu"] * 6 + ["incdec", "negnot", "test", "mov", "mov", "xchg", "lea", "stack",
+                                   "flags", "cbw", "branch", "loop", "movimm"])
+        bits = self.bits()
+        if k == "alu":
+            op = r.choice(ALU)
+            form = r.choice(["rr", "rm", "mr", "ri", "mi", "ai"])
+            if form == "rr":
+                return "%s %s, %s" % (op, self.reg(bits), self.reg(bits))
+            if form == "rm":
+                return "%s %s, %s" % (op, self.reg(bits), self.ptr(bits) + self.mem())
+            if form == "mr":
+                return "%s %s%s, %s" % (op, self.ptr(bits), self.mem(), self.reg(bits))
+            if form == "ri":
+                return "%s %s, %d" % (op, self.reg(bits), self.val(bits))
+            if form == "mi":
+                return "%s %s%s, %d" % (op, self.ptr(bits), self.mem(), self.val(bits))
+            return "%s %s, %d" % (op, {8: "al", 16: "ax", 32: "eax"}[bits], self.val(bits))
+        if k == "incdec":
+            return "%s %s" % (r.choice(["inc", "dec"]), self.rm(bits))
+        if k == "negnot":
+            return "%s %s" % (r.choice(["neg", "not"]), self.rm(bits))
+        if k == "test":
+            f = r.choice(["rr", "mr", "ri", "ai"])
+            if f == "rr":
+                return "test %s, %s" % (self.reg(bits), self.reg(bits))
+            if f == "mr":
+                return "test %s%s, %s" % (self.ptr(bits), self.mem(), self.reg(bits))
+            if f == "ri":
+                return "test %s, %d" % (self.reg(bits), self.val(bits))
+            return "test %s, %d" % ({8: "al", 16: "ax", 32: "eax"}[bits], self.val(bits))
+        if k == "mov":
+            f = r.choice(["rr", "rm", "mr"])
+            if f == "rr":
+                return "mov %s, %s" % (self.reg(bits), self.reg(bits))
+            if f == "rm":
+                return "mov %s, %s%s" % (self.reg(bits), self.ptr(bits), self.mem())
+            return "mov %s%s, %s" % (self.ptr(bits), self.mem(), self.reg(bits))
+        if k == "movimm":
+            f = r.choice(["ri", "mi", "moffs"])
+            if f == "ri":
+                return "mov %s, %d" % (self.reg(bits), self.val(bits))
+            if f == "mi":
+                return "mov %s%s, %d" % (self.ptr(bits), self.mem(), self.val(bits))
+            acc = {8: "al", 16: "ax", 32: "eax"}[bits]
+            seg = r.choice(["", "es:", "ss:"])
+            a = r.randrange(0, 0x300)
+            if r.random() < 0.5:
+                return "mov %s, %s%s[%d]" % (acc, self.ptr(bits), seg, a)
+            return "mov %s%s[%d], %s" % (self.ptr(bits), seg, a, acc)
+        if k == "xchg":
+            if r.random() < 0.5:
+                return "xchg %s, %s" % (self.reg(bits), self.reg(bits))
+            if r.random() < 0.5:
+                return "xchg %s%s, %s" % (self.ptr(bits), self.mem(), self.reg(bits))
+            b = r.choice([16, 32] if self.allow32 else [16])
+            return "xchg %s, %s" % ({16: "ax", 32: "eax"}[b], self.reg(b))
+        if k == "lea":
+            b = r.choice([16, 32] if self.allow32 else [16])
+            return "lea %s, %s" % (self.reg(b), self.mem().split(":")[-1].strip("[]").join("[]"))
+        if k == "stack":
+            b = r.choice([16, 32] if self.allow32 else [16])
+            c = r.choice(["push", "pop", "pushimm", "pushf", "popf", "pushmem", "popmem"])
+            if c == "push":
+                return "push %s" % self.reg(b)
+            if c == "pop":
+                return "pop %s" % self.reg(b)
+            if c == "pushimm":
+                if b == 16:
+                    return "pushw %d" % (self.val(16) if r.random() < 0.5 else r.randrange(-128, 128))
+                if r.random() < 0.5:
+                    return ".byte 0x66, 0x68\n.long %d" % self.val(32)
+                return ".byte 0x66, 0x6a, %d" % r.randrange(0, 256)
+            if c == "pushf":
+                return {16: "pushf", 32: "pushfd"}[b]
+            if c == "popf":
+                return {16: "popf", 32: "popfd"}[b]
+            if c == "pushmem":
+                return "push %s%s" % (self.ptr(b), self.mem())
+            return "pop %s%s" % (self.ptr(b), self.mem())
+        if k == "flags":
+            return r.choice(["clc", "stc", "cmc", "cld", "std", "lahf", "sahf"])
+        if k == "cbw":
+            return r.choice(["cbw", "cwde", "cwd", "cdq"] if self.allow32 else ["cbw", "cwd"])
+        if k == "branch":
+            self.label += 1
+            l = "L%d" % self.label
+            body = self.one_simple()
+            if r.random() < 0.3:
+                return "jmp %s\n%s\n%s:" % (l, body, l)
+            return "j%s %s\n%s\n%s:" % (r.choice(CC), l, body, l)
+        if k == "loop":
+            self.label += 1
+            l = "L%d" % self.label
+            kind = r.choice(["loop", "loope", "loopne", "jcxz"])
+            if kind == "jcxz":
+                return "mov cx, %d\njcxz %s\n%s\n%s:" % (r.randrange(0, 3), l, self.one_simple(), l)
+            return "mov cx, %d\n%s:\n%s\n%s %s" % (r.randrange(1, 5), l, self.one_simple(), kind, l)
+        raise AssertionError(k)
+
+    def one_simple(self):
+        """Straight-line instruction that cannot disturb loop control (CX, flags used by LOOPcc ok)."""
+        for _ in range(20):
+            s = self.one()
+            if "\n" in s or "cx" in s or "loop" in s or "ecx" in s or "cl" in s or "ch" in s:
+                continue
+            if s.split()[0] in ("pushf", "popf", "pushfd", "popfd"):
+                continue
+            return s
+        return "nop"
+
+    def program(self, n=None):
+        n = n or self.r.randrange(1, 6)
+        return "\n".join(self.one() for _ in range(n)) + "\nhlt"
+
+    def init_state(self):
+        r = self.r
+        regs = {}
+        for n in ["EAX", "ECX", "EDX", "ESI", "EDI", "EBX", "EBP"]:
+            if n in ("EBX", "ESI", "EDI", "EBP"):
+                regs[n] = r.randrange(0, 0x80)          # address registers: small
+            else:
+                regs[n] = self.val(32)
+        regs["ESP"] = 0x1000 + r.choice([0, 2, 4])
+        flags = {f: r.randrange(2) for f in ("CF", "PF", "AF", "ZF", "SF", "OF", "DF")}
+        flags["IF"] = 0
+        flags["TF"] = 0
+        seg = dict((k.upper(), v) for k, v in SEGS_USED.items())
+        mem = []
+        windows = [(0x10000, 0x400), (0x20000, 0x400), (0x30000, 0x400), (0x30C00, 0x500)]
+        for base, ln in windows:
+            mem.append({"addr": base, "bytes": [r.getrandbits(8) for _ in range(ln)]})
+        return {"regs": regs, "flags": flags, "seg": seg, "mem": mem}
+
+    PEEK = [{"addr": 0x10000, "len": 0x400}, {"addr": 0x20000, "len": 0x400},
+            {"addr": 0x30000, "len": 0x400}, {"addr": 0x30C00, "len": 0x500}]

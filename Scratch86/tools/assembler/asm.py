@@ -15,7 +15,9 @@ def assemble(src, bits=16):
         s, o, b = (os.path.join(d, n) for n in ("a.s", "a.o", "a.bin"))
         with open(s, "w") as f:
             f.write(prelude + src + "\n")
-        subprocess.run(["as", "--32", "-o", o, s], check=True, capture_output=True)
+        r = subprocess.run(["as", "--32", "-o", o, s], capture_output=True, text=True)
+        if r.returncode != 0:
+            raise ValueError("assembler error:\n" + r.stderr + "\nsource:\n" + src)
         subprocess.run(["objcopy", "-O", "binary", "-j", ".text", o, b], check=True)
         with open(b, "rb") as f:
             return f.read()

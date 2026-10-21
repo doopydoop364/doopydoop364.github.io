@@ -10,7 +10,7 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 for sub in ("tools/sb3_generator", "src/scratch", "src/memory", "src/cpu", "tools/assembler"):
     sys.path.insert(0, os.path.join(ROOT, sub))
 
-from sb3gen import Project, BLANK_SVG  # noqa: E402
+from sb3gen import Project, BLANK_SVG, eq  # noqa: E402
 import state  # noqa: E402
 import memory  # noqa: E402
 import core  # noqa: E402
@@ -43,6 +43,15 @@ def build_project(boot_image=None, ram_banks=state.RAM_BANKS):
         with b.while_not(OR_(S, b)) as w:
             w.call(P.cpu_run_batch, S.BUDGET)
         b.set(S.TEST_DONE, 1)
+    with p.on_broadcast("s86_test_memop") as b:     # drive the memory subsystem directly
+        calls = [(1, mem.mem_rb), (2, mem.mem_rw), (3, mem.mem_rd)]
+        for code, pr in calls:
+            with b.if_(eq(S.TEST_OP, code)) as t:
+                t.call(pr, S.TEST_ADDR)
+                t.set(S.TEST_RES, S.MEMV)
+        for code, pr in [(4, mem.mem_wb), (5, mem.mem_ww), (6, mem.mem_wd)]:
+            with b.if_(eq(S.TEST_OP, code)) as t:
+                t.call(pr, S.TEST_ADDR, S.TEST_VAL)
     return p, S, P
 
 

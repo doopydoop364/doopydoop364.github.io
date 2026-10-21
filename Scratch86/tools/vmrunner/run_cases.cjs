@@ -29,7 +29,24 @@ function peekByte(vm, addr) { const l = ramList(vm, addr >> 16); return l ? l[ad
         const touched = [];
         const res = {name: c.name};
         try {
+            if (c.memops) {            // memory-subsystem tests: no CPU involved
+                res.memres = [];
+                for (const [k, v] of Object.entries(c.vars || {})) lib.setVar(vm, k, v);
+                for (const op of c.memops) {
+                    lib.setVar(vm, 'test: memory op (1-3 read b/w/d, 4-6 write b/w/d)', op.op);
+                    lib.setVar(vm, 'test: memory address', op.addr);
+                    lib.setVar(vm, 'test: memory value', op.val || 0);
+                    lib.runBroadcast(vm, 's86_test_memop');
+                    res.memres.push(lib.getVar(vm, 'test: memory result'));
+                }
+                res.ram = (c.peek || []).map(pk => ({addr: pk.addr, bytes: Array.from({length: pk.len}, (_, i) => peekByte(vm, pk.addr + i))}));
+                for (let k = 0; k < 17; k++) ramList(vm, k).fill(0);
+                for (const k of Object.keys(c.vars || {})) lib.setVar(vm, k, 0);
+                results.push(res);
+                continue;
+            }
             lib.setVar(vm, 'test: instruction limit', c.limit || 100000);
+            lib.setVar(vm, 'instruction budget per frame', c.budget || 5000);
             const image = lib.getList(vm, 'BOOT_IMAGE (loaded at 0000:7C00)');
             image.length = 0;
             for (const b of (c.code || [])) image.push(b);
@@ -78,7 +95,8 @@ function peekByte(vm, addr) { const l = ramList(vm, addr >> 16); return l ? l[ad
         } catch (e) {
             res.error = String(e && e.stack || e);
         }
-        for (const a of touched) pokeByte(vm, a, 0);
+        // guests may write anywhere; wipe the low banks so cases stay independent
+        for (let k = 0; k < 5; k++) ramList(vm, k).fill(0);
         res.ms = Number(process.hrtime.bigint() - t0) / 1e6;
         results.push(res);
     }
