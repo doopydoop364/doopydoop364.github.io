@@ -168,7 +168,10 @@ class Gen:
         if k == "loop":
             self.label += 1
             l = "L%d" % self.label
-            kind = r.choice(["loop", "loope", "loopne", "jcxz"])
+            # LOOPNE is excluded: Unicorn 2.1.4 (QEMU) corrupts CF/AF around LOOPNE
+            # (it reports CF=AF=0 after `sub`), so it cannot serve as a reference.
+            # LOOPNE is covered by deterministic tests in tests/cpu instead.
+            kind = r.choice(["loop", "loope", "jcxz"])
             if kind == "jcxz":
                 return "mov cx, %d\njcxz %s\n%s\n%s:" % (r.randrange(0, 3), l, self.one_simple(), l)
             return "mov cx, %d\n%s:\n%s\n%s %s" % (r.randrange(1, 5), l, self.one_simple(), kind, l)

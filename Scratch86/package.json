@@ -1,16 +1,16 @@
 {
   "name": "scratch86",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "version": "0.1.0",
+  "description": "Scratch86 build/test tooling (dev-time only)",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "validate": ".venv/bin/python tools/validators/validate_sb3.py builds/Scratch86-v0.1.sb3"
   },
   "keywords": [],
   "type": "commonjs",
   "dependencies": {
-    "scratch-parser": "^6.0.1",
-    "scratch-storage": "^6.2.1",
-    "scratch-vm": "^5.0.300"
-  }
+    "scratch-parser": "6.0.1",
+    "scratch-storage": "6.2.1",
+    "scratch-vm": "5.0.300"
+  },
+  "private": true
 }

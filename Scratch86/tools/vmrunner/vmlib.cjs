@@ -5,7 +5,8 @@
 // itself; all guest execution happens in the Scratch blocks.
 const fs = require('fs');
 const path = require('path');
-const VirtualMachine = require('scratch-vm');
+// S86_VM may point at another scratch-vm build (e.g. a TurboWarp checkout) for benchmarks.
+const VirtualMachine = require(process.env.S86_VM || 'scratch-vm');
 const _ss = require('scratch-storage');
 const ScratchStorage = _ss.ScratchStorage;
 

@@ -209,3 +209,28 @@ def test_prefixes_operand_and_segment():
         mov bx, es:[0x30]
         hlt""", peek=[{"addr": 0x20030, "len": 2}])
     assert r["mem"][0]["bytes"] == [0x77, 0x77] and r["regs"]["EAX"] == 0x12233445 and r["regs"]["EBX"] & 0xFFFF == 0x7777
+
+
+def test_loopne_loope_semantics_and_flags_preserved():
+    # LOOPNE: dec cx; jump if cx != 0 and ZF == 0.  Flags are not modified by LOOPcc.
+    r = run_asm("""
+        mov cx, 5
+        xor bx, bx
+    again:
+        inc bx
+        cmp bx, 3          # ZF becomes 1 when bx == 3
+        loopne again       # stops when ZF=1
+        mov dx, cx
+        hlt""")
+    assert r["regs"]["EBX"] == 3 and r["regs"]["EDX"] & 0xFFFF == 2 and r["flags"]["ZF"] == 1
+    r = run_asm("""
+        mov cx, 4
+        mov ax, 0
+    t:  inc ax
+        cmp ax, 100        # ZF stays 0
+        loope t            # LOOPE needs ZF=1 -> falls through immediately
+        hlt""")
+    assert r["regs"]["EAX"] == 1 and r["regs"]["ECX"] & 0xFFFF == 3
+    # CF/AF from SUB survive LOOPNE (Unicorn gets this wrong, hardware does not)
+    r = run_asm("mov cx, 1\nmov ebx, 0x50\nmov eax, 0x3a76b494\nsub ebx, eax\nloopne .+2\nhlt")
+    assert r["flags"]["CF"] == 1 and r["flags"]["AF"] == 1 and r["flags"]["SF"] == 1

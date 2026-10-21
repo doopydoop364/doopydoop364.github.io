@@ -1,0 +1,6 @@
+# Development / test tooling only; nothing here executes guest code in the emulator.
+unicorn==2.1.4       # reference CPU for differential tests (test oracle only)
+capstone==5.0.9      # independent x86 disassembler (instruction-length checks)
+pytest>=8
+pillow>=10           # font generation (tools/fontgen) only
+fonttools>=4         # font generation only
