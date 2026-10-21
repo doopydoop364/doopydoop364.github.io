@@ -1,0 +1,16 @@
+{
+  "name": "scratch86",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "type": "commonjs",
+  "dependencies": {
+    "scratch-parser": "^6.0.1",
+    "scratch-storage": "^6.2.1",
+    "scratch-vm": "^5.0.300"
+  }
+}
