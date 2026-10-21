@@ -1,0 +1,35 @@
+name: Scratch86
+
+on:
+  push:
+    paths: ["Scratch86/**", ".github/workflows/scratch86.yml"]
+  pull_request:
+    paths: ["Scratch86/**", ".github/workflows/scratch86.yml"]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Scratch86
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - uses: actions/setup-node@v4
+        with: { node-version: "20" }
+      - name: Install tooling
+        run: |
+          python -m venv .venv
+          .venv/bin/pip install -r requirements.txt
+          npm ci
+      - name: Build .sb3 (deterministic)
+        run: make build
+      - name: Validate block graph, assets and scratch-parser
+        run: .venv/bin/python tools/validators/validate_sb3.py builds/Scratch86-v0.1.sb3
+      - name: Tests (CPU, memory, interface, differential, build)
+        run: .venv/bin/python -m pytest -q
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Scratch86-v0.1.sb3
+          path: Scratch86/builds/Scratch86-v0.1.sb3
