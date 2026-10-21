@@ -420,6 +420,21 @@ class Builder:
         for aid, e in zip(proc.arg_ids, args):
             blk["inputs"][aid] = self._emit_input("procedures_call", aid, e, bid)
 
+    def switch_costume(self, expr):
+        """`switch costume to <expr>` with the proper menu shadow block."""
+        bid = self._stmt("looks_switchcostumeto", {})
+        menu = self.t._id()
+        self.t.blocks[menu] = {"opcode": "looks_costume", "next": None, "parent": bid, "inputs": {},
+                               "fields": {"COSTUME": ["costume1", None]}, "shadow": True, "topLevel": False}
+        e = _coerce(expr)
+        if isinstance(e, Num):
+            inp = [1, menu]
+            self.t.blocks[menu]["fields"]["COSTUME"] = [str(_numval(e.value)), None]
+        else:
+            v = self._emit_input("looks_switchcostumeto", "COSTUME", e, bid)
+            inp = [3, v[1], menu]
+        self.t.blocks[bid]["inputs"]["COSTUME"] = inp
+
     def stop_script(self):
         self._stmt("control_stop", {}, {"STOP_OPTION": ("this script", None)},
                    {"tagName": "mutation", "children": [], "hasnext": "false"})

@@ -51,6 +51,11 @@ def build(p, S, mem, P):
                     u.set(S.PFX_MORE, 0)
         with b.if_(eq(S.CPU_STATE, 1)) as t:
             t.set(S.LAST_OPCODE, S.OPCODE)
+            with t.if_(S.DIAG_TRACE) as u:          # ring buffer of the last 8 instructions
+                u.replace(S.TRACE_CS, S.TRACE_POS + 1, S.SEG[2])
+                u.replace(S.TRACE_IP, S.TRACE_POS + 1, S.EIP_START)
+                u.replace(S.TRACE_OP, S.TRACE_POS + 1, S.OPCODE)
+                u.set(S.TRACE_POS, (S.TRACE_POS + 1) % 8)
             cases = [(lo, hi, (lambda u, nm=nm: u.call(getattr(P, nm)))) for lo, hi, nm in S.DISPATCH]
             t.dispatch(S.OPCODE, cases, default=lambda u: u.call(P.h_unsupported))
             with t.if_(ne(S.CPU_STATE, 3)) as u:

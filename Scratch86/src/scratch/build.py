@@ -7,7 +7,7 @@ import os
 import sys
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-for sub in ("tools/sb3_generator", "src/scratch", "src/memory", "src/cpu", "tools/assembler"):
+for sub in ("tools/sb3_generator", "src/scratch", "src/memory", "src/cpu", "src/interface", "src/display", "tools/assembler"):
     sys.path.insert(0, os.path.join(ROOT, sub))
 
 from sb3gen import Project, BLANK_SVG, eq  # noqa: E402
@@ -15,6 +15,9 @@ import state  # noqa: E402
 import memory  # noqa: E402
 import core  # noqa: E402
 import control  # noqa: E402
+import ui  # noqa: E402
+import scheduler  # noqa: E402
+import screen  # noqa: E402
 
 
 def build_project(boot_image=None, ram_banks=state.RAM_BANKS):
@@ -24,6 +27,10 @@ def build_project(boot_image=None, ram_banks=state.RAM_BANKS):
     mem = memory.build(p, S)
     P = core.build(p, S, mem)
     control.build(p, S, mem, P)
+    ui.declare(p, S)
+    ui.build(p, S, mem, P)
+    screen.build(p, S)
+    scheduler.build(p, S, mem, P)
 
     if boot_image is not None:
         S.BOOT_IMAGE_ITEMS = list(boot_image)
@@ -64,7 +71,8 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default=os.path.join(ROOT, "builds", "Scratch86-v0.1.sb3"))
     a = ap.parse_args()
-    proj, S, P = build_project()
+    demo = os.path.join(ROOT, "firmware", "demo.bin")
+    proj, S, P = build_project(boot_image=open(demo, "rb").read() if os.path.exists(demo) else None)
     proj.save(a.out)
     nblocks = sum(len(t.blocks) for t in proj.targets)
     print("wrote", a.out, "blocks:", nblocks)

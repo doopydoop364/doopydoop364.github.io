@@ -60,7 +60,7 @@ def declare(p, ram_banks=RAM_BANKS):
     S.FAULT_EIP = v("FAULT instruction EIP")
     S.INSN_COUNT = v("executed instructions")
     S.BATCH_LEFT = v("batch instructions left")
-    S.REQ = v("control request (consumed between instructions)")
+    S.REQ = v("REQ")
     S.BUDGET = v("instruction budget per frame", 5000)
 
     # ---- decode scratch -------------------------------------------------------
@@ -146,6 +146,11 @@ def declare(p, ram_banks=RAM_BANKS):
     S.LAST_MEM_RW = v("last data access kind (0=none 1=read 2=write)")
     S.LAST_EA_SEG = v("last logical segment")
     S.LAST_EA_OFF = v("last logical offset")
+    S.DIAG_TRACE = v("diag: record instruction trace")
+    S.TRACE_POS = v("trace ring position")
+    S.TRACE_CS = p.list("TRACE CS", [0] * 8)
+    S.TRACE_IP = p.list("TRACE EIP", [0] * 8)
+    S.TRACE_OP = p.list("TRACE opcode", [0] * 8)
 
     # ---- boot / test image -----------------------------------------------------
     S.BOOT_IMAGE = p.list("BOOT_IMAGE (loaded at 0000:7C00)", [])
