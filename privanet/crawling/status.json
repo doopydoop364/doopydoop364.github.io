@@ -114,13 +114,13 @@
       },
       {
         "blocked": 0,
-        "done": 213,
+        "done": 212,
         "failed": 0,
         "failures": 0,
         "frontier_total": 2001,
         "host": "developer.mozilla.org",
         "in_flight": 0,
-        "pending": 1788
+        "pending": 1789
       },
       {
         "blocked": 0,
@@ -287,10 +287,10 @@
         "done": 164,
         "failed": 0,
         "failures": 0,
-        "frontier_total": 901,
+        "frontier_total": 903,
         "host": "www.nature.com",
         "in_flight": 0,
-        "pending": 737
+        "pending": 739
       },
       {
         "blocked": 0,
@@ -347,10 +347,10 @@
         "done": 18,
         "failed": 0,
         "failures": 0,
-        "frontier_total": 750,
+        "frontier_total": 751,
         "host": "pypi.org",
         "in_flight": 0,
-        "pending": 732
+        "pending": 733
       },
       {
         "blocked": 0,
@@ -374,13 +374,13 @@
       },
       {
         "blocked": 0,
-        "done": 689,
+        "done": 697,
         "failed": 0,
         "failures": 0,
-        "frontier_total": 731,
+        "frontier_total": 736,
         "host": "grants.nih.gov",
         "in_flight": 0,
-        "pending": 42
+        "pending": 39
       },
       {
         "blocked": 0,
@@ -397,10 +397,10 @@
         "done": 12,
         "failed": 0,
         "failures": 1,
-        "frontier_total": 712,
+        "frontier_total": 713,
         "host": "maps.app.goo.gl",
         "in_flight": 0,
-        "pending": 700
+        "pending": 701
       },
       {
         "blocked": 0,
@@ -507,10 +507,10 @@
         "done": 15,
         "failed": 0,
         "failures": 0,
-        "frontier_total": 595,
+        "frontier_total": 596,
         "host": "vimeo.com",
         "in_flight": 0,
-        "pending": 580
+        "pending": 581
       },
       {
         "blocked": 0,
@@ -624,6 +624,16 @@
       },
       {
         "blocked": 0,
+        "done": 442,
+        "failed": 0,
+        "failures": 0,
+        "frontier_total": 515,
+        "host": "nigms.nih.gov",
+        "in_flight": 0,
+        "pending": 73
+      },
+      {
+        "blocked": 0,
         "done": 13,
         "failed": 0,
         "failures": 0,
@@ -637,20 +647,10 @@
         "done": 27,
         "failed": 0,
         "failures": 0,
-        "frontier_total": 495,
+        "frontier_total": 497,
         "host": "www.gov.uk",
         "in_flight": 0,
-        "pending": 468
-      },
-      {
-        "blocked": 0,
-        "done": 421,
-        "failed": 0,
-        "failures": 0,
-        "frontier_total": 493,
-        "host": "nigms.nih.gov",
-        "in_flight": 0,
-        "pending": 72
+        "pending": 470
       },
       {
         "blocked": 0,
@@ -674,6 +674,16 @@
       },
       {
         "blocked": 0,
+        "done": 437,
+        "failed": 0,
+        "failures": 0,
+        "frontier_total": 487,
+        "host": "newsinhealth.nih.gov",
+        "in_flight": 0,
+        "pending": 50
+      },
+      {
+        "blocked": 0,
         "done": 6,
         "failed": 0,
         "failures": 1,
@@ -691,16 +701,6 @@
         "host": "account.bbc.com",
         "in_flight": 0,
         "pending": 481
-      },
-      {
-        "blocked": 0,
-        "done": 422,
-        "failed": 0,
-        "failures": 0,
-        "frontier_total": 476,
-        "host": "newsinhealth.nih.gov",
-        "in_flight": 0,
-        "pending": 54
       },
       {
         "blocked": 0,
@@ -764,13 +764,13 @@
       },
       {
         "blocked": 0,
-        "done": 440,
+        "done": 441,
         "failed": 0,
         "failures": 0,
         "frontier_total": 443,
         "host": "www.nih.gov",
         "in_flight": 0,
-        "pending": 3
+        "pending": 2
       },
       {
         "blocked": 0,
@@ -817,10 +817,10 @@
         "done": 22,
         "failed": 0,
         "failures": 0,
-        "frontier_total": 409,
+        "frontier_total": 410,
         "host": "www.theguardian.com",
         "in_flight": 0,
-        "pending": 387
+        "pending": 388
       },
       {
         "blocked": 0,
@@ -874,13 +874,13 @@
       },
       {
         "blocked": 0,
-        "done": 328,
+        "done": 330,
         "failed": 0,
         "failures": 0,
         "frontier_total": 364,
         "host": "www.nimh.nih.gov",
         "in_flight": 0,
-        "pending": 36
+        "pending": 34
       },
       {
         "blocked": 0,
@@ -924,6 +924,16 @@
       },
       {
         "blocked": 0,
+        "done": 280,
+        "failed": 0,
+        "failures": 0,
+        "frontier_total": 349,
+        "host": "pubmed.ncbi.nlm.nih.gov",
+        "in_flight": 0,
+        "pending": 69
+      },
+      {
+        "blocked": 0,
         "done": 12,
         "failed": 0,
         "failures": 0,
@@ -941,16 +951,6 @@
         "host": "www.cancer.gov",
         "in_flight": 0,
         "pending": 327
-      },
-      {
-        "blocked": 0,
-        "done": 273,
-        "failed": 0,
-        "failures": 0,
-        "frontier_total": 346,
-        "host": "pubmed.ncbi.nlm.nih.gov",
-        "in_flight": 0,
-        "pending": 73
       },
       {
         "blocked": 0,
@@ -1084,6 +1084,16 @@
       },
       {
         "blocked": 0,
+        "done": 19,
+        "failed": 0,
+        "failures": 0,
+        "frontier_total": 287,
+        "host": "link.springer.com",
+        "in_flight": 0,
+        "pending": 268
+      },
+      {
+        "blocked": 0,
         "done": 18,
         "failed": 0,
         "failures": 0,
@@ -1094,23 +1104,13 @@
       },
       {
         "blocked": 0,
-        "done": 18,
+        "done": 141,
         "failed": 0,
         "failures": 0,
-        "frontier_total": 284,
-        "host": "link.springer.com",
-        "in_flight": 0,
-        "pending": 266
-      },
-      {
-        "blocked": 0,
-        "done": 136,
-        "failed": 0,
-        "failures": 0,
-        "frontier_total": 279,
+        "frontier_total": 281,
         "host": "www.ncbi.nlm.nih.gov",
         "in_flight": 0,
-        "pending": 143
+        "pending": 140
       },
       {
         "blocked": 0,
@@ -1124,13 +1124,13 @@
       },
       {
         "blocked": 0,
-        "done": 23,
+        "done": 24,
         "failed": 0,
         "failures": 0,
         "frontier_total": 267,
         "host": "blog.google",
         "in_flight": 0,
-        "pending": 244
+        "pending": 243
       },
       {
         "blocked": 0,
@@ -1177,10 +1177,10 @@
         "done": 19,
         "failed": 0,
         "failures": 4,
-        "frontier_total": 255,
+        "frontier_total": 256,
         "host": "wp.me",
         "in_flight": 0,
-        "pending": 236
+        "pending": 237
       },
       {
         "blocked": 0,
@@ -1564,6 +1564,16 @@
       },
       {
         "blocked": 0,
+        "done": 16,
+        "failed": 0,
+        "failures": 2,
+        "frontier_total": 196,
+        "host": "www.forbes.com",
+        "in_flight": 0,
+        "pending": 180
+      },
+      {
+        "blocked": 0,
         "done": 2,
         "failed": 0,
         "failures": 0,
@@ -1574,13 +1584,13 @@
       },
       {
         "blocked": 0,
-        "done": 16,
+        "done": 10,
         "failed": 0,
-        "failures": 2,
-        "frontier_total": 195,
-        "host": "www.forbes.com",
+        "failures": 0,
+        "frontier_total": 193,
+        "host": "substack.com",
         "in_flight": 0,
-        "pending": 179
+        "pending": 183
       },
       {
         "blocked": 0,
@@ -1591,16 +1601,6 @@
         "host": "blog.python.org",
         "in_flight": 0,
         "pending": 175
-      },
-      {
-        "blocked": 0,
-        "done": 10,
-        "failed": 0,
-        "failures": 0,
-        "frontier_total": 192,
-        "host": "substack.com",
-        "in_flight": 0,
-        "pending": 182
       },
       {
         "blocked": 0,
@@ -1644,13 +1644,13 @@
       },
       {
         "blocked": 0,
-        "done": 153,
+        "done": 156,
         "failed": 0,
         "failures": 0,
         "frontier_total": 189,
         "host": "www.nhlbi.nih.gov",
         "in_flight": 0,
-        "pending": 36
+        "pending": 33
       },
       {
         "blocked": 0,
@@ -1674,6 +1674,16 @@
       },
       {
         "blocked": 0,
+        "done": 22,
+        "failed": 0,
+        "failures": 0,
+        "frontier_total": 186,
+        "host": "www.wired.com",
+        "in_flight": 0,
+        "pending": 164
+      },
+      {
+        "blocked": 0,
         "done": 18,
         "failed": 0,
         "failures": 0,
@@ -1694,23 +1704,13 @@
       },
       {
         "blocked": 0,
-        "done": 22,
-        "failed": 0,
-        "failures": 0,
-        "frontier_total": 185,
-        "host": "www.wired.com",
-        "in_flight": 0,
-        "pending": 163
-      },
-      {
-        "blocked": 0,
         "done": 25,
         "failed": 0,
         "failures": 0,
-        "frontier_total": 183,
+        "frontier_total": 184,
         "host": "luma.com",
         "in_flight": 0,
-        "pending": 158
+        "pending": 159
       },
       {
         "blocked": 0,
@@ -1834,13 +1834,13 @@
       },
       {
         "blocked": 0,
-        "done": 143,
+        "done": 144,
         "failed": 0,
         "failures": 0,
         "frontier_total": 168,
         "host": "www.era.nih.gov",
         "in_flight": 0,
-        "pending": 25
+        "pending": 24
       },
       {
         "blocked": 0,
@@ -2024,6 +2024,16 @@
       },
       {
         "blocked": 0,
+        "done": 30,
+        "failed": 0,
+        "failures": 0,
+        "frontier_total": 152,
+        "host": "gizmodo.com",
+        "in_flight": 0,
+        "pending": 122
+      },
+      {
+        "blocked": 0,
         "done": 0,
         "failed": 0,
         "failures": 1,
@@ -2041,6 +2051,16 @@
         "host": "www.harperlibrarybookclub.com",
         "in_flight": 0,
         "pending": 131
+      },
+      {
+        "blocked": 0,
+        "done": 5,
+        "failed": 0,
+        "failures": 0,
+        "frontier_total": 151,
+        "host": "music.amazon.com",
+        "in_flight": 0,
+        "pending": 146
       },
       {
         "blocked": 0,
@@ -2084,16 +2104,6 @@
       },
       {
         "blocked": 0,
-        "done": 5,
-        "failed": 0,
-        "failures": 0,
-        "frontier_total": 150,
-        "host": "music.amazon.com",
-        "in_flight": 0,
-        "pending": 145
-      },
-      {
-        "blocked": 0,
         "done": 3,
         "failed": 0,
         "failures": 0,
@@ -2101,16 +2111,6 @@
         "host": "ckb.wikipedia.org",
         "in_flight": 0,
         "pending": 146
-      },
-      {
-        "blocked": 0,
-        "done": 29,
-        "failed": 0,
-        "failures": 0,
-        "frontier_total": 149,
-        "host": "gizmodo.com",
-        "in_flight": 0,
-        "pending": 120
       },
       {
         "blocked": 0,
@@ -2264,6 +2264,16 @@
       },
       {
         "blocked": 0,
+        "done": 124,
+        "failed": 0,
+        "failures": 0,
+        "frontier_total": 145,
+        "host": "pmc.ncbi.nlm.nih.gov",
+        "in_flight": 0,
+        "pending": 21
+      },
+      {
+        "blocked": 0,
         "done": 25,
         "failed": 0,
         "failures": 0,
@@ -2281,16 +2291,6 @@
         "host": "www.iubenda.com",
         "in_flight": 0,
         "pending": 145
-      },
-      {
-        "blocked": 0,
-        "done": 119,
-        "failed": 0,
-        "failures": 0,
-        "frontier_total": 144,
-        "host": "pmc.ncbi.nlm.nih.gov",
-        "in_flight": 0,
-        "pending": 25
       },
       {
         "blocked": 0,
@@ -2374,13 +2374,13 @@
       },
       {
         "blocked": 0,
-        "done": 22,
+        "done": 23,
         "failed": 0,
         "failures": 0,
         "frontier_total": 142,
         "host": "www.pewresearch.org",
         "in_flight": 0,
-        "pending": 120
+        "pending": 119
       },
       {
         "blocked": 0,
@@ -2503,7 +2503,7 @@
         "pending": 18
       }
     ],
-    "total": 140749
+    "total": 140804
   },
   "errors": {
     "returned": 100,
@@ -3709,746 +3709,746 @@
         "url": "https://travis-ci.org/broadinstitute/picard"
       }
     ],
-    "total": 24574
+    "total": 24594
   },
-  "generated_at": "2026-10-22T22:47:39.192791+00:00",
+  "generated_at": "2026-10-23T01:13:10.727595+00:00",
   "health": {
-    "dashboard_uptime_sec": 1649419,
-    "data_age_sec": 3.227062,
-    "failed_polls": 412,
+    "dashboard_uptime_sec": 1658147,
+    "data_age_sec": 0.04422,
+    "failed_polls": 414,
     "last_error": null,
-    "last_poll_ms": 1381,
-    "last_success": "2026-10-22T22:47:23.894761+00:00",
-    "successful_polls": 529194
+    "last_poll_ms": 1,
+    "last_success": "2026-10-23T01:12:55.319097+00:00",
+    "successful_polls": 531999
   },
   "quality": {
-    "duplicate_ratio": 0.0658271322266743,
-    "failed_frontier_ratio": 0.049809469758391435,
+    "duplicate_ratio": 0.06585840477273923,
+    "failed_frontier_ratio": 0.04980337044522115,
     "host_share_note": "Calculated from the host rows included in this response.",
-    "top_host_frontier_share": 0.017869517011988082
+    "top_host_frontier_share": 0.017859616316919454
   },
   "recent": {
     "returned": 100,
     "rows": [
       {
-        "fetched_at": 1792709243604,
-        "host": "www.nsf.gov",
+        "fetched_at": 1792717971552,
+        "host": "optimuminc.com",
         "http_status": 200,
-        "title": "NSF launches the Open Knowledge Network, a national open-data platform connecting more than 40 knowledge graphs to power the new wave of AI-enabled discovery | NSF - U.S. National Science Foundation",
-        "url": "https://www.nsf.gov/tip/updates/nsf-launches-open-knowledge-network-national-open-data"
+        "title": "Harris Beach Overlook - Optimum Property Management",
+        "url": "https://optimuminc.com/brookings-oregon-vacation-rentals/harris-beach-overlook/"
       },
       {
-        "fetched_at": 1792709237963,
-        "host": "public.era.nih.gov",
+        "fetched_at": 1792717965210,
+        "host": "thegeep.org",
         "http_status": 200,
-        "title": "eRA Main Page",
-        "url": "https://public.era.nih.gov/likethis"
+        "title": "Who We Are | Global Environmental Education Partnership (GEEP)",
+        "url": "https://thegeep.org/about/who-we-are"
       },
       {
-        "fetched_at": 1792709234591,
-        "host": "www.tdsinc.com",
+        "fetched_at": 1792717964401,
+        "host": "www.robotlab.com",
         "http_status": 200,
-        "title": "Telephone and Data Systems, Inc. - Investor Relations - Financials - Annual Reports and Proxy Statements",
-        "url": "https://www.tdsinc.com/investor-relations/financials/annual-reports-and-proxy-statements/default.aspx"
+        "title": "RobotLAB South Jersey \u2014 Robot Sales, Service & Demos",
+        "url": "https://www.robotlab.com/south-jersey/"
       },
       {
-        "fetched_at": 1792709230766,
-        "host": "robotsguide.com",
+        "fetched_at": 1792717964259,
+        "host": "www.blueoceangear.com",
         "http_status": 200,
-        "title": "Flapper Nimble+ - ROBOTS: Your Guide to the World of Robotics",
-        "url": "https://robotsguide.com/robots/flapper-nimble"
+        "title": "Impact | Protect Oceans Today \u2013 Join Us &mdash; Blue Ocean Gear",
+        "url": "https://www.blueoceangear.com/impact"
       },
       {
-        "fetched_at": 1792709230734,
-        "host": "www.bonetalk.org",
+        "fetched_at": 1792717946053,
+        "host": "newsroom.nexteraenergy.com",
         "http_status": 200,
-        "title": "Start a \u2018Be Bone Strong\u2019\u2122 Walking Club &mdash; Bone Talk",
-        "url": "https://www.bonetalk.org/articles/join-the-be-bone-strong-walking-club"
+        "title": "NextEra Energy Newsroom - NextEra Energy first-quarter 2022 financial results available on company's website",
+        "url": "https://newsroom.nexteraenergy.com/"
       },
       {
-        "fetched_at": 1792709224633,
-        "host": "maximumfun.org",
-        "http_status": 200,
-        "title": "TRANSCRIPT Still Buffering: Backrooms (2026) | Maximum Fun",
-        "url": "https://maximumfun.org/transcripts/still-buffering/transcript-still-buffering-backrooms-2026/"
+        "fetched_at": 1792717931185,
+        "host": "pubmed.ncbi.nlm.nih.gov",
+        "http_status": 203,
+        "title": "pubmed.ncbi.nlm.nih.gov",
+        "url": "https://pubmed.ncbi.nlm.nih.gov/25267245"
       },
       {
-        "fetched_at": 1792709221768,
-        "host": "www.theconservativefoundation.co.uk",
+        "fetched_at": 1792717928206,
+        "host": "www.football.london",
         "http_status": 200,
-        "title": "About RSS | The Conservative Party Foundation Limited",
-        "url": "https://www.theconservativefoundation.co.uk/about-rss"
+        "title": "Real Madrid legend Roberto Carlos makes big statement about Tottenham wonderkid | Football London",
+        "url": "https://www.football.london/tottenham-hotspur-fc/news/real-madrid-legend-roberto-carlos-34705791"
       },
       {
-        "fetched_at": 1792709209912,
-        "host": "films.neonrated.com",
+        "fetched_at": 1792717928102,
+        "host": "smartdatamodels.org",
         "http_status": 200,
-        "title": "Once Upon A Time In Harlem",
-        "url": "https://films.neonrated.com/once-upon-a-time-in-harlem/"
+        "title": "Smart Health domain at Smart Data Models \u2013 Smart Data Models",
+        "url": "https://smartdatamodels.org/index.php/smart-health-domain-at-smart-data-models/"
       },
       {
-        "fetched_at": 1792709206854,
-        "host": "www.conservativepolicyforum.com",
+        "fetched_at": 1792717910002,
+        "host": "www.seniorsonline.vic.gov.au",
         "http_status": 200,
-        "title": "About us | The Conservative Policy Forum",
-        "url": "https://www.conservativepolicyforum.com/about"
+        "title": "Big Band Dance | Seniors online",
+        "url": "https://www.seniorsonline.vic.gov.au/festival/big-band-dance"
       },
       {
-        "fetched_at": 1792709203960,
-        "host": "yeoman.io",
+        "fetched_at": 1792717909479,
+        "host": "www.macsur.eu",
         "http_status": 200,
-        "title": "The web's scaffolding tool for modern webapps | Yeoman",
-        "url": "http://yeoman.io/"
+        "title": "Web Server's Default Page",
+        "url": "http://www.macsur.eu/"
       },
       {
-        "fetched_at": 1792709183614,
-        "host": "www.nlm.nih.gov",
+        "fetched_at": 1792717909322,
+        "host": "www.mirrorbingo.ie",
         "http_status": 200,
-        "title": "Citing Medicine redirect",
-        "url": "https://www.nlm.nih.gov/citingmedicine"
+        "title": "Mirror Bingo IE - Faqs",
+        "url": "https://www.mirrorbingo.ie/faqs"
       },
       {
-        "fetched_at": 1792709183581,
-        "host": "conservativewomen.uk",
+        "fetched_at": 1792717905884,
+        "host": "www.mwtc.org",
         "http_status": 200,
-        "title": "Scheduled Maintenance - Conservative Women's Organisation",
-        "url": "https://conservativewomen.uk/meet-the-team/"
+        "title": "Work With Us \u2013 Montana World Trade Center",
+        "url": "https://www.mwtc.org/work-with-us/"
       },
       {
-        "fetched_at": 1792709180444,
-        "host": "www.pathtogoodbonehealth.org",
+        "fetched_at": 1792717905396,
+        "host": "www.javadoc.io",
         "http_status": 200,
-        "title": "What is osteoporosis and what causes it? - Your Path to Good Bone Health",
-        "url": "https://www.pathtogoodbonehealth.org/resource/what-is-osteoporosis-and-what-causes-it-2/"
+        "title": "jython-standalone 2.7.3 javadoc (org.python)",
+        "url": "https://www.javadoc.io/doc/org.python/jython-standalone/2.7.3/index.html"
       },
       {
-        "fetched_at": 1792709180438,
-        "host": "www.fundamentals-osteoporosis.org",
+        "fetched_at": 1792717905380,
+        "host": "fishgoldbeach.com",
         "http_status": 200,
-        "title": "Register 2026-10-16 88-Tbilisi | Fundamentals of Osteoporosis",
-        "url": "https://www.fundamentals-osteoporosis.org/course/2026-10-16-88-tbilisi"
+        "title": "Sixes River Fishing | Rogue River Guided Fishing",
+        "url": "https://fishgoldbeach.com/sixes-river-fishing/"
       },
       {
-        "fetched_at": 1792709180431,
-        "host": "www.cbd.int",
+        "fetched_at": 1792717905365,
+        "host": "www.macdrifter.com",
         "http_status": 200,
-        "title": "National Reports",
-        "url": "https://www.cbd.int/reports"
+        "title": "Macdrifter",
+        "url": "https://www.macdrifter.com/"
       },
       {
-        "fetched_at": 1792709159961,
-        "host": "www.studyinfinland.fi",
+        "fetched_at": 1792717893213,
+        "host": "enduringplanet.com",
         "http_status": 200,
-        "title": "Disclaimer and privacy policy | Study in Finland",
-        "url": "https://www.studyinfinland.fi/disclaimer-and-privacy-policy"
+        "title": "Enduring Planet Team",
+        "url": "https://enduringplanet.com/about/team"
       },
       {
-        "fetched_at": 1792709153869,
-        "host": "www.agci.org",
+        "fetched_at": 1792717883295,
+        "host": "www.aigen.io",
         "http_status": 200,
-        "title": "Biodiversity loss | Aspen Global Change Institute",
-        "url": "https://www.agci.org/what-is-global-change/biodiversity-loss"
+        "title": "Aigen Newsroom",
+        "url": "https://www.aigen.io/news"
       },
       {
-        "fetched_at": 1792709141238,
-        "host": "www.centre-for-sustainability.nl",
+        "fetched_at": 1792717883288,
+        "host": "www.alloutsoccer.com",
         "http_status": 200,
-        "title": "Events | Centre for Sustainability",
-        "url": "https://www.centre-for-sustainability.nl/get-inspired/events"
+        "title": "Real Madrid icon Roberto Carlos lauds Tottenham Hotspur prodigy as 'top-level' | All Out Soccer",
+        "url": "https://www.alloutsoccer.com/news/roberto-carlos-tottenham-hotspur-souza-2050850"
       },
       {
-        "fetched_at": 1792709138145,
-        "host": "www.techhubbox.com",
+        "fetched_at": 1792717834158,
+        "host": "www.aquatic-labs.com",
         "http_status": 200,
-        "title": "Digital Transformation - TechHubBox",
-        "url": "https://www.techhubbox.com/category/digital-transformation/"
+        "title": "Careers | Join Our Ocean Innovation Team &mdash; Aquatic Labs",
+        "url": "https://www.aquatic-labs.com/careers"
       },
       {
-        "fetched_at": 1792709138144,
-        "host": "www.itresearchonline.com",
+        "fetched_at": 1792717831802,
+        "host": "www.ebbcarbon.com",
         "http_status": 200,
-        "title": "Data - ITResearchOnline",
-        "url": "https://www.itresearchonline.com/category/data/"
+        "title": "Ebb Carbon | Grounding research in operational realities: How a novel salmon study advances the toolkit for assessing ecological safety",
+        "url": "https://www.ebbcarbon.com/news/grounding-research-in-operational-realities"
       },
       {
-        "fetched_at": 1792709138137,
-        "host": "zowie.benq.com",
+        "fetched_at": 1792717785660,
+        "host": "www.copprint.com",
         "http_status": 200,
-        "title": "XL2566X+ 400Hz Fast-TN Gaming Monitor with DyAc 2 for Pro FPS Players | ZOWIE US",
-        "url": "https://zowie.benq.com/en-us/monitor/xl2566x-plus.html"
+        "title": "PCB Archives - Copprint",
+        "url": "https://www.copprint.com/product-category/printed-circuit-boards/"
       },
       {
-        "fetched_at": 1792709138136,
-        "host": "www.fractal-design.com",
+        "fetched_at": 1792717782635,
+        "host": "www.klir.com",
         "http_status": 200,
-        "title": "Terra Silver | Fractal Design",
-        "url": "https://www.fractal-design.com/products/cases/terra-series/terra/terra-silver/"
+        "title": "Environmental Compliance Software for Utilities | Klir",
+        "url": "https://www.klir.com/klir-for-environment"
       },
       {
-        "fetched_at": 1792709138125,
-        "host": "zowie.benq.eu",
+        "fetched_at": 1792717777775,
+        "host": "www.newenglandinnsandresorts.com",
         "http_status": 200,
-        "title": "EC1-DW | ZOWIE UK",
-        "url": "https://zowie.benq.eu/en-uk/mouse/ec1-dw.html"
+        "title": "Plan Your New England Trip | New England Inns & Resorts",
+        "url": "https://www.newenglandinnsandresorts.com/inspiration/plan-your-new-england-trip"
       },
       {
-        "fetched_at": 1792709124185,
-        "host": "www.b2bideas.com",
+        "fetched_at": 1792717767408,
+        "host": "www.mediamatters.org",
         "http_status": 200,
-        "title": "Digital Transformation - B2BIdeas",
-        "url": "https://www.b2bideas.com/category/digital-transformation/"
+        "title": "Spotify | Media Matters for America",
+        "url": "https://www.mediamatters.org/spotify"
       },
       {
-        "fetched_at": 1792709121245,
-        "host": "j-tec.com",
+        "fetched_at": 1792717767400,
+        "host": "help.liaisonedu.com",
         "http_status": 200,
-        "title": "Process Engineering solutions | Our services | J-Tec Material Handling",
-        "url": "https://j-tec.com/services/customer-portal/"
+        "title": "Starting Your Cal State Apply Application - Liaison",
+        "url": "https://help.liaisonedu.com/Cal_State_Apply_Applicant_Help_Center/Starting_Your_Cal_State_Apply_Application"
       },
       {
-        "fetched_at": 1792709117158,
-        "host": "www.nlm.nih.gov",
+        "fetched_at": 1792717764427,
+        "host": "www.tesevo.com",
         "http_status": 200,
-        "title": "DOCLINE-L Email Discussion List",
-        "url": "https://www.nlm.nih.gov/docline/newdocline_l.html"
+        "title": "Model Y Juniper Accessories: Interior & Exterior Upgrades",
+        "url": "https://www.tesevo.com/collections/new-model-y-juniper-accessories"
       },
       {
-        "fetched_at": 1792709114304,
-        "host": "hugovk.dev",
+        "fetched_at": 1792717764426,
+        "host": "mermaidsmonthly.com",
         "http_status": 200,
-        "title": "PyCon US 2024: A roundup of writeups \u00b7 Hugo van Kemenade",
-        "url": "https://hugovk.dev/blog/2024/pycon-us-2024-a-roundup-of-writeups/"
+        "title": "2021 Treasure Chest",
+        "url": "https://mermaidsmonthly.com/2021-treasure-chest/"
       },
       {
-        "fetched_at": 1792709111390,
-        "host": "www.durgod.com",
+        "fetched_at": 1792717764418,
+        "host": "cascadeseasttransit.com",
         "http_status": 200,
-        "title": "K320 (Taurus) Natural White - DURGOD | Best Wireless Mechanical Keyboard for Gaming, Office, Mac, Windows, Android",
-        "url": "https://www.durgod.com/product/k320-natural-white/"
+        "title": "Redmond - Bend Route 24 - Cascades East Transit",
+        "url": "https://cascadeseasttransit.com/ride/bend-redmond/"
       },
       {
-        "fetched_at": 1792709108020,
-        "host": "gridfinity.perplexinglabs.com",
+        "fetched_at": 1792717745343,
+        "host": "refiberd.com",
         "http_status": 200,
-        "title": "Gridfinity Generator",
-        "url": "https://gridfinity.perplexinglabs.com/"
+        "title": "Refiberd | Terms of Service",
+        "url": "https://refiberd.com/terms-of-service/"
       },
       {
-        "fetched_at": 1792709093371,
-        "host": "gridfinity.xyz",
+        "fetched_at": 1792717743319,
+        "host": "themetropole.blog",
         "http_status": 200,
-        "title": "Gridfinity :: Unofficial wiki | Gridfinity",
-        "url": "https://gridfinity.xyz/"
+        "title": "Baltimore \u2013 The Metropole",
+        "url": "https://themetropole.blog/category/metropolis-of-the-month/baltimore/"
       },
       {
-        "fetched_at": 1792709057995,
-        "host": "www.durgod.com",
+        "fetched_at": 1792717725669,
+        "host": "www.dds-foundation.org",
         "http_status": 200,
-        "title": "DURGOD Taurus K320 - Space Gray",
-        "url": "https://www.durgod.com/product/k320-space-gray/"
+        "title": "What\u2019s in the DDS Standard?",
+        "url": "https://www.dds-foundation.org/omg-dds-standard/"
       },
       {
-        "fetched_at": 1792709057324,
-        "host": "www.fractal-design.com",
+        "fetched_at": 1792717724739,
+        "host": "leftronic.com",
         "http_status": 200,
-        "title": "Terra Silver | Fractal Design",
-        "url": "https://www.fractal-design.com/products/cases/terra/terra/terra-silver/"
+        "title": "Go Programming Language: Simple and Efficient",
+        "url": "https://leftronic.com/blog/go-programming-language/"
       },
       {
-        "fetched_at": 1792709056806,
-        "host": "emacsair.me",
+        "fetched_at": 1792717721800,
+        "host": "www.martinfitzpatrick.com",
         "http_status": 200,
-        "title": "Emacsair! Transient 0.4 released",
-        "url": "https://emacsair.me/2023/05/10/transient-0.4"
+        "title": "Courses from Martin Fitzpatrick",
+        "url": "https://www.martinfitzpatrick.com/store/courses/"
       },
       {
-        "fetched_at": 1792709056771,
-        "host": "seadave.org",
+        "fetched_at": 1792717703916,
+        "host": "thearea.org",
         "http_status": 200,
-        "title": "Eclectic Mind \u00b7 Clean Air and Water",
-        "url": "https://seadave.org/2026/06/clean-air-and-water"
+        "title": "Research RFPs - AREA",
+        "url": "https://thearea.org/area-directed-research-rfp-submission-18/"
       },
       {
-        "fetched_at": 1792709055570,
-        "host": "www.deervalley.com",
+        "fetched_at": 1792717701204,
+        "host": "www.complexcon.com",
         "http_status": 200,
-        "title": "Ski Rentals at Deer Valley | Deer Valley Blog",
-        "url": "https://www.deervalley.com/blog/ski-rentals-at-deer-valley"
+        "title": "Ken Carson \u2014 ComplexCon 2026 Schedule",
+        "url": "https://www.complexcon.com/schedule/ken-carson-2026"
       },
       {
-        "fetched_at": 1792708976152,
-        "host": "www.helenrobertson.com",
+        "fetched_at": 1792717701195,
+        "host": "the-accessible-brand-podcast.simplecast.com",
         "http_status": 200,
-        "title": "Hentilagets Project, Crugga &ndash; Helen Robertson",
-        "url": "https://www.helenrobertson.com/pages/hentilagets-project-crugga"
+        "title": "The Accessible Brand Podcast",
+        "url": "https://the-accessible-brand-podcast.simplecast.com/episodes/episode-2"
       },
       {
-        "fetched_at": 1792708964575,
-        "host": "www.allnews.ch",
+        "fetched_at": 1792717700222,
+        "host": "therealdealpress.com",
         "http_status": 200,
-        "title": "Julius Baer lance un programme de rachat d\u2019actions de 600 millions | Allnews",
-        "url": "https://www.allnews.ch/content/corporate/julius-baer-lance-un-programme-de-rachat-dactions-de-600-millions"
+        "title": "Real Money: Burner Crew",
+        "url": "https://therealdealpress.com/2.0/index.php/columns/real-money-burner-crew"
       },
       {
-        "fetched_at": 1792708958547,
-        "host": "www.ninianshetland.co.uk",
+        "fetched_at": 1792717696854,
+        "host": "subclub.com",
         "http_status": 200,
-        "title": "Knitwear Studio &ndash; Ninianshetland",
-        "url": "https://www.ninianshetland.co.uk/pages/knitwear-studio"
+        "title": "Sub Club Podcast",
+        "url": "https://subclub.com/"
       },
       {
-        "fetched_at": 1792708955618,
-        "host": "www.paparwark.co.uk",
+        "fetched_at": 1792717694061,
+        "host": "pixl8.com",
         "http_status": 200,
-        "title": "Delivery \u2013 Paparwark",
-        "url": "https://www.paparwark.co.uk/delivery/"
+        "title": "Data protection privacy policy | Pixl8",
+        "url": "https://pixl8.com/en/data-protection-privacy-policy.html"
       },
       {
-        "fetched_at": 1792708922710,
-        "host": "www.rousette.org.uk",
+        "fetched_at": 1792717694018,
+        "host": "www.bilanceapp.com",
         "http_status": 200,
-        "title": "BSAG - Posts tagged '{{ tag }}'",
-        "url": "https://www.rousette.org.uk/tags/geek/"
+        "title": "Bilance vs Buddy | Bilance",
+        "url": "https://www.bilanceapp.com/blog/bilance-vs-buddy"
       },
       {
-        "fetched_at": 1792708922634,
-        "host": "hashman.ca",
+        "fetched_at": 1792717657993,
+        "host": "cuploop.com",
         "http_status": 200,
-        "title": "hashman.ca :: About",
-        "url": "https://hashman.ca/about/"
+        "title": "Meet Cuploop at The Impact Festival - Cuploop",
+        "url": "https://cuploop.com/meet-cuploop-at-the-impact-festival/"
       },
       {
-        "fetched_at": 1792708922224,
-        "host": "wosbooking.com",
+        "fetched_at": 1792717653063,
+        "host": "forgejo.org",
         "http_status": 200,
-        "title": "",
-        "url": "https://wosbooking.com/mro/kaiken"
+        "title": "Forgejo Runner Configuration | Forgejo \u2013 Beyond coding. We forge.",
+        "url": "https://forgejo.org/docs/latest/admin/actions/configuration/"
       },
       {
-        "fetched_at": 1792708815601,
+        "fetched_at": 1792717650091,
+        "host": "blog.dygraphs.com",
+        "http_status": 200,
+        "title": "The Dygraphs Blog: December 2012",
+        "url": "http://blog.dygraphs.com/2012/12/"
+      },
+      {
+        "fetched_at": 1792717646120,
         "host": "nigms.nih.gov",
         "http_status": 200,
-        "title": "Stem Cells | National Institute of General Medical Sciences",
-        "url": "https://nigms.nih.gov/biobeat/tag/stem-cells"
+        "title": "Maximizing Investigators' Research Award (MIRA) (R35) | National Institute of General Medical Sciences",
+        "url": "https://nigms.nih.gov/Research/mechanisms/MIRA"
       },
       {
-        "fetched_at": 1792708815586,
-        "host": "www.jurawhisky.com",
+        "fetched_at": 1792717643132,
+        "host": "www.revenuecat.com",
         "http_status": 200,
-        "title": "Jura Seven Wood | Jura Single Malt Whisky",
-        "url": "https://www.jurawhisky.com/en-us/our-whisky/core-range/jura-seven-wood/"
+        "title": "Build and Grow Your App Business | RevenueCat",
+        "url": "https://www.revenuecat.com/"
       },
       {
-        "fetched_at": 1792708727889,
-        "host": "www.dayhaus.co",
+        "fetched_at": 1792717640203,
+        "host": "briefcase.beeware.org",
         "http_status": 200,
-        "title": "Bodega &mdash; DAY HAUS",
-        "url": "https://www.dayhaus.co/bodega"
+        "title": "macOS - Briefcase",
+        "url": "https://briefcase.beeware.org/en/stable/how-to/publishing/macOS/"
       },
       {
-        "fetched_at": 1792708725028,
-        "host": "nigms.nih.gov",
+        "fetched_at": 1792717638065,
+        "host": "aligot-death.space",
         "http_status": 200,
-        "title": "Molecular Structures | National Institute of General Medical Sciences",
-        "url": "https://nigms.nih.gov/biobeat/category/molecular-structures"
+        "title": "aligot-death.space design | /dev/null",
+        "url": "https://aligot-death.space/wiki/webdev/a-d-s-design-en"
       },
       {
-        "fetched_at": 1792708722028,
-        "host": "astrobiology.com",
+        "fetched_at": 1792717634100,
+        "host": "pyspace.eu",
         "http_status": 200,
-        "title": "Astronomy & Telescopes Archives - Astrobiology",
-        "url": "https://astrobiology.com/category/astronomy/"
+        "title": "PySpace",
+        "url": "https://pyspace.eu/ws/gag/c/2/"
       },
       {
-        "fetched_at": 1792708722017,
-        "host": "www.niaaa.nih.gov",
+        "fetched_at": 1792717631117,
+        "host": "religiondispatches.org",
         "http_status": 200,
-        "title": "Guidelines for Establishing and Operating a Data and Safety Monitoring Board (DSMB) | National Institute on Alcohol Abuse and Alcoholism (NIAAA)",
-        "url": "https://www.niaaa.nih.gov/research/guidelines-and-resources/guidelines-establishing-and-operating-data-and-safety-monitoring"
+        "title": "James Dobson's Appearance in the Epstein Files is No Surprise | Religion Dispatches",
+        "url": "https://religiondispatches.org/2026/05/07/james-dobsons-appearance-epstein-files-no-surprise"
       },
       {
-        "fetched_at": 1792708718933,
-        "host": "www.skitheeast.net",
+        "fetched_at": 1792717628749,
+        "host": "status.hyperslice.com",
         "http_status": 200,
-        "title": "Mens Bestsellers &ndash; Ski The East",
-        "url": "https://www.skitheeast.net/collections/mens-bestsellers"
+        "title": "Temporary Network Restrictions - CalDAV | Hyperslice Status",
+        "url": "https://status.hyperslice.com/incidents/59"
       },
       {
-        "fetched_at": 1792708718904,
-        "host": "www.latelierdugrandtetras.fr",
+        "fetched_at": 1792717627806,
+        "host": "danyow.net",
         "http_status": 200,
-        "title": "L'Atelier du Grand T\u00e9tras : le site Web",
-        "url": "https://www.latelierdugrandtetras.fr/mon_compte.php?type=2"
+        "title": "blog - Jeremy Danyow",
+        "url": "https://danyow.net/tag/blog/"
       },
       {
-        "fetched_at": 1792708715975,
-        "host": "segroup.com",
+        "fetched_at": 1792717627798,
+        "host": "foojay.social",
         "http_status": 200,
-        "title": "Insights | SE Group",
-        "url": "https://segroup.com/insights"
+        "title": "Mary Grygleski (@mgrygles@foojay.social) - Foojay, the Friends Of OpenJDK",
+        "url": "https://foojay.social/@mgrygles"
       },
       {
-        "fetched_at": 1792708712343,
-        "host": "www.apistack.io",
+        "fetched_at": 1792717622683,
+        "host": "chainreactconf.com",
         "http_status": 200,
-        "title": "API Analytics | API Stack",
-        "url": "https://www.apistack.io/category/api-analytics"
+        "title": "Sponsors",
+        "url": "https://chainreactconf.com/sponsors"
       },
       {
-        "fetched_at": 1792708711889,
-        "host": "www.risein.com",
+        "fetched_at": 1792717597749,
+        "host": "smelter.dev",
         "http_status": 200,
-        "title": "Counter I - Implementing State and Instructions | Learn everything about Solana | Rise In",
-        "url": "https://www.risein.com/courses/build-on-solana/counter-i-implementing-state-and-instructions"
+        "title": "Standalone server - Docker | Smelter",
+        "url": "https://smelter.dev/deployment/variants/docker"
       },
       {
-        "fetched_at": 1792708711881,
-        "host": "store.thedispatch.com",
+        "fetched_at": 1792717577600,
+        "host": "www.knotch.com",
         "http_status": 200,
-        "title": "SCOTUSblog Dad Hat &ndash; The Dispatch Store",
-        "url": "https://store.thedispatch.com/products/scotusblog-dad-hat"
+        "title": "Knotch",
+        "url": "https://www.knotch.com/explore/resources"
       },
       {
-        "fetched_at": 1792708685403,
-        "host": "www.entec.or.th",
+        "fetched_at": 1792717576961,
+        "host": "2026.usa.jcon.one",
         "http_status": 200,
-        "title": "SIPA \u2013 ENTEC",
-        "url": "https://www.entec.or.th/sipa/"
+        "title": "Sessions",
+        "url": "https://2026.usa.jcon.one/sessions"
       },
       {
-        "fetched_at": 1792708679281,
-        "host": "www.google.no",
+        "fetched_at": 1792717576937,
+        "host": "segaviv.github.io",
         "http_status": 200,
-        "title": "Google Maps",
-        "url": "https://www.google.no/maps/place/Oslo+Visitor+Centre/@59.9107542,10.7491726,17z/data=!3m1!4b1!4m2!3m1!1s0x46416e8a1c253d39:0xa79d4e25bf99d2eb"
+        "title": "Computational Modeling of Gothic Microarchitecture | Aviv Segall",
+        "url": "https://segaviv.github.io/papers/gothic_microarchitecture/"
       },
       {
-        "fetched_at": 1792708676373,
-        "host": "www.police1.com",
+        "fetched_at": 1792717574892,
+        "host": "www.epicshare.org",
         "http_status": 200,
-        "title": "Monterey Police jab at officer, releases video of porch tumble: 'Rapid tactical descent'",
-        "url": "https://www.police1.com/social-media/tenn-pd-jabs-at-officer-releases-video-of-porch-tumble-rapid-tactical-descent"
+        "title": "EpicShare | Share & Learn | From 31 Days to 8: Getting Children to the Right Care Sooner with Digital Self-Triage",
+        "url": "https://www.epicshare.org/share-and-learn/boston-childrens-self-triage"
       },
       {
-        "fetched_at": 1792708673468,
-        "host": "garageio.com",
+        "fetched_at": 1792717574231,
+        "host": "www.etihadrail.ae",
         "http_status": 200,
-        "title": "Garageio | Automate your garage door. Use your phone to turn your garage into a smart garage",
-        "url": "https://garageio.com/contact"
+        "title": "Etihad Rail",
+        "url": "https://www.etihadrail.ae/terms-and-conditions?tab=privacy-policy&lang=en"
       },
       {
-        "fetched_at": 1792708659110,
-        "host": "www.lsb.dk",
+        "fetched_at": 1792717474471,
+        "host": "www.blueenginecollaborative.com",
+        "http_status": 200,
+        "title": "Solutions Journalism Revenue Accelerators",
+        "url": "https://www.blueenginecollaborative.com/solutions-journalism-accelerators"
+      },
+      {
+        "fetched_at": 1792717461974,
+        "host": "its-estonia.com",
+        "http_status": 200,
+        "title": "Contact \u2013 ITS Estonia",
+        "url": "https://its-estonia.com/contact/"
+      },
+      {
+        "fetched_at": 1792717458871,
+        "host": "haitiantimes.com",
+        "http_status": 200,
+        "title": "Where 211,000 Haitian migrants went after crossing the southern border",
+        "url": "https://haitiantimes.com/2026/09/28/haitian-migrants-us-destinations-2018-2025/"
+      },
+      {
+        "fetched_at": 1792717449572,
+        "host": "www.escgs.com",
+        "http_status": 200,
+        "title": "Travel risk management \u2014 ESC Global Security",
+        "url": "https://www.escgs.com/services/land-security/travel-risk-management"
+      },
+      {
+        "fetched_at": 1792717449053,
+        "host": "www.avatecmarine.com",
+        "http_status": 200,
+        "title": "Marine Automation | Radio Navigation Electronics | Ship design &mdash; AVATEC Marine",
+        "url": "https://www.avatecmarine.com/solutions"
+      },
+      {
+        "fetched_at": 1792717418423,
+        "host": "bettingandgamingcouncil.com",
+        "http_status": 200,
+        "title": "Policy | Betting & Gaming Council",
+        "url": "https://bettingandgamingcouncil.com/policy"
+      },
+      {
+        "fetched_at": 1792717408690,
+        "host": "readymembership.com",
+        "http_status": 200,
+        "title": "Website design and user experience",
+        "url": "https://readymembership.com/features/website-design-and-user-experience.html"
+      },
+      {
+        "fetched_at": 1792717400342,
+        "host": "enshipping.ee",
+        "http_status": 200,
+        "title": "Maritime Digital Transformation | EN Shipping",
+        "url": "https://enshipping.ee/digital-transformation/"
+      },
+      {
+        "fetched_at": 1792717353033,
+        "host": "genshi.edgewall.org",
+        "http_status": 200,
+        "title": "Genshi",
+        "url": "http://genshi.edgewall.org/"
+      },
+      {
+        "fetched_at": 1792717345685,
+        "host": "www.universal-robots.com",
+        "http_status": 200,
+        "title": "Learn & Connect",
+        "url": "https://www.universal-robots.com/learn-and-connect/"
+      },
+      {
+        "fetched_at": 1792717342714,
+        "host": "standard.design",
+        "http_status": 200,
+        "title": "IEEE Spectrum",
+        "url": "https://standard.design/work/ieee-spectrum"
+      },
+      {
+        "fetched_at": 1792717299446,
+        "host": "providerofexcellence.com",
+        "http_status": 200,
+        "title": "Our Client Guarantee - Provider of Training Excellence",
+        "url": "https://providerofexcellence.com/our-client-guarantee-2/"
+      },
+      {
+        "fetched_at": 1792717276514,
+        "host": "pixelprivacy.com",
+        "http_status": 200,
+        "title": "How to Remove Your Fortnite IP Ban and Regain Access with a VPN",
+        "url": "https://pixelprivacy.com/vpn/gaming/remove-fortnite-ban/"
+      },
+      {
+        "fetched_at": 1792717268601,
+        "host": "commonfund.nih.gov",
+        "http_status": 200,
+        "title": "Faculty Institutional Recruitment for Sustainable Transformation (FIRST) | NIH Common Fund",
+        "url": "https://commonfund.nih.gov/FIRST"
+      },
+      {
+        "fetched_at": 1792717268427,
+        "host": "currypublictransit.org",
+        "http_status": 200,
+        "title": "History - Curry Public TransitCurry Public Transit",
+        "url": "https://currypublictransit.org/history/"
+      },
+      {
+        "fetched_at": 1792717236378,
+        "host": "reflex.com.ua",
+        "http_status": 200,
+        "title": "PMS development",
+        "url": "https://reflex.com.ua/en/pms-development"
+      },
+      {
+        "fetched_at": 1792717233301,
+        "host": "commonfund.nih.gov",
+        "http_status": 200,
+        "title": "COVID-19 Research | NIH Common Fund",
+        "url": "https://commonfund.nih.gov/other-initiatives/covid-19-research"
+      },
+      {
+        "fetched_at": 1792717229999,
+        "host": "www.soulcatchingimages.com",
+        "http_status": 200,
+        "title": "The Tesla Owner\u2019s Blueprint to a Showroom Shine: 4 Maintenance Tips You Shouldn\u2019t Ignore \u2013 Soul Catching Images",
+        "url": "http://www.soulcatchingimages.com/the-tesla-owners-blueprint-to-a-showroom-shine-4-maintenance-tips-you-shouldnt-ignore/"
+      },
+      {
+        "fetched_at": 1792717226928,
+        "host": "www.linnshuttle.com",
+        "http_status": 200,
+        "title": "Linn Shuttle Service - Helping you get where you need to go",
+        "url": "https://www.linnshuttle.com/services/linn-shuttle"
+      },
+      {
+        "fetched_at": 1792717214971,
+        "host": "www.ceigateway.com",
+        "http_status": 200,
+        "title": "Home - CEI, Center for Entrepreneurial Innovation",
+        "url": "https://www.ceigateway.com/"
+      },
+      {
+        "fetched_at": 1792717214962,
+        "host": "wexfordscitech.com",
+        "http_status": 200,
+        "title": "Home - Wexford Science & Technology",
+        "url": "https://wexfordscitech.com/"
+      },
+      {
+        "fetched_at": 1792717214936,
+        "host": "www.angusrobertson.com.au",
+        "http_status": 200,
+        "title": "Contact us | Angus & Robertson",
+        "url": "https://www.angusrobertson.com.au/contact-us/angus-and-robertson-delivery"
+      },
+      {
+        "fetched_at": 1792717214056,
+        "host": "www.mcoacs.org",
+        "http_status": 200,
+        "title": "Oregon Project Independence OPI",
+        "url": "https://www.mcoacs.org/oregon-project-independence-opi"
+      },
+      {
+        "fetched_at": 1792717214042,
+        "host": "grantcountypeoplemover.com",
+        "http_status": 200,
+        "title": "People Mover - Policies",
+        "url": "https://grantcountypeoplemover.com/policies"
+      },
+      {
+        "fetched_at": 1792717214013,
+        "host": "www.phoenix.gov",
+        "http_status": 200,
+        "title": "Home | City of Phoenix",
+        "url": "https://www.phoenix.gov/"
+      },
+      {
+        "fetched_at": 1792717174669,
+        "host": "redwoodcoasttransit.org",
+        "http_status": 200,
+        "title": "RCTA Williams Drive Electric Bus Infrastructure Initial Study is Available for Review - Redwood Coast Transit Authority",
+        "url": "https://redwoodcoasttransit.org/2024/10/rcta-releases-rfp-for-project-approvals-environmental-documents/"
+      },
+      {
+        "fetched_at": 1792717164758,
+        "host": "groometransportation.com",
+        "http_status": 200,
+        "title": "Eau Claire Shuttle - Groome Transportation\u00ae - Book Now",
+        "url": "https://groometransportation.com/minneapolis-st-paul-airport/eau-claire/"
+      },
+      {
+        "fetched_at": 1792717161766,
+        "host": "venturecafephoenix.org",
+        "http_status": 200,
+        "title": "Our Sponsors - Venture Caf\u00e9 Phoenix",
+        "url": "https://venturecafephoenix.org/our-sponsors/"
+      },
+      {
+        "fetched_at": 1792717153592,
+        "host": "www.vonwietingco.com",
         "http_status": 200,
         "title": "",
-        "url": "https://www.lsb.dk/"
+        "url": "https://www.vonwietingco.com/collections/hemp-loofah-soap"
       },
       {
-        "fetched_at": 1792708629787,
-        "host": "sa18.org",
+        "fetched_at": 1792717143254,
+        "host": "www.twistedwick.com",
         "http_status": 200,
-        "title": "ABOUT \u2013 Office of the State Attorney",
-        "url": "https://sa18.org/about/"
+        "title": "Twisted Wick Candle Company Stores",
+        "url": "https://www.twistedwick.com/stores/"
       },
       {
-        "fetched_at": 1792708623791,
-        "host": "pycon2017.regex.training",
+        "fetched_at": 1792717135050,
+        "host": "www.foxweather.com",
         "http_status": 200,
-        "title": "Grouping &mdash; PyCon 2021 Regex Tutorial",
-        "url": "https://pycon2017.regex.training/grouping/"
+        "title": "Dangerous conditions remain after Isaias makes Florida landfall as Cat 2 storm | Fox Weather",
+        "url": "https://www.foxweather.com/weather-news/hurricane-isaias-florida-panhandle-dangerous-impacts-ongoing"
       },
       {
-        "fetched_at": 1792708617294,
-        "host": "www.visitoslo.com",
+        "fetched_at": 1792717130967,
+        "host": "jadebloom.com",
         "http_status": 200,
-        "title": "Contact us - Contact VisitOSLO | VisitOSLO",
-        "url": "https://www.visitoslo.com/about-visitoslo/contact"
+        "title": "Oil Infused Products - Oils | Jade Bloom",
+        "url": "https://jadebloom.com/essential-oils/soaps.html"
       },
       {
-        "fetched_at": 1792708617286,
-        "host": "weareyellowball.com",
+        "fetched_at": 1792717128551,
+        "host": "www.constructionline.co.uk",
         "http_status": 200,
-        "title": "Construction Web Design Services | Web Design for Tradesmen",
-        "url": "https://weareyellowball.com/construction-trades-web-design/"
+        "title": "The Procurement Act for Subcontractors - Constructionline",
+        "url": "https://www.constructionline.co.uk/buyers/public-sector-procurement/procurement-act/procurement-act-subcontractors/"
       },
       {
-        "fetched_at": 1792708608493,
-        "host": "www.chinadailyhk.com",
-        "http_status": 200,
-        "title": "From PR Newswire | China Daily",
-        "url": "https://www.chinadailyhk.com/article/From_PR_Newswire"
-      },
-      {
-        "fetched_at": 1792708605542,
-        "host": "www.globaldetentionproject.org",
-        "http_status": 200,
-        "title": "Donate to the Global Detention Project",
-        "url": "https://www.globaldetentionproject.org/donate"
-      },
-      {
-        "fetched_at": 1792708605523,
-        "host": "policies.taboola.com",
-        "http_status": 200,
-        "title": "Privacy Policy - Taboola PoliciesPrivacy Policy - Taboola Policies",
-        "url": "https://policies.taboola.com/privacy-policy/"
-      },
-      {
-        "fetched_at": 1792708605516,
-        "host": "oulu2026.rimbert.fi",
-        "http_status": 200,
-        "title": "Euroopan kulttuurip\u00e4\u00e4kaupunki Oulu2026",
-        "url": "https://oulu2026.rimbert.fi/instruction/user_agreement/"
-      },
-      {
-        "fetched_at": 1792708605515,
-        "host": "docs.vulkan.org",
-        "http_status": 200,
-        "title": "Vulkan Specification :: Vulkan Documentation Project",
-        "url": "https://docs.vulkan.org/guide/latest/vulkan_spec.html"
-      },
-      {
-        "fetched_at": 1792708599999,
-        "host": "www.praguemorning-guide.cz",
-        "http_status": 200,
-        "title": "Prague Morning Guide",
-        "url": "https://www.praguemorning-guide.cz/health"
-      },
-      {
-        "fetched_at": 1792708564234,
-        "host": "cermak.tech",
-        "http_status": 200,
-        "title": "Security Camera Installation in Chambersburg & Hagerstown | CermakTech",
-        "url": "https://cermak.tech/cameras/"
-      },
-      {
-        "fetched_at": 1792708561279,
-        "host": "www.surreylgrhub.gov.uk",
-        "http_status": 200,
-        "title": "Consultation, surveys and engagement \u2013 Surrey LGR Hub",
-        "url": "https://www.surreylgrhub.gov.uk/hub/consultation/2"
-      },
-      {
-        "fetched_at": 1792708537580,
-        "host": "ppc.land",
-        "http_status": 200,
-        "title": "Ahrefs study finds AI search visitors convert 23x higher than organic traffic",
-        "url": "https://ppc.land/ahrefs-study-finds-ai-search-visitors-convert-23x-higher-than-organic-traffic/"
-      },
-      {
-        "fetched_at": 1792708534627,
-        "host": "eaterwineclub.com",
-        "http_status": 200,
-        "title": "Frequently Asked Questions | Eater Wine Club",
-        "url": "https://eaterwineclub.com/pages/frequently-asked-questions"
-      },
-      {
-        "fetched_at": 1792708528690,
-        "host": "www.maryruden.com",
-        "http_status": 200,
-        "title": "Artist portfolio - Biographies of Suffragists",
-        "url": "https://www.maryruden.com/womens-suffrage/biographies-of-suffragists"
-      },
-      {
-        "fetched_at": 1792708508200,
-        "host": "themillertoninn.com",
-        "http_status": 200,
-        "title": "Book Your Stay - The Millerton Inn",
-        "url": "https://themillertoninn.com/book/"
-      },
-      {
-        "fetched_at": 1792708505214,
-        "host": "rishikeshs.com",
-        "http_status": 200,
-        "title": "The Man from the Future: A Thought Experiment | Rishikesh Sreehari",
-        "url": "https://rishikeshs.com/man-from-the-future/"
-      },
-      {
-        "fetched_at": 1792708505213,
-        "host": "blinkcharging.com",
-        "http_status": 200,
-        "title": "EV Charging Stations for Residences & Businesses | Blink Charging",
-        "url": "https://blinkcharging.com/"
-      },
-      {
-        "fetched_at": 1792708505207,
-        "host": "uwsgi-docs.readthedocs.io",
-        "http_status": 200,
-        "title": "The uWSGI project \u2014 uWSGI 2.0 documentation",
-        "url": "https://uwsgi-docs.readthedocs.io/"
-      },
-      {
-        "fetched_at": 1792708505199,
-        "host": "www.scggf.org",
-        "http_status": 200,
-        "title": "Donate - Sonoma County Fundaci\u00f3n de la Voz de los Vi\u00f1edos",
-        "url": "https://www.scggf.org/donate/"
-      },
-      {
-        "fetched_at": 1792708486595,
-        "host": "www.saltpoint.org",
-        "http_status": 200,
-        "title": "Pygmy Forest - Salt Point State Park",
-        "url": "https://www.saltpoint.org/pygmy-forest"
-      },
-      {
-        "fetched_at": 1792708486566,
-        "host": "russianriver.com",
-        "http_status": 200,
-        "title": "Resorts and Rentals - Places to Stay - Russian River Valley",
-        "url": "https://russianriver.com/business-category/places-to-stay/"
-      },
-      {
-        "fetched_at": 1792708480309,
-        "host": "utahstateaggies.com",
-        "http_status": 200,
-        "title": "2025-26 Track and Field Schedule - Utah State University Athletics",
-        "url": "https://utahstateaggies.com/sports/track-and-field/schedule"
-      },
-      {
-        "fetched_at": 1792708447129,
-        "host": "www.eif.org",
-        "http_status": 200,
-        "title": "Launch of Luxembourg Future Fund 3 (LFF3)",
-        "url": "https://www.eif.org/press/all/launch-of-luxembourg-future-fund-3"
-      },
-      {
-        "fetched_at": 1792708435324,
-        "host": "www.edreamsodigeocareers.com",
+        "fetched_at": 1792717128523,
+        "host": "www.happyscentsco.com",
         "http_status": 200,
         "title": "",
-        "url": "https://www.edreamsodigeocareers.com/terms-and-conditions-of-use/"
+        "url": "https://www.happyscentsco.com/collections/gift-boxes"
       },
       {
-        "fetched_at": 1792708411614,
-        "host": "belgrademyway.com",
+        "fetched_at": 1792717128408,
+        "host": "danielshomes.ca",
         "http_status": 200,
-        "title": "Parking and Garages in Belgrade - Belgrade My Way",
-        "url": "http://belgrademyway.com/parking-and-garages-in-belgrade/"
+        "title": "Working in Sussex Spadina - The Daniels Corporation",
+        "url": "https://danielshomes.ca/qualification/working-in-sussex-spadina/"
       },
       {
-        "fetched_at": 1792708365075,
-        "host": "karencivil.com",
+        "fetched_at": 1792717100500,
+        "host": "www.lapinkansa.fi",
         "http_status": 200,
-        "title": "Civil Scope: Mulatto",
-        "url": "https://karencivil.com/2020/04/03/civil-scope-mulatto/"
+        "title": "N\u00e4k\u00f6islehdet | Lapin Kansa",
+        "url": "https://www.lapinkansa.fi/nakoislehdet/uusi-rovaniemi/"
       },
       {
-        "fetched_at": 1792708363580,
-        "host": "orcca.on.ca",
+        "fetched_at": 1792717096365,
+        "host": "easypet.net",
         "http_status": 200,
-        "title": "The Lambert W Function",
-        "url": "https://orcca.on.ca/LambertW/"
+        "title": "Customer Reviews - easyPet.net | Pet transport by road",
+        "url": "https://easypet.net/customer-reviews/"
       },
       {
-        "fetched_at": 1792708185260,
-        "host": "rewireheaven.com",
+        "fetched_at": 1792717089868,
+        "host": "machias.edu",
         "http_status": 200,
-        "title": "RewireHeaven \u2014 Quit Porn, Doomscrolling & Any Addiction | Free, Anonymous, Science-Backed",
-        "url": "https://rewireheaven.com/index.html"
+        "title": "UMaine Machias Facts - University of Maine at Machias",
+        "url": "https://machias.edu/about-umm/umm-facts/"
       },
       {
-        "fetched_at": 1792708182359,
-        "host": "www.nhlbi.nih.gov",
+        "fetched_at": 1792717089508,
+        "host": "thewordsearch.com",
         "http_status": 200,
-        "title": "Heart Attack - Treatment | NHLBI, NIH",
-        "url": "https://www.nhlbi.nih.gov/health/heart-attack/treatment"
+        "title": "Algebra Word Search Word Search",
+        "url": "https://thewordsearch.com/puzzle/352/algebra-word-search/"
       },
       {
-        "fetched_at": 1792708173319,
-        "host": "www.texaschildrens.org",
+        "fetched_at": 1792717089402,
+        "host": "thebrokenbindingsub.com",
         "http_status": 200,
-        "title": "Pavilion for Women About Us | Texas Children's",
-        "url": "https://www.texaschildrens.org/pavilion-for-women/about-us"
+        "title": "Exclusive Fantasy & Sci-Fi | The Broken Binding SE",
+        "url": "https://thebrokenbindingsub.com/"
       },
       {
-        "fetched_at": 1792708164443,
-        "host": "www.niost.org",
+        "fetched_at": 1792717089387,
+        "host": "senecaonestop.com",
         "http_status": 200,
-        "title": "OST Resources - National Institute on Out-of-School Time",
-        "url": "https://www.niost.org/resources/ost-resources"
-      },
-      {
-        "fetched_at": 1792708161389,
-        "host": "vermont211.org",
-        "http_status": 200,
-        "title": "Careers at Vermont 211 \u2014 VT 211",
-        "url": "https://vermont211.org/careers-at-vermont-211"
-      },
-      {
-        "fetched_at": 1792708155818,
-        "host": "compassbrazil.com",
-        "http_status": 200,
-        "title": "Iguassu Falls - Compass Brazil",
-        "url": "https://compassbrazil.com/signature/iguassu-falls/"
-      },
-      {
-        "fetched_at": 1792708155763,
-        "host": "justicegrants.usdoj.gov",
-        "http_status": 200,
-        "title": "Training: Award Acceptance | JustGrants Resources",
-        "url": "https://justicegrants.usdoj.gov/training-resources/justgrants-training/grant-award-acceptance"
-      },
-      {
-        "fetched_at": 1792708155754,
-        "host": "regenerativetravel.com",
-        "http_status": 200,
-        "title": "Discover Regenerative Travel",
-        "url": "https://regenerativetravel.com/magazine/the-wellness-science-of-slow-travel"
-      },
-      {
-        "fetched_at": 1792708140894,
-        "host": "www.nhlbi.nih.gov",
-        "http_status": 200,
-        "title": "Heart Attack - Causes and Risk Factors | NHLBI, NIH",
-        "url": "https://www.nhlbi.nih.gov/health/heart-attack/causes"
-      },
-      {
-        "fetched_at": 1792708140886,
-        "host": "www.fundacionmahousanmiguel.com",
-        "http_status": 200,
-        "title": "Fundaci\u00f3n Mahou San Miguel",
-        "url": "https://www.fundacionmahousanmiguel.com/"
-      },
-      {
-        "fetched_at": 1792708114142,
-        "host": "www.nightfallatgreen-wood.com",
-        "http_status": 200,
-        "title": "Membership &mdash; Nightfall at Green-Wood",
-        "url": "https://www.nightfallatgreen-wood.com/membership"
-      },
-      {
-        "fetched_at": 1792708078841,
-        "host": "www.ttgmedia.com",
-        "http_status": 200,
-        "title": "PDF Archive Years | TTG",
-        "url": "https://www.ttgmedia.com/ttg-print-archive"
-      },
-      {
-        "fetched_at": 1792708075937,
-        "host": "www.ekoweshun.co.uk",
-        "http_status": 200,
-        "title": "Contact &mdash; Ekow Eshun",
-        "url": "https://www.ekoweshun.co.uk/contact"
+        "title": "Buffalo Creek - Seneca One Stop",
+        "url": "https://senecaonestop.com/buffalo/"
       }
     ],
-    "total": 436752
+    "total": 437317
   },
   "schema_version": 1,
   "status": {
     "blocked": 40,
     "crawling": true,
-    "documents": 436750,
-    "done": 468786,
-    "duplicates": 28750,
-    "failed": 24574,
-    "hosts": 140749,
-    "in_flight": 7,
-    "indexed": 409439,
-    "links": 19067379,
-    "pending": 500019,
+    "documents": 437317,
+    "done": 469228,
+    "duplicates": 28801,
+    "failed": 24594,
+    "hosts": 140804,
+    "in_flight": 8,
+    "indexed": 409958,
+    "links": 19094281,
+    "pending": 499992,
     "pending_demand": 0,
-    "pending_public": 500019,
-    "recrawls_due": 323085,
-    "uptime_sec": 1544997
+    "pending_public": 499992,
+    "recrawls_due": 324290,
+    "uptime_sec": 1553730
   }
 }
