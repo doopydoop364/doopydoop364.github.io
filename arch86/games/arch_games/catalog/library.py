@@ -29,6 +29,11 @@ class Library:
     def __init__(self, config, db, profile=None):
         self.config, self.db = config, db
         self.profile = profile if profile is not None else system_profile(config.data_dir)
+        for capability in ["win32", "win64", "wow64"]:
+            key = "wine_" + capability
+            if key in config.values:
+                self.profile.setdefault("wine", {})[capability] = config.values[key]
+                self.profile["wine"].setdefault("evidence", []).append("User-asserted capability: " + capability)
         self.games, self.reports, self.warnings = [], {}, []
         self.sync = {}
 

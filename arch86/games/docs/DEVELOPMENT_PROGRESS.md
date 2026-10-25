@@ -55,3 +55,12 @@ Review: inspected new and modified source, input validation and backward compati
 Validation: full accumulated unittest suite, compileall and git diff --check passed.
 Limitations: Live VMs and private GameVault server are not available; fixture results are not hardware verification.
 Git commit: `arch-games-2-phase-06`. Next: phase 7.
+
+## Phase 7: Interactive terminal interface
+
+Replaced legacy routing with argparse CLI and combined library integration. Added curses keyboard navigation plus paginated searchable ASCII fallback, all eight sections, details/report views, explicit Pacman confirmation, terminal-control sanitization and narrow-screen rendering. Thirty-two tests pass including fallback navigation and resize snapshots.
+
+Review: inspected new and modified source, input validation and backward compatibility.
+Validation: full accumulated unittest suite, compileall and git diff --check passed.
+Limitations: Live VMs and private GameVault server are not available; fixture results are not hardware verification.
+Git commit: `arch-games-2-phase-07`. Next: phase 8.
