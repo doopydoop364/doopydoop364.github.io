@@ -86,9 +86,11 @@ def make_parser():
     analyze.add_argument(
         "--terminal", action="store_true", help="User assertion: game needs no graphical session"
     )
-    web = sub.add_parser("web", help="Read-only localhost gallery")
+    web = sub.add_parser("web", help="Optional web GUI (loopback by default, token login)")
     web.add_argument("--port", type=int, default=8765)
-    catalog_options(web)
+    web.add_argument("--host", default="127.0.0.1")
+    web.add_argument("--allow-remote", action="store_true", help="Required to bind a non-loopback address")
+    web.add_argument("--allowed-host", action="append", default=[], metavar="HOST:PORT", help="Extra Host header accepted (remote use)")
     install = sub.add_parser("install", help="Install a Pacman game or extract a local game archive")
     install.add_argument("game")
     install.add_argument("--archive")
@@ -833,6 +835,20 @@ def dispatch(args, config, db):
             db.put("favorites", game_id, {"added": __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat()})
             print("Added to favorites: " + game_id)
         return
+    if action == "web":
+        from .ui.web.server import WebApp, load_token
+
+        app = WebApp(config, args.host, args.port, args.allow_remote, args.allowed_host)
+        port = app.start()
+        print("Arch Games web GUI on http://{}:{}/".format(args.host, port))
+        print("Sign in with this token (stored in {}):\n  http://{}:{}/#token={}".format(config.config_dir / "web-token", args.host if args.host not in ("0.0.0.0", "::") else "127.0.0.1", port, app.token))
+        if args.host not in ("127.0.0.1", "::1", "localhost"):
+            print("WARNING: reachable from other machines; use only on a private network such as Tailscale.", file=sys.stderr)
+        try:
+            app.serve_forever()
+        except KeyboardInterrupt:
+            app.stop()
+        return
     if action == "alias":
         return alias_command(args, config, db)
     if action == "audio":
@@ -1133,13 +1149,6 @@ def dispatch(args, config, db):
             result = subprocess.run(["sudo", "pacman", "-S", "--needed", "--", game.package])
             if result.returncode:
                 raise AppError("Pacman installation failed")
-    elif action == "web":
-        from .ui.gallery import serve
-
-        selected = filters(args)
-        selected["show_all"] = args.all or bool(config.values.get("show_all"))
-        games, explanation = library.filtered(**selected)
-        serve(library, games, explanation, config, args.port)
     else:
         raise AppError("Operation not implemented")
 

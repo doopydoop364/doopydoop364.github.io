@@ -23,7 +23,7 @@ see `VALIDATION.md` and the real-VM checklist in `TESTING_3.md` once written.
 - [x] P7 Remote audio architecture decision + prototype (host bridge)
 - [~] P8 Remote audio integration, auth, isolation, browser page (automated + synthetic real-browser verified; real VM/Safari/Tailscale NOT)
 - [x] P9 TUI redesign (curses; pty-tested)
-- [ ] P10 Optional web GUI + API
+- [x] P10 Optional web GUI + API
 - [ ] P11 Compatibility evidence model, machine profiles
 - [ ] P12 History, playtime, performance, benchmark
 - [ ] P13 Saves and backups
@@ -100,3 +100,9 @@ help overlay, per-row action keys that run the same CLI code path; ASCII fallbac
 degradation, plain menu fallback when no tty. Also added: `diagnostics/doctor.py` (shared by `doctor`, TUI, web), `diagnostics/repair.py`
 (`repair GAME [--dry-run|--apply]`), `favorite add|remove|toggle|list`. Tests: tests/test_tui.py (13), including real curses sessions over a pty with no
 DISPLAY. Not verified: KMSCON itself, colour rendering by eye on a real console.
+
+### Phase 10 (done; 226 tests pass)
+`ui/web/{api,server}.py` + `static/{index.html,app.css,app.js}`; `core/gameview.py` (one structured game description shared by TUI and web);
+`web` command replaced by the new GUI (old read-only `ui/gallery.py` kept, no longer wired to the CLI). Library now also lists launcher-registered games.
+Tests: tests/test_web.py (15). Real-browser pass found two bugs (DOM helper arrays, CSP inline style) - fixed. Docs: WEB_GUI_3.md.
+Known gap found in the browser: Undertale shows compatibility "Unknown" because the registered launcher's executable evidence is not fed to the analyzer (Phase 11).

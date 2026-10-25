@@ -81,49 +81,42 @@ class Provider:
         return rows
 
     def game_row(self, g, report, favorite, aliases):
-        status = report.get("status", "Unknown")
-        launcher = self.db.get("launchers", g.id)
-        installed = g.installed or launcher is not None or self.db.get("prefixes", g.id) is not None
+        from ...core.gameview import describe
+
+        d = describe(self.config, self.db, g, report, aliases, favorite)
+        status = d["compatibility"]["status"]
+        installed = d["installed"]
         detail = [("Source: {}   ID: {}".format(g.source, g.id), "normal")]
         if aliases:
             detail.append(("Aliases: " + ", ".join(aliases), "dim"))
         detail.append(("State: " + ("installed" if installed else "not installed"), "ok" if installed else "dim"))
         detail.append(("Compatibility: {}".format(status), TONE.get(status, "dim")))
-        for line in (report.get("evidence") or [])[:3]:
-            detail.append(("  + " + str(line), "dim"))
-        for line in (report.get("uncertainties") or [])[:2]:
-            detail.append(("  ? " + str(line), "warn"))
+        detail += [("  + " + str(x), "dim") for x in d["compatibility"]["evidence"][:3]]
+        detail += [("  ? " + str(x), "warn") for x in d["compatibility"]["uncertainties"][:2]]
         detail.append(("Architecture: {}   OS: {}".format(g.architecture, g.os), "normal"))
-        prefix = self.db.get("prefixes", g.id)
-        if prefix:
-            detail.append(("Wine prefix: {} ({})".format(prefix.get("detected_architecture") or prefix.get("requested_architecture"), prefix.get("state")), "normal"))
-        settings = self.db.get("game_settings", g.id)
-        if settings:
-            detail.append(("Wine settings: " + ", ".join(sorted(settings)), "dim"))
-        if launcher:
-            detail.append(("Executable: " + launcher["executable"], "normal" if Path(launcher["executable"]).is_file() else "bad"))
+        if d["prefix"]:
+            detail.append(("Wine prefix: {} ({})".format(d["prefix"]["detected_architecture"] or d["prefix"]["requested_architecture"], d["prefix"]["state"]), "normal"))
+        if d["wine_settings"]:
+            detail.append(("Wine settings: " + ", ".join(sorted(d["wine_settings"])), "dim"))
+        if d["launcher"]:
+            detail.append(("Executable: " + d["launcher"]["executable"], "normal" if d["launcher"]["exists"] else "bad"))
         else:
             detail.append(("Executable: not registered (x to find it)", "warn" if installed else "dim"))
-        last = max((v for v in self.db.mapping("launches").values() if v.get("game_id") == g.id and v.get("purpose", "game") == "game"), key=lambda v: v.get("started_at", ""), default=None)
+        last = d["last_launch"]
         if last:
-            detail.append(("Last launch: {} ({}{})".format(last.get("started_at", "?")[:19].replace("T", " "), last.get("state"), "" if last.get("exit_code") in (None, 0) else ", exit {}".format(last["exit_code"])), "bad" if last.get("exit_code") else "normal"))
-        job = self.db.get("install_jobs", g.id)
-        if job and job.get("status") not in {"done", "cancelled"}:
-            detail.append(("Install job: {} at step {}".format(job["status"], job.get("step")), "warn"))
-        manifest = self.db.get("installs", g.id)
-        if manifest:
-            try:
-                size, partial = dirsize(self.config.directory("installed") / manifest["directory"])
-                detail.append(("Storage: {}{} extracted".format(human(size), "+" if partial else ""), "normal"))
-            except AppError:
-                pass
+            failed = last.get("exit_code") not in (None, 0)
+            detail.append(("Last launch: {} ({}{})".format(last.get("started_at", "?")[:19].replace("T", " "), last.get("state"), ", exit {}".format(last["exit_code"]) if failed else ""), "bad" if failed else "normal"))
+        if d["install_job"]:
+            detail.append(("Install job: {} at step {}".format(d["install_job"]["status"], d["install_job"]["step"]), "warn"))
+        if d["storage"]:
+            detail.append(("Storage: {}{} extracted".format(human(d["storage"]["bytes"]), "+" if d["storage"]["partial"] else ""), "normal"))
         actions = {"d": ("queue download", ["download", "add", g.id]), "i": ("install", ["install", g.id]), "s": ("settings", ["settings", "game", g.id]),
                    "w": ("wine status", ["wine", "status", g.id]), "x": ("find executable", ["discover", g.id]), "c": ("compatibility details", ["details", g.id])}
-        if launcher or installed:
+        if installed:
             actions["l"] = ("launch", ["launch", g.id])
         actions["f"] = ("toggle favorite", ["favorite", "toggle", g.id])
         tag = "{}{}".format(status if status != "Unknown" else "", " ●" if installed else "")
-        return Row(g.id, g.title, tag.strip(), TONE.get(status, "dim"), detail, actions, favorite, bool(installed))
+        return Row(g.id, g.title, tag.strip(), TONE.get(status, "dim"), detail, actions, favorite, installed)
 
     def rows_library(self, search, show_all):
         return self.game_rows(search, show_all)

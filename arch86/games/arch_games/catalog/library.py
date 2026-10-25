@@ -106,6 +106,12 @@ class Library:
             for ident, manifest in installs.items()
             if ident not in known and manifest.get("game")
         ]
+        known |= {game.id for game in candidates}
+        for ident, launcher in self.db.mapping("launchers").items():
+            if ident not in known and isinstance(launcher, dict):
+                # Installed outside Arch Games' extractor (e.g. by a Wine installer) and registered by the user.
+                candidates.append(Game(ident, launcher.get("title") or ident, ident.split(":", 1)[0], installed=True))
+                known.add(ident)
         for game in candidates:
             game.installed = game.installed or game.id in installs
             local = analyses.get(game.id, {})
