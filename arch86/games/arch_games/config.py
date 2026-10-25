@@ -89,7 +89,7 @@ class Config:
         self.values = read_json(self.path)
         if not isinstance(self.values, dict):
             raise AppError("Settings must be a JSON object")
-        for key in ["allow_http", "show_all", "wine_win32", "wine_win64", "wine_wow64"]:
+        for key in ["allow_http", "show_all", "wine_win32", "wine_win64", "wine_wow64", "performance_monitoring"]:
             if key in self.values and self.values[key] is not None and not isinstance(self.values[key], bool):
                 raise AppError("Boolean setting has an invalid type: " + key)
         for key in ["server_url", "account"]:

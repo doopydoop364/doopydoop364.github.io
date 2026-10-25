@@ -256,6 +256,7 @@ def make_parser():
         "--command", help="Explicit JSON argument array for custom method; {exe} expands to the path"
     )
     launch.add_argument("--allow-external", action="store_true")
+    launch.add_argument("--monitor", action="store_true", help="Record CPU/memory samples for this launch (also: setting performance_monitoring)")
     launch.add_argument("--dry-run", action="store_true")
     launch.add_argument(
         "--interactive",
@@ -292,7 +293,33 @@ def make_parser():
     register.add_argument("--allow-external", action="store_true")
     register.add_argument("--force-role", action="store_true")
     register.add_argument("--yes", action="store_true")
-    sub.add_parser("history", help="Local launch history")
+    history = sub.add_parser("history", help="Launch history (all games, or one)")
+    history.add_argument("game", nargs="?")
+    history.add_argument("--limit", type=int, default=50)
+    playtime = sub.add_parser("playtime", help="Playtime estimates from launch history")
+    playtime.add_argument("game", nargs="?")
+    perf = sub.add_parser("performance", help="Stored performance measurements (launches nothing)")
+    perf.add_argument("game")
+    bench = sub.add_parser("benchmark", help="Explicitly launch a game and measure it for a fixed time")
+    bench.add_argument("game")
+    bench.add_argument("--seconds", type=int, default=60)
+    bench.add_argument("--yes", action="store_true")
+    title = sub.add_parser("title", help="Custom display titles")
+    tsub = title.add_subparsers(dest="operation", required=True)
+    tset = tsub.add_parser("set")
+    tset.add_argument("game")
+    tset.add_argument("title")
+    tsub.add_parser("clear").add_argument("game")
+    notes = sub.add_parser("notes", help="Show or set your notes for a game")
+    notes.add_argument("game")
+    notes.add_argument("text", nargs="?")
+    tag = sub.add_parser("tag", help="User-defined tags")
+    tagsub = tag.add_subparsers(dest="operation", required=True)
+    for name in ["add", "remove"]:
+        t = tagsub.add_parser(name)
+        t.add_argument("game")
+        t.add_argument("tag")
+    tagsub.add_parser("list").add_argument("game", nargs="?")
     feedback = sub.add_parser("feedback", help="Local user compatibility results; never uploaded")
     fsub = feedback.add_subparsers(dest="operation", required=True)
     fsub.add_parser("list")
@@ -814,9 +841,9 @@ def settings_command(args, config):
     if args.operation == "show":
         emit(config.values)
         return
-    allowed = {"show_all", "wine_win32", "wine_win64", "wine_wow64"}
+    allowed = {"show_all", "wine_win32", "wine_win64", "wine_wow64", "performance_monitoring"}
     if args.key not in allowed or args.value not in {"true", "false", "unknown"}:
-        raise AppError("Settings keys: show_all/wine_win32/wine_win64/wine_wow64; values: true/false/unknown")
+        raise AppError("Settings keys: show_all/wine_win32/wine_win64/wine_wow64/performance_monitoring; values: true/false/unknown")
     config.values[args.key] = {"true": True, "false": False, "unknown": None}[args.value]
     config.save()
     print("Saved. Wine capability overrides are user assertions, not measured results.")
@@ -838,7 +865,7 @@ def dispatch(args, config, db):
                 return text
             raise
 
-    if action in {"details", "install", "uninstall", "launch", "prefix", "feedback", "catalog", "download", "discover", "launcher", "info", "repair"} and getattr(args, "game", None):
+    if action in {"details", "install", "uninstall", "launch", "prefix", "feedback", "catalog", "download", "discover", "launcher", "info", "repair", "performance", "benchmark"} and getattr(args, "game", None):
         if not (action == "launcher" and args.operation == "list"):
             args.game = resolve(args.game)
     if action == "settings" and args.operation == "game":
@@ -986,7 +1013,66 @@ def dispatch(args, config, db):
         )
         return emit(saved)
     if action == "history":
-        return emit([row["value"] for row in db.all("launches")])
+        from .core import history as hist
+
+        if not args.game:
+            return emit([row["value"] for row in db.all("launches")][-max(1, args.limit):])
+        return emit(hist.sessions(db, resolve(args.game))[-max(1, args.limit):])
+    if action == "playtime":
+        from .core import history as hist
+
+        return emit(hist.playtime(db, resolve(args.game) if args.game else None))
+    if action == "performance":
+        from .performance import service
+
+        game_id = resolve(args.game)
+        rows = service.history(db, game_id)
+        return emit({"game": game_id, "aggregate": service.aggregate(rows), "runs": rows[-20:],
+                     "note": "Frame rate is reported only when a real measurement mechanism produced data; otherwise it is unavailable"})
+    if action == "benchmark":
+        from .performance import service
+        from .runtime.launcher import Launcher
+
+        game_id = resolve(args.game)
+        if not args.yes:
+            if not interactive(args):
+                raise AppError("Benchmarks launch the game; add --yes to confirm (they never run automatically)")
+            if input("Launch {} and measure it for {} s, then stop it? [y/N] ".format(clean(game_id), args.seconds)).strip().lower() != "y":
+                return
+        return emit(service.benchmark(config, db, Launcher(config, db), game_id, args.seconds, say=lambda t: print(clean(t), file=sys.stderr)))
+    if action == "title":
+        game_id = resolve(args.game)
+        if args.operation == "clear":
+            db.delete("custom_titles", game_id)
+            print("Custom title removed")
+            return
+        if not args.title.strip() or len(args.title) > 200 or "\0" in args.title:
+            raise AppError("Title must be 1..200 characters")
+        db.put("custom_titles", game_id, {"title": args.title.strip()})
+        print("Custom title saved")
+        return
+    if action == "notes":
+        game_id = resolve(args.game)
+        if args.text is None:
+            return emit(db.get("notes", game_id) or {"text": ""})
+        if len(args.text) > 8000:
+            raise AppError("Notes are limited to 8000 characters")
+        db.put("notes", game_id, {"text": args.text})
+        print("Notes saved")
+        return
+    if action == "tag":
+        if args.operation == "list":
+            rows = {r["key"]: r["value"].get("tags", []) for r in db.all("tags")}
+            return emit(rows.get(resolve(args.game), []) if args.game else rows)
+        game_id = resolve(args.game)
+        import re as _re
+
+        if not _re.fullmatch(r"[\w .+-]{1,32}", args.tag):
+            raise AppError("Tags are 1..32 letters, digits, spaces or . + -")
+        tags = set((db.get("tags", game_id) or {}).get("tags", []))
+        (tags.add if args.operation == "add" else tags.discard)(args.tag.strip())
+        db.put("tags", game_id, {"tags": sorted(tags)})
+        return emit(sorted(tags))
     if action == "launch":
         from .runtime.launcher import Launcher
 
@@ -1020,7 +1106,16 @@ def dispatch(args, config, db):
         if args.dry_run:
             return emit({k: v for k, v in plan.items() if k != "env"} | {"custom_environment": custom_env})
         plan["interactive"] = args.interactive
-        record = launcher.launch(plan)
+        monitor = None
+        if args.monitor or config.values.get("performance_monitoring"):
+            from .performance.service import monitor_factory
+
+            monitor = monitor_factory()
+        record = launcher.launch(plan, monitor=monitor)
+        if monitor is not None and record.get("performance"):
+            from .performance import service as perf_service
+
+            perf_service.save(db, config, args.game, "monitor", record, apply_overrides(system_profile(config.data_dir), config))
         emit(record)
         if record["exit_code"]:
             raise AppError(

@@ -25,7 +25,7 @@ see `VALIDATION.md` and the real-VM checklist in `TESTING_3.md` once written.
 - [x] P9 TUI redesign (curses; pty-tested)
 - [x] P10 Optional web GUI + API
 - [x] P11 Compatibility evidence model, machine profiles
-- [ ] P12 History, playtime, performance, benchmark
+- [x] P12 History, playtime, performance, benchmark (FPS only via real mechanisms, never verified on hardware)
 - [ ] P13 Saves and backups
 - [ ] P14 Multi-machine, favorites, tags, notes, recommendations, search
 - [ ] P15 Hardening / security review
@@ -112,3 +112,10 @@ Known gap found in the browser: Undertale shows compatibility "Unknown" because 
 executable and attaches `classification`, `classification_reasons`, `facts`, `machine` to every report; hooks on launch/install/feedback; CLI `compat show|list|set|export|import`,
 `machine show|name`; TUI/web show the new classification. Tests: tests/test_compat_intelligence.py (11). The 2.0 `status` field is unchanged for compatibility.
 Test change: bulk query bound raised 8 -> 12 (still constant for 2000 games).
+
+### Phase 12 (done; 253 tests pass)
+`core/history.py` (sessions, playtime estimate rules, recency), `performance/{sampler,fps,service}.py`, launcher `monitor=` hook, CLI `history [GAME]`,
+`playtime`, `performance GAME` (reads only), `benchmark GAME --seconds N --yes` (explicit only), `launch --monitor`, setting `performance_monitoring`, `title set|clear`,
+`notes`, `tag add|remove|list`; library applies custom titles (resolver matches them). Sampler reads /proc for the process tree (CPU as percent of one core, RSS, lifetime,
+optional first-window time via xdotool); FPS comes only from MangoHud logs or Mesa Gallium HUD dumps and otherwise is reported unavailable. Tests: tests/test_performance_history.py (16,
+including a real busy-loop process sampled via /proc). NOT verified: MangoHud/Gallium HUD with a real game, xdotool window detection, Wine process-tree sampling.

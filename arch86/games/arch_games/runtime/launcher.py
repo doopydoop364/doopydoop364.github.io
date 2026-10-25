@@ -166,7 +166,7 @@ class Launcher:
         plan["registered"] = True
         return plan
 
-    def launch(self, plan, timeout=None):
+    def launch(self, plan, timeout=None, monitor=None):
         """Run a plan. With timeout, a still-running process is stopped and recorded as a supervised test."""
         ident = uuid.uuid4().hex
         path = self.config.directory("logs") / ("launch-" + ident + ".log")
@@ -201,6 +201,7 @@ class Launcher:
         )
         self.db.put("launches", ident, record)
         process = None
+        sampler = None
         try:
             with os.fdopen(os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), "wb") as output:
                 interactive = plan.get("interactive", False)
@@ -215,6 +216,7 @@ class Launcher:
                     stdin=None if interactive else subprocess.DEVNULL,
                     start_new_session=not interactive,
                 )
+                sampler = monitor(process.pid) if monitor else None
                 if timeout:
                     try:
                         result = process.wait(timeout=timeout)
@@ -224,6 +226,8 @@ class Launcher:
                         result = None
                 else:
                     result = process.wait()
+                if sampler:
+                    record["performance"] = sampler.stop()
             if result is not None or record["state"] == "running":
                 record.update(state="exited", exit_code=result)
         except KeyboardInterrupt:
@@ -235,6 +239,8 @@ class Launcher:
             record.update(state="failed", exit_code=None)
             raise AppError("Launch failed; check runtime, file permissions and local log") from None
         finally:
+            if sampler is not None and "performance" not in record:
+                record["performance"] = sampler.stop()
             record["finished_at"] = datetime.now(timezone.utc).isoformat()
             self.db.put("launches", ident, record)
             if record.get("purpose", "game") == "game":

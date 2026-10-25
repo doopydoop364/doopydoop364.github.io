@@ -115,7 +115,11 @@ class Library:
                 # Installed outside Arch Games' extractor (e.g. by a Wine installer) and registered by the user.
                 candidates.append(Game(ident, launcher.get("title") or ident, ident.split(":", 1)[0], installed=True))
                 known.add(ident)
+        custom_titles = self.db.mapping("custom_titles")
         for game in candidates:
+            if game.id in custom_titles and custom_titles[game.id].get("title"):
+                game.metadata["original_title"] = game.title
+                game.title = custom_titles[game.id]["title"]
             game.installed = game.installed or game.id in installs
             local = analyses.get(game.id, {})
             if (
