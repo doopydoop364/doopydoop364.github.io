@@ -37,3 +37,12 @@ Review: inspected new and modified source, input validation and backward compati
 Validation: full accumulated unittest suite, compileall and git diff --check passed.
 Limitations: Live VMs and private GameVault server are not available; fixture results are not hardware verification.
 Git commit: `arch-games-2-phase-04`. Next: phase 5.
+
+## Phase 5: Wine compatibility analyzer
+
+Added six structured compatibility statuses, architecture/runtime blockers, Wine WoW64 uncertainty, PE import clues, Vulkan/graphics/RAM assessments and machine-bound feedback gate. No unexplained numerical score or automatic dependency installation. Twenty-five accumulated tests pass across native, DOS, PE32/PE32+, missing runtimes, foreign architecture and weak graphics.
+
+Review: inspected new and modified source, input validation and backward compatibility.
+Validation: full accumulated unittest suite, compileall and git diff --check passed.
+Limitations: Live VMs and private GameVault server are not available; fixture results are not hardware verification.
+Git commit: `arch-games-2-phase-05`. Next: phase 6.
