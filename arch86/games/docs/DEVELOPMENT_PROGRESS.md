@@ -64,3 +64,12 @@ Review: inspected new and modified source, input validation and backward compati
 Validation: full accumulated unittest suite, compileall and git diff --check passed.
 Limitations: Live VMs and private GameVault server are not available; fixture results are not hardware verification.
 Git commit: `arch-games-2-phase-07`. Next: phase 8.
+
+## Phase 8: Visual game gallery
+
+Upgraded localhost read-only gallery with searchable/category/status/architecture-filtered cards, details, local artwork retrieval/cache, status snapshots and polling. Escaped all remote metadata, added CSP/no-sniff/host/origin protections, and rejected action requests. Thirty-four tests pass including real loopback HTTP security tests.
+
+Review: inspected new and modified source, input validation and backward compatibility.
+Validation: full accumulated unittest suite, compileall and git diff --check passed.
+Limitations: Live VMs and private GameVault server are not available; fixture results are not hardware verification.
+Git commit: `arch-games-2-phase-08`. Next: phase 9.
