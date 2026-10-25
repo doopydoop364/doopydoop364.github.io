@@ -258,6 +258,30 @@ def make_parser():
     srestore.add_argument("backup")
     srestore.add_argument("--apply", action="store_true")
     srestore.add_argument("--yes", action="store_true")
+    search = sub.add_parser("search", help="Search the library by name, alias, tag, source, platform, state, compatibility")
+    search.add_argument("query", nargs="?", default="")
+    search.add_argument("--source", choices=["pacman", "gamevault", "local"])
+    search.add_argument("--platform", choices=["windows", "linux", "dos"])
+    search.add_argument("--installed", choices=["yes", "no"])
+    search.add_argument("--compat", help="e.g. 'Verified working', 'Likely compatible'")
+    search.add_argument("--tag")
+    search.add_argument("--favorites", action="store_true")
+    search.add_argument("--limit", type=int, default=50)
+    search.add_argument("--json", action="store_true")
+    rec = sub.add_parser("recommend", help="Explainable suggestions from your own favorites, playtime, tags and interests")
+    rec.add_argument("--limit", type=int, default=10)
+    interests = sub.add_parser("interests", help="Keywords you like (used only for local recommendations)")
+    isub = interests.add_subparsers(dest="operation", required=True)
+    isub.add_parser("list")
+    for name in ["add", "remove"]:
+        isub.add_parser(name).add_argument("keyword", nargs="+")
+    sync = sub.add_parser("sync", help="Private file-based bundle of favorites, aliases, notes, tags, titles, compatibility")
+    ysub = sync.add_subparsers(dest="operation", required=True)
+    yexp = ysub.add_parser("export")
+    yexp.add_argument("--output")
+    yimp = ysub.add_parser("import")
+    yimp.add_argument("file")
+    yimp.add_argument("--prefer-remote", action="store_true")
     favorite = sub.add_parser("favorite", help="Mark favorite games")
     fsub2 = favorite.add_subparsers(dest="operation", required=True)
     fsub2.add_parser("list")
@@ -890,6 +914,52 @@ def dispatch(args, config, db):
             args.game = resolve(args.game)
     if action == "settings" and args.operation == "game":
         args.key = resolve(args.key or "")
+    if action == "search":
+        from .catalog.library import Library
+        from .catalog.search import SearchIndex
+
+        library = Library(config, db).load(offline=True)
+        found = SearchIndex(library, db).search(
+            args.query, args.source, args.platform, {"yes": True, "no": False}.get(args.installed), args.compat, args.tag, True if args.favorites else None, max(1, args.limit)
+        )
+        if args.json:
+            return emit([{"id": r["game"].id, "title": r["game"].title, "source": r["source"], "platform": r["platform"], "installed": r["installed"], "compatibility": r["classification"], "favorite": r["favorite"]} for r in found])
+        for r in found:
+            print(clean("{:34} {:10} {:8} {:3} {}".format(r["game"].title[:34], r["source"], r["platform"], "yes" if r["installed"] else "no", r["classification"])) + clean("  [" + r["game"].id + "]"))
+        if not found:
+            print("No matches")
+        return
+    if action == "recommend":
+        from .catalog.library import Library
+        from .recommend import recommend
+
+        return emit(recommend(Library(config, db).load(offline=True), db, max(1, args.limit)))
+    if action == "interests":
+        from .recommend import interests as list_interests, set_interests
+
+        if args.operation == "list":
+            return emit(list_interests(db))
+        current = set(list_interests(db))
+        words = {w.casefold() for w in args.keyword}
+        try:
+            return emit(set_interests(db, current | words if args.operation == "add" else current - words))
+        except ValueError as exc:
+            raise AppError(str(exc)) from None
+    if action == "sync":
+        from . import sync as sync_module
+
+        if args.operation == "export":
+            data = sync_module.export(db, config)
+            if args.output:
+                from .config import atomic_json
+
+                atomic_json(args.output, data)
+                print("Wrote private bundle (no credentials, paths or game files): " + args.output)
+                return
+            return emit(data)
+        from .config import read_json
+
+        return emit(sync_module.import_bundle(db, config, read_json(args.file), args.prefer_remote))
     if action == "saves":
         from .saves.service import SaveManager
 
