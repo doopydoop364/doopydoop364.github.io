@@ -46,3 +46,12 @@ Review: inspected new and modified source, input validation and backward compati
 Validation: full accumulated unittest suite, compileall and git diff --check passed.
 Limitations: Live VMs and private GameVault server are not available; fixture results are not hardware verification.
 Git commit: `arch-games-2-phase-05`. Next: phase 6.
+
+## Phase 6: Combined game catalog
+
+Unified configured Pacman packages, version-preserving GameVault records and installed local manifests. Search/category/source/status filters explain hidden entries. Deduplication requires explicit canonical identity and matching OS/build; titles alone never collapse editions. Twenty-nine tests pass.
+
+Review: inspected new and modified source, input validation and backward compatibility.
+Validation: full accumulated unittest suite, compileall and git diff --check passed.
+Limitations: Live VMs and private GameVault server are not available; fixture results are not hardware verification.
+Git commit: `arch-games-2-phase-06`. Next: phase 7.
