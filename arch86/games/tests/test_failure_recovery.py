@@ -138,3 +138,33 @@ class FailedLaunchTests(InstallBase):
         compat = [r["value"] for r in self.db.all("compat")][0]
         self.assertEqual(compat["launch_status"], "exited_error")
         self.assertNotEqual(compat["gameplay_status"], "works")
+
+
+class DoctorOptionsTests(unittest.TestCase):
+    def run_doctor(self, state, *argv):
+        out, err = io.StringIO(), io.StringIO()
+        with redirect_stdout(out), redirect_stderr(err):
+            code = main(["--state-dir", str(state), "--non-interactive", "doctor", *argv])
+        return code, out.getvalue(), err.getvalue()
+
+    def test_redact_hides_private_paths_and_online_is_opt_in(self):
+        import json
+
+        with tempfile.TemporaryDirectory() as d:
+            state = Path(d) / "s"
+            config = Config(state)
+            config.values.update(server_url="http://127.0.0.1:9", allow_http=True, account="u")
+            config.save()
+            db = Database(config.data_dir / "state.db")
+            db.put("launchers", "local:x", {"title": "X", "executable": str(state / "missing" / "x.exe"), "runner": "native", "prefix": None})
+            db.close()
+            code, out, _ = self.run_doctor(state, "--verbose", "--json")
+            self.assertIn(str(state), out)  # paths are shown by default (it is your own machine)
+            code, out, _ = self.run_doctor(state, "--verbose", "--json", "--redact")
+            self.assertNotIn(str(state), out)
+            self.assertIn("<data>", out)
+            data = json.loads(out)
+            self.assertFalse(any(c["check"] == "connection" for c in data["checks"]))  # no network without --online
+            code, out, err = self.run_doctor(state, "--verbose", "--json", "--online")
+            self.assertTrue(any(c["check"] == "connection" and c["status"] == "fail" for c in json.loads(out)["checks"]))
+            self.assertEqual(code, 1)

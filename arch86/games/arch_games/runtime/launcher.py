@@ -35,6 +35,8 @@ class Launcher:
         extra_roots=(),
         cwd=None,
     ):
+        if os.geteuid() == 0:
+            raise AppError("Refusing to run game programs or installers as root; use your ordinary user")
         manifest = self.db.get("installs", game_id)
         root = (
             child(self.config.directory("installed"), manifest["directory"]).resolve() if manifest else None
@@ -168,6 +170,12 @@ class Launcher:
 
     def launch(self, plan, timeout=None, monitor=None):
         """Run a plan. With timeout, a still-running process is stopped and recorded as a supervised test."""
+        silent_installer = plan.get("purpose") == "installer" and not plan.get("interactive", False)
+        if plan["method"] in {"wine", "dosbox"} and not silent_installer and not (plan["env"].get("DISPLAY") or plan["env"].get("WAYLAND_DISPLAY")):
+            raise AppError(
+                "Windows and DOS games need a graphical X11 or Wayland session, and none is available to this process. "
+                "Start your desktop (for example i3) or use the VNC desktop and run the command there; browsing, diagnostics and planning work without one."
+            )
         ident = uuid.uuid4().hex
         path = self.config.directory("logs") / ("launch-" + ident + ".log")
         record = {

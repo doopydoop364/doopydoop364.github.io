@@ -77,3 +77,51 @@ class LauncherTests(unittest.TestCase):
         self.assertEqual(plan["argv"][1], str(self.path))
         with self.assertRaises(AppError):
             self.launcher.plan("local:test", self.path.name, custom_env={"WINEPREFIX": "/system-prefix"})
+
+
+class LaunchSafetyTests(LauncherTests):
+    """3.0: a graphical session is required for Windows/DOS games; game programs never run as root."""
+
+    def wine_plan(self):
+        self.path.write_bytes(pe())
+        health = {"healthy": True, "record": {"state": "ready"}, "architecture": "win64", "path": "/fixture/prefix"}
+        self.launcher.which = lambda name: "/usr/bin/" + name
+        with patch("arch_games.runtime.launcher.PrefixManager.check", return_value=health):
+            return self.launcher.plan("local:test", self.path.name)
+
+    def test_wine_launch_without_display_explains_itself_and_starts_nothing(self):
+        plan = self.wine_plan()
+        plan["env"].pop("DISPLAY", None)
+        plan["env"].pop("WAYLAND_DISPLAY", None)
+        started = []
+        self.launcher.popen = lambda *a, **k: started.append(a)
+        with self.assertRaises(AppError) as ctx:
+            self.launcher.launch(plan)
+        self.assertIn("X11 or Wayland", str(ctx.exception))
+        self.assertEqual(started, [])
+        self.assertEqual(self.db.all("launches"), [])
+        plan["env"]["WAYLAND_DISPLAY"] = "wayland-0"
+        class P:
+            def wait(self, timeout=None):
+                return 0
+        self.launcher.popen = lambda *a, **k: P()
+        self.assertEqual(self.launcher.launch(plan)["exit_code"], 0)
+
+    def test_silent_installer_may_run_headless_native_never_needs_display(self):
+        plan = self.wine_plan()
+        plan.update(purpose="installer", interactive=False)
+        plan["env"].pop("DISPLAY", None)
+        plan["env"].pop("WAYLAND_DISPLAY", None)
+        class P:
+            def wait(self, timeout=None):
+                return 0
+        self.launcher.popen = lambda *a, **k: P()
+        self.assertEqual(self.launcher.launch(plan)["purpose"], "installer")
+        plan["interactive"] = True
+        with self.assertRaises(AppError):
+            self.launcher.launch(plan)
+
+    def test_refuses_to_run_as_root(self):
+        with patch("arch_games.runtime.launcher.os.geteuid", return_value=0), self.assertRaises(AppError) as ctx:
+            self.wine_plan()
+        self.assertIn("root", str(ctx.exception))

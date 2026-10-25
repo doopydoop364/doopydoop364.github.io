@@ -105,6 +105,9 @@ class IntegrationTests(unittest.TestCase):
         self.addCleanup(self.server.shutdown)
 
     def test_full_workflow_both_architectures(self):
+        display = patch.dict("os.environ", {"DISPLAY": ":99"})  # 3.0 requires a graphical session to launch Windows programs
+        display.start()
+        self.addCleanup(display.stop)
         for arch in ["i686", "x86_64"]:
             with self.subTest(arch=arch), tempfile.TemporaryDirectory() as temp:
                 config = Config(temp)

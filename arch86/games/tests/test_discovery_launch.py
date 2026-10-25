@@ -161,7 +161,7 @@ class CliLaunchTests(Base):
 
     def run_cli(self, *argv):
         out, err = io.StringIO(), io.StringIO()
-        env = {"PATH": str(self.bin) + os.pathsep + os.environ["PATH"]}
+        env = {"PATH": str(self.bin) + os.pathsep + os.environ["PATH"], "DISPLAY": ":99"}
         with patch.dict(os.environ, env), redirect_stdout(out), redirect_stderr(err):
             code = main(["--state-dir", self.state, "--non-interactive", *argv])
         return code, out.getvalue(), err.getvalue()

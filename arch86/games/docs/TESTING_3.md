@@ -3,7 +3,7 @@
 ## Automated (what has been verified, and what that means)
 ```sh
 cd arch86/games
-python3 -m unittest discover -s tests            # full suite (about 90 s; the E2E test waits on absent X11 tools)
+python3 -m unittest discover -s tests            # full suite (about 100 s; the E2E test waits on absent X11 tools)
 python3 -m unittest discover -s tests -p 'test_identity.py'   # one area
 python3 -m compileall -q arch_games tests tools
 python3 tools/gen_cli_reference.py --write       # refresh docs/CLI_3.md (a test fails when it is stale)

@@ -31,7 +31,7 @@ see `VALIDATION.md` and the real-VM checklist in `TESTING_3.md` once written.
 - [x] P15 Hardening / security review
 - [x] P16 Integration validation
 - [x] P17 Docs and release prep (all 14 documents in the spec)
-- [ ] P18 Requirement-by-requirement audit
+- [x] P18 Requirement-by-requirement audit (see below; open items listed honestly)
 
 ## Phase log
 
@@ -150,3 +150,61 @@ described in REMOTE_AUDIO_3.md. Fake Wine only records calls: this is NOT a Wine
 Version 3.0.0 (package, pyproject, installer smoke test); installer ships docs/host-tools/tools and accepts 2.0 launchers; wheel built offline and checked for static assets; tests for installed layout and 2.0 upgrade.
 Docs written: README, ARCHITECTURE_3, INSTALLATION_3, CLI_3 (generated reference + sync test), WINE_3, AUDIO_3, REMOTE_AUDIO_3, WEB_GUI_3, COMPATIBILITY_3, MIGRATION_2_TO_3, TESTING_3 (incl. real-machine plan),
 TROUBLESHOOTING_3, RELEASE_NOTES_3, DEVELOPMENT_PROGRESS_3 (this file), SECURITY.md 3.0 section; 2.0 docs bannered.
+
+### Phase 18 — final review and audit (313 tests pass, Python 3.14.8 and 3.13.14, with and without a display)
+Fixes found by the review: launches of Windows/DOS programs now explain a missing X11/Wayland session instead of failing inside Wine; game programs are refused as root; `doctor --json` now exits non-zero on failures; `doctor --online`
+and `--redact` added; `.lnk` Start-Menu/Desktop shortcuts and Wine `.desktop` entries are discovery evidence (the `.lnk` parser was also checked on two real Wine-created shortcuts on the dev host); duplicated favorites/notes/tags/titles
+and search logic moved into shared services (`core/personal.py`, `catalog/search.py`) used by CLI and web; `wine doctor` reports an audio verdict and Vulkan; every command is smoke-tested (`tests/test_cli_smoke.py`).
+
+#### Commits (branch `feature/arch-games-3`, base a5537c5)
+| SHA | Phase |
+|---|---|
+| 4624603 | P0 baseline/plan |
+| 1776224 | P1-P3 migrations, identity, discovery, launchers |
+| bb4cf17 | P4 install workflow |
+| 1c8dbc4 | P5 Wine |
+| bc91b5e | P6 audio diagnostics |
+| fb3cadb | P7-P8 remote audio |
+| 2b8dec9 | P9 TUI (+doctor/repair/favorites) |
+| a04414a | P10 web GUI |
+| 975ead2 | P11 compatibility intelligence |
+| 76715af | P12 history/performance |
+| f99a349 | P13 saves |
+| df8de98, 8022dc1 | P14 library features; download management |
+| e998e2c | P15 hardening |
+| 13ac93c | P16 integration |
+| d979157 | P17 docs/packaging |
+| (final, see git log) | P18 audit fixes |
+
+#### Requirement audit (D = done and tested at the stated level, P = partial, N = not done)
+| Spec area | Status | Evidence / honest note |
+|---|---|---|
+| 3 Friendly names, aliases, order of matching, ambiguity, deterministic non-interactive | D | test_identity, test_e2e_undertale; fuzzy only if unique; ambiguity lists IDs or prompts |
+| 4 Executable discovery (dirs, prefixes, registry, GOG metadata, PE headers, shortcuts/desktop entries, previous launches), role classification, explainable ranking, never executes, confirmation, persisted launcher | D | test_discovery_launch, test_shortcuts. GameVault metadata is not used as evidence (GameVault has none about executables) |
+| 4 `launch undertale` in existing prefix without manual WINEPREFIX | D (fixture) | e2e with fake wine; real Undertale launch NOT verified |
+| 5 Guided install (20 steps), approvals, resume, abort, space checks, archive types, user files, existing installs, rollback | D (fixture) | test_install_workflow, test_failure_recovery, e2e. Native Linux *packages* still use the 2.0 Pacman path; GOG multi-part `.bin` relies on extraction placing parts next to setup |
+| 6 Wine lifecycle, runtimes/layouts, per-game settings, doctor/status/logs, redaction, recovery fix preserved | D (fixture) | test_wine_tools, 2.0 prefix tests. Real Wine never run here; Proton not integrated (documented) |
+| 7 Audio doctor/devices/test, VM-aware, separate layers, advice only | D | test_audio; run on the dev host (verdict working) |
+| 8 Remote browser audio (per-VM sink capture, auth, controls, isolation, cleanup, docs, host component) | D (synthetic) / P | tests with real sockets; real browser with a synthetic tone. NOT verified: real VM audio, QEMU `out.name`, Safari, Tailscale, noVNC iframe |
+| 9 TUI (sections, search, details, shortcuts, fallbacks, small terminals) | D / P | pty tests. Installation *progress* is shown by suspending to the terminal and running the CLI command, not as an in-TUI progress view |
+| 10 Web GUI (library, detail, downloads, installs, audio, wine, auth/CSRF, loopback) | D / P | test_web + real browser. Remote-audio *control* from the web is disable/status only (enable needs the CLI because it takes the token) |
+| 11 Compatibility facts, 7 classes, machine profiles, per-machine records | D | test_compat_intelligence |
+| 12 History, playtime, monitoring, benchmark, no fabricated FPS | D / P | test_performance_history. FPS via MangoHud/Gallium HUD only and unverified on hardware; first-window time needs xdotool |
+| 13 Favorites, recent, history, notes, tags, titles, custom launchers, search, UTC timestamps | D | test_library_features, test_performance_history |
+| 14 Saves discovery/backup/restore/preview/safety | D | test_saves. Registry saves not covered; no sync (per spec) |
+| 15 Downloads: queue, pause/resume, retry, cancel, priorities, space, integrity, recovery, dedupe | D | test_downloads, test_failure_recovery |
+| 16 Machine profiles, local install tracking, sync groundwork | D | file-based export/import only (by design) |
+| 17 doctor (verbose/json/online/redact), repair (dry-run/apply) | D | test_failure_recovery, test_cli_smoke |
+| 18 Recommendations (local, explainable, compatibility separate) | D | test_library_features |
+| 19 Architecture, optional components, Python 3.10/3.14 | P | 3.14 and 3.13 run; **3.10 not run** (static check only) |
+| 20 Migrations (versioned, backup, idempotent, 2.0 fixtures) | D | test_migrations, installer upgrade test |
+| 21 Security list | D | SECURITY.md review; root refusal; CSRF; allowlist |
+| 22 Performance constraints | D | bounded parsing/streaming/polling; tools/bench_startup.py; 20k-game search test |
+| 23 Test strategy incl. malicious archives (2.0 tests kept), symlinks, web authz | D | see TESTING_3.md |
+| 26 Acceptance A-J | A,B,C,H,I,J D (fixture); D,F,G D (automated); E P (synthetic) | real-machine plan in TESTING_3.md |
+| 27 Fourteen documents | D | present in docs/ |
+| 25 Push to feature/arch-games-3, no main | D | pushed after every phase; main untouched |
+
+#### Still requiring the user's machines
+Everything under "Real-machine test plan" in TESTING_3.md: real Wine/Undertale launch by name, real prefix checks on `gamevault:32`, `audio doctor` inside the Arch64/Arch86 guests,
+the host bridge with real PipeWire sinks and QEMU flags, Safari/Chrome over Tailscale, noVNC wrapper, KMSCON rendering, Python 3.10, MangoHud/xdotool measurements.

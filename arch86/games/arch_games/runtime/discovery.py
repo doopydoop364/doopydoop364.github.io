@@ -14,6 +14,7 @@ from ..compatibility.executables import inspect_file
 from ..config import AppError
 from ..identity.resolver import normalize
 from .installer import child
+from .shortcuts import desktop_entries_for_prefix, parse_lnk, prefix_shortcuts
 
 MAX_ENTRIES = 6000
 MAX_DEPTH = 6
@@ -207,7 +208,7 @@ def _successful_launch_paths(db, game_id):
     return paths
 
 
-def score_candidate(path, depth, origin, title, info, tasks, launches):
+def score_candidate(path, depth, origin, title, info, tasks, launches, shortcut=None):
     breakdown = []
     name = path.name
     role = classify_name(name)
@@ -260,6 +261,9 @@ def score_candidate(path, depth, origin, title, info, tasks, launches):
         breakdown.append("Windows GUI subsystem")
     if info.get("subsystem") == "Windows console":
         total -= 4
+    if shortcut:
+        total += 25
+        breakdown.append("A {} points to it".format(shortcut))
     previous = launches.get(str(path))
     if previous:
         total += 50
@@ -284,6 +288,19 @@ def discover(config, db, game_id, title="", extra_dirs=(), include_excluded=Fals
         if pp:
             roots.append((pp / "drive_c", "prefix drive_c"))
     launches = _successful_launch_paths(db, game_id)
+    shortcut_targets = {}
+    pp = prefix_path(config, db, game_id, prefix_id)
+    if pp:
+        links = dict((p, v) for p, v in prefix_shortcuts(pp).items())
+        for entry in desktop_entries_for_prefix(pp):
+            if entry["lnk"] and Path(entry["lnk"]).is_file():
+                parsed = parse_lnk(entry["lnk"])
+                if parsed:
+                    links[entry["lnk"]] = dict(parsed, desktop=True)
+        for lnk, parsed in links.items():
+            target = win_to_unix(pp, parsed["target"])
+            if target and target.is_file():
+                shortcut_targets[str(target.resolve())] = "desktop entry shortcut" if parsed.get("desktop") else "Start Menu/Desktop shortcut"
     candidates, seen = [], set()
     for root, origin in roots:
         task_cache = {}
@@ -307,7 +324,7 @@ def discover(config, db, game_id, title="", extra_dirs=(), include_excluded=Fals
             info = inspect_file(path).to_dict() if path.suffix.lower() != ".sh" else {"os": "linux", "format": "script", "architecture": "unknown"}
             if info.get("os") == "linux" and info.get("format") == "script":
                 continue
-            role, score, why = score_candidate(path, depth, origin, title, info, task_for(path), launches)
+            role, score, why = score_candidate(path, depth, origin, title, info, task_for(path), launches, shortcut_targets.get(real))
             if role != "game" and not include_excluded:
                 continue
             candidates.append(

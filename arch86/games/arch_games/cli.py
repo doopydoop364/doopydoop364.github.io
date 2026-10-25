@@ -59,6 +59,8 @@ def make_parser():
     doctor = sub.add_parser("doctor", help="Application, data, Wine, audio and storage diagnostics")
     doctor.add_argument("--verbose", action="store_true")
     doctor.add_argument("--json", action="store_true")
+    doctor.add_argument("--online", action="store_true", help="Also contact GameVault and the audio bridge (off by default)")
+    doctor.add_argument("--redact", action="store_true", help="Hide home/data paths, IPs and tokens so the output can be shared")
     repair = sub.add_parser("repair", help="Plan (default / --dry-run) or apply safe repairs for one game")
     repair.add_argument("game")
     repair.add_argument("--dry-run", action="store_true", help="Show the plan (this is also the default)")
@@ -1043,28 +1045,12 @@ def dispatch(args, config, db):
     if action == "favorite":
         if args.operation == "list":
             return emit(sorted(db.mapping("favorites")))
-        game_id = resolve(args.game)
-        on = db.get("favorites", game_id) is not None
-        if args.operation == "remove" or (args.operation == "toggle" and on):
-            db.delete("favorites", game_id)
-            print("Removed from favorites: " + game_id)
-        else:
-            db.put("favorites", game_id, {"added": __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat()})
-            print("Added to favorites: " + game_id)
-        return
-    if action == "web":
-        from .ui.web.server import WebApp, load_token
+        from .core import personal
 
-        app = WebApp(config, args.host, args.port, args.allow_remote, args.allowed_host)
-        port = app.start()
-        print("Arch Games web GUI on http://{}:{}/".format(args.host, port))
-        print("Sign in with this token (stored in {}):\n  http://{}:{}/#token={}".format(config.config_dir / "web-token", args.host if args.host not in ("0.0.0.0", "::") else "127.0.0.1", port, app.token))
-        if args.host not in ("127.0.0.1", "::1", "localhost"):
-            print("WARNING: reachable from other machines; use only on a private network such as Tailscale.", file=sys.stderr)
-        try:
-            app.serve_forever()
-        except KeyboardInterrupt:
-            app.stop()
+        game_id = resolve(args.game)
+        wanted = {"add": True, "remove": False}.get(args.operation)
+        now_on = personal.toggle_favorite(db, game_id) if wanted is None else personal.set_favorite(db, game_id, wanted)
+        print(("Added to favorites: " if now_on else "Removed from favorites: ") + game_id)
         return
     if action == "alias":
         return alias_command(args, config, db)
@@ -1083,9 +1069,19 @@ def dispatch(args, config, db):
     if action == "doctor":
         from .diagnostics import doctor
 
-        report = doctor.run(config, db, verbose=args.verbose)
+        report = doctor.run(config, db, verbose=args.verbose, online=args.online)
+        if args.redact:
+            from .diagnostics.redact import redact
+
+            paths = [(config.data_dir, "<data>"), (config.config_dir, "<config>"), (config.cache_dir, "<cache>"), (config.data_dir.parent, "<state>")]
+            for c in report["checks"]:
+                c["detail"] = redact(c["detail"], paths)
+                c["fix"] = redact(c["fix"], paths) if c["fix"] else c["fix"]
         if args.json:
-            return emit(report)
+            emit(report)
+            if report["summary"]["fail"]:
+                raise AppError("{} check(s) failed".format(report["summary"]["fail"]))
+            return
         for c in report["checks"]:
             print(clean("[{:4}] {}/{}: {}".format(c["status"].upper(), c["group"], c["check"], c["detail"])))
             if c["fix"]:
@@ -1174,39 +1170,28 @@ def dispatch(args, config, db):
             if input("Launch {} and measure it for {} s, then stop it? [y/N] ".format(clean(game_id), args.seconds)).strip().lower() != "y":
                 return
         return emit(service.benchmark(config, db, Launcher(config, db), game_id, args.seconds, say=lambda t: print(clean(t), file=sys.stderr)))
-    if action == "title":
-        game_id = resolve(args.game)
-        if args.operation == "clear":
-            db.delete("custom_titles", game_id)
-            print("Custom title removed")
-            return
-        if not args.title.strip() or len(args.title) > 200 or "\0" in args.title:
-            raise AppError("Title must be 1..200 characters")
-        db.put("custom_titles", game_id, {"title": args.title.strip()})
-        print("Custom title saved")
-        return
-    if action == "notes":
-        game_id = resolve(args.game)
-        if args.text is None:
-            return emit(db.get("notes", game_id) or {"text": ""})
-        if len(args.text) > 8000:
-            raise AppError("Notes are limited to 8000 characters")
-        db.put("notes", game_id, {"text": args.text})
-        print("Notes saved")
-        return
-    if action == "tag":
-        if args.operation == "list":
-            rows = {r["key"]: r["value"].get("tags", []) for r in db.all("tags")}
-            return emit(rows.get(resolve(args.game), []) if args.game else rows)
-        game_id = resolve(args.game)
-        import re as _re
+    if action in {"title", "notes", "tag"}:
+        from .core import personal
 
-        if not _re.fullmatch(r"[\w .+-]{1,32}", args.tag):
-            raise AppError("Tags are 1..32 letters, digits, spaces or . + -")
-        tags = set((db.get("tags", game_id) or {}).get("tags", []))
-        (tags.add if args.operation == "add" else tags.discard)(args.tag.strip())
-        db.put("tags", game_id, {"tags": sorted(tags)})
-        return emit(sorted(tags))
+        if action == "tag" and args.operation == "list":
+            rows = {r["key"]: r["value"].get("tags", []) for r in db.all("tags")}
+            return emit(personal.get_tags(db, resolve(args.game)) if args.game else rows)
+        game_id = resolve(args.game)
+        if action == "title":
+            if args.operation == "clear":
+                personal.clear_title(db, game_id)
+                print("Custom title removed")
+                return
+            personal.set_title(db, game_id, args.title)
+            print("Custom title saved")
+            return
+        if action == "notes":
+            if args.text is None:
+                return emit({"text": personal.get_notes(db, game_id)})
+            personal.set_notes(db, game_id, args.text)
+            print("Notes saved")
+            return
+        return emit((personal.add_tag if args.operation == "add" else personal.remove_tag)(db, game_id, args.tag))
     if action == "launch":
         from .runtime.launcher import Launcher
 

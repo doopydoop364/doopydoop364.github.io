@@ -69,8 +69,10 @@ arch-games list [-h] [--source {all,pacman,gamevault}] [--search SEARCH] [--cate
 Application, data, Wine, audio and storage diagnostics
 
 ```
-arch-games doctor [-h] [--verbose] [--json]
+arch-games doctor [-h] [--verbose] [--json] [--online] [--redact]
 ```
+- `--online` — Also contact GameVault and the audio bridge (off by default)
+- `--redact` — Hide home/data paths, IPs and tokens so the output can be shared
 
 #### `repair`
 

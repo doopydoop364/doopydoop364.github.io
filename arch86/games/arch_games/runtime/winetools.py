@@ -211,6 +211,15 @@ def doctor(config, db, run=subprocess.run, which=shutil.which, environ=None, gra
         info = detect_graphics(run, environ)
         renderer = info.get("renderer", "unknown")
         items.append(check_item("graphics", "ok" if info.get("opengl") else "warn", "renderer: {}{}".format(renderer, " (software rendering)" if info.get("accelerated") is False else ""), "Install mesa-utils to measure OpenGL" if info.get("opengl") is None else None))
+        if info.get("vulkan") is False or info.get("vulkan") is None:
+            items.append(check_item("vulkan", "warn", "Vulkan not available or not measured (DXVK/VKD3D-based games need it)", "Install vulkan-tools / a Vulkan driver (lavapipe works in VMs but is slow)"))
+    try:  # one-line audio summary; `audio doctor` has the layers
+        from ..audio.diagnose import diagnose
+
+        verdict = diagnose()["verdict"]
+        items.append(check_item("audio", "ok" if verdict == "working" else "warn", "audio verdict: " + verdict, None if verdict == "working" else "Run: arch-games audio doctor"))
+    except Exception:
+        items.append(check_item("audio", "warn", "audio could not be diagnosed", "Run: arch-games audio doctor"))
     prefix_issues = 0
     from .prefixes import PrefixManager
 

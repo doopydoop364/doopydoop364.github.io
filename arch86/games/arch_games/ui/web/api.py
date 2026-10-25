@@ -47,6 +47,10 @@ class Api:
 
     # -- library --------------------------------------------------------------------------------------------
     def library_list(self, db, query):
+        from types import SimpleNamespace
+
+        from ...catalog.search import SearchIndex
+
         lib = self.library(db)
         sort = query.get("sort", "title")
         if sort not in SORTS:
@@ -54,30 +58,27 @@ class Api:
         source = query.get("source", "all")
         if source not in {"all", "pacman", "gamevault", "local"}:
             raise BadRequest("Unknown source")
-        games, explanation = lib.filtered(search="", source=source if source != "local" else "all", show_all=query.get("all") == "1", sort=sort)
-        term = query.get("q", "").casefold()[:100]
-        favorites = set(db.mapping("favorites"))
-        aliases = {}
-        for row in db.all("aliases"):
-            aliases.setdefault(row["value"]["game_id"], []).append(row["value"]["alias"])
-        tags = db.mapping("tags")
-        out = []
-        for g in games:
-            if source == "local" and g.source != "local":
-                continue
-            haystack = " ".join([g.title, g.id, g.category, g.source, *aliases.get(g.id, []), *(tags.get(g.id) or {}).get("tags", [])]).casefold()
-            if term and term not in haystack:
-                continue
-            d = describe(self.config, db, g, lib.reports.get(g.id, {}), aliases.get(g.id, []), g.id in favorites, with_storage=False)
-            if query.get("installed") == "1" and not d["installed"]:
-                continue
-            if query.get("favorites") == "1" and not d["favorite"]:
-                continue
-            if query.get("status") and d["compatibility"]["classification"] != query["status"]:
-                continue
-            out.append({k: d[k] for k in ("id", "title", "source", "category", "installed", "favorite", "cover", "os", "architecture")} | {"status": d["compatibility"]["classification"]})
-        out.sort(key=lambda r: (not r["favorite"],) if query.get("favorites_first") == "1" else ())
-        return {"games": out[:2000], "total": len(out), "note": explanation}
+        games, explanation = lib.filtered(search="", source="all", show_all=query.get("all") == "1", sort=sort)
+        index = SearchIndex(SimpleNamespace(games=games, reports=lib.reports), db)  # the same index the CLI `search` uses
+        found = index.search(
+            query.get("q", "")[:100],
+            None if source == "all" else source,
+            None,
+            True if query.get("installed") == "1" else None,
+            query.get("status") or None,
+            None,
+            True if query.get("favorites") == "1" else None,
+            limit=2000,
+        )
+        out = [
+            {"id": r["game"].id, "title": r["game"].title, "source": r["source"], "category": r["game"].category, "installed": r["installed"], "favorite": r["favorite"],
+             "cover": ((r["game"].metadata.get("remote") or {}).get("metadata") or {}).get("cover", {}).get("id"), "os": r["game"].os,
+             "architecture": r["game"].architecture, "status": r["classification"]}
+            for r in found
+        ]
+        if sort != "title":
+            out.sort(key=lambda row: (row[{"status": "status", "source": "source", "category": "category"}[sort]], row["title"].casefold()))
+        return {"games": out, "total": len(out), "note": explanation}
 
     def recent(self, db):
         seen, out = set(), []
@@ -106,21 +107,20 @@ class Api:
         return d
 
     def set_favorite(self, db, gid, value):
+        from ...core import personal
+
         gid = game_id(gid)
-        if value:
-            db.put("favorites", gid, {"added": time.time()})
-        else:
-            db.delete("favorites", gid)
-        return {"id": gid, "favorite": bool(value)}
+        return {"id": gid, "favorite": personal.set_favorite(db, gid, value)}
 
     def set_notes(self, db, gid, text, tags):
+        from ...core import personal
+
         gid = game_id(gid)
-        if not isinstance(text, str) or len(text) > 8000:
-            raise BadRequest("Notes must be text up to 8000 characters")
-        if not isinstance(tags, list) or len(tags) > 32 or not all(isinstance(t, str) and re.fullmatch(r"[\w .+-]{1,32}", t) for t in tags):
-            raise BadRequest("Tags must be up to 32 short words")
-        db.put("notes", gid, {"text": text})
-        db.put("tags", gid, {"tags": sorted(set(t.strip() for t in tags))})
+        try:
+            personal.set_notes(db, gid, text)
+            personal.set_tags(db, gid, tags)
+        except AppError as exc:
+            raise BadRequest(str(exc)) from None
         return {"id": gid}
 
     # -- downloads -----------------------------------------------------------------------------------------------

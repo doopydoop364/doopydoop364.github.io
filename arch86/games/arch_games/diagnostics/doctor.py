@@ -82,7 +82,7 @@ def launcher_checks(config, db):
     return out
 
 
-def run(config, db, verbose=False, probe_graphics=None):
+def run(config, db, verbose=False, probe_graphics=None, online=False):
     """probe_graphics defaults to `verbose`: the graphics tools cost about half a second, so quick checks skip them."""
     from ..audio.diagnose import diagnose
     from ..runtime import winetools
@@ -95,6 +95,15 @@ def run(config, db, verbose=False, probe_graphics=None):
     # GameVault: configuration only; contacting the server is an explicit `gamevault status`
     server = config.values.get("server_url")
     items.append(item("gamevault", "configuration", "ok" if server and config.secrets.exists() else "info", "configured (server not contacted by doctor)" if server and config.secrets.exists() else "not configured (optional)", None if server else "arch-games gamevault connect"))
+    if online and server:
+        from ..config import AppError
+        from ..gamevault.client import Client
+
+        try:
+            status = Client(config, db).status()
+            items.append(item("gamevault", "connection", "ok", "server reachable and authenticated" + (": " + str(status.get("version")) if isinstance(status, dict) and status.get("version") else "")))
+        except AppError as exc:
+            items.append(item("gamevault", "connection", "fail", str(exc)[:200], "arch-games gamevault status / gamevault connect"))
     for row in winetools.doctor(config, db, graphics=verbose if probe_graphics is None else probe_graphics)["checks"]:
         status = "warn" if row["check"] == "wine" and row["status"] == "fail" else row["status"]  # Wine is optional for Pacman games
         items.append(item("wine", row["check"], status, row["detail"], row["fix"]))
@@ -115,6 +124,10 @@ def run(config, db, verbose=False, probe_graphics=None):
 
     remote_status = remote.settings(config)
     items.append(item("remote-audio", "bridge", "info" if not remote_status.get("enabled") else "ok", "disabled (default)" if not remote_status.get("enabled") else "configured for {} at {}".format(remote_status.get("vm"), remote_status.get("url"))))
+    if online and remote_status.get("enabled"):
+        bridge = remote.status(config, timeout=3)
+        ok = bridge.get("reachable") and bridge.get("authenticated")
+        items.append(item("remote-audio", "reachability", "ok" if ok else "warn", "bridge reachable and authenticated" if ok else "bridge: {}".format(bridge.get("error") or "not reachable"), None if ok else "Check the host: python -m arch_games.remote doctor"))
     web = config.values.get("web", {})
     items.append(item("web", "configuration", "ok" if web.get("host", "127.0.0.1") in {"127.0.0.1", "::1", "localhost"} else "warn", "binds {}".format(web.get("host", "127.0.0.1 (default, loopback only)")),
                       None if web.get("host", "127.0.0.1") in {"127.0.0.1", "::1", "localhost"} else "A non-loopback web host needs authentication; see WEB_GUI_3.md"))

@@ -3,6 +3,7 @@
 No installer is executed: the fake `popen` stands in for Wine and writes game files."""
 
 import json
+import os
 from pathlib import Path
 import tempfile
 import unittest
@@ -51,6 +52,9 @@ class StubPrefixes:
 
 class Base(unittest.TestCase):
     def setUp(self):
+        display = unittest.mock.patch.dict(os.environ, {"DISPLAY": ":99"})  # launches need a graphical session
+        display.start()
+        self.addCleanup(display.stop)
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.config = Config(Path(self.temp.name) / "state")
@@ -277,3 +281,6 @@ class GameVaultAcquireTests(Base):
             flow.run("gamevault:32", "Undertale", Options(yes=True))
         self.assertIn("resume", str(ctx.exception))
         self.assertEqual(self.db.get("install_jobs", "gamevault:32")["status"], "failed")
+
+
+import unittest.mock  # noqa: E402
