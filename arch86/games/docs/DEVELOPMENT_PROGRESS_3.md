@@ -137,7 +137,7 @@ behaviour change vs 2.0 — one legacy test now passes `force=True`), `download 
 Security review recorded in docs/SECURITY.md ("Arch Games 3.0 security review"), 5 findings fixed. New: tests/test_failure_recovery.py (6: corrupt DB untouched, Ctrl-C during installer,
 missing Wine during prefix creation, corrupt archive, killed download resumed, failed launch status), tools/bench_startup.py. Performance: `doctor` was 689 ms vs 85 ms in 2.0 because of
 graphics probes; quick `doctor` now skips them (161 ms; `--verbose` keeps them); `--version` 68 -> 81 ms, `list --source pacman` 845 -> 876 ms (median of 5, this CachyOS host, Python 3.14.8).
-Python 3.10: no interpreter available locally; static check (`ast.parse(feature_version=(3,10))` + grep for 3.11+ APIs) is clean but 3.10 has NOT been run.
+Python 3.10: not available locally; verified later through the repository's GitHub Actions matrix (see Phase 18).
 
 ### Phase 16 (done; 289 tests pass)
 tests/test_e2e_undertale.py: loopback GameVault -> `gamevault list` -> alias -> `install undertale` (one download, verification record, plan, installer NOT run) -> `--approve-installer`
@@ -155,6 +155,11 @@ TROUBLESHOOTING_3, RELEASE_NOTES_3, DEVELOPMENT_PROGRESS_3 (this file), SECURITY
 Fixes found by the review: launches of Windows/DOS programs now explain a missing X11/Wayland session instead of failing inside Wine; game programs are refused as root; `doctor --json` now exits non-zero on failures; `doctor --online`
 and `--redact` added; `.lnk` Start-Menu/Desktop shortcuts and Wine `.desktop` entries are discovery evidence (the `.lnk` parser was also checked on two real Wine-created shortcuts on the dev host); duplicated favorites/notes/tags/titles
 and search logic moved into shared services (`core/personal.py`, `catalog/search.py`) used by CLI and web; `wine doctor` reports an audio verdict and Vulkan; every command is smoke-tested (`tests/test_cli_smoke.py`).
+
+Late review findings (found by re-reading the real 2.0 state, then by the repository's CI): (1) **bare vs versioned GameVault IDs**: the user's prefix is keyed `gamevault:32` but the library lists
+`gamevault:32@34`, so `discover/launch/install undertale` would have missed the prefix and planned a second one. New `core/ids.py` (state ID resolution), family-aware library/search/describe/web/TUI, install workflow with separate state and
+catalog IDs and an `installed_unregistered` status; reproduced first in tests/test_version_ids.py (4 failing) and fixed. (2) The repository CI (`ruff check`, Python 3.10 + 3.14) failed on 48 lint findings, including a real `str.format`
+crash in the host bridge's `sink persist`; fixed and covered by new tests. After the fixes: 321 tests, CI green on 3.10 and 3.14 (run 40246152051 on commit 5df7da6).
 
 #### Commits (branch `feature/arch-games-3`, base a5537c5)
 | SHA | Phase |
@@ -196,7 +201,7 @@ and search logic moved into shared services (`core/personal.py`, `catalog/search
 | 16 Machine profiles, local install tracking, sync groundwork | D | file-based export/import only (by design) |
 | 17 doctor (verbose/json/online/redact), repair (dry-run/apply) | D | test_failure_recovery, test_cli_smoke |
 | 18 Recommendations (local, explainable, compatibility separate) | D | test_library_features |
-| 19 Architecture, optional components, Python 3.10/3.14 | P | 3.14 and 3.13 run; **3.10 not run** (static check only) |
+| 19 Architecture, optional components, Python 3.10/3.14 | D | 3.10 and 3.14 green in GitHub Actions; 3.13 local |
 | 20 Migrations (versioned, backup, idempotent, 2.0 fixtures) | D | test_migrations, installer upgrade test |
 | 21 Security list | D | SECURITY.md review; root refusal; CSRF; allowlist |
 | 22 Performance constraints | D | bounded parsing/streaming/polling; tools/bench_startup.py; 20k-game search test |
@@ -207,4 +212,4 @@ and search logic moved into shared services (`core/personal.py`, `catalog/search
 
 #### Still requiring the user's machines
 Everything under "Real-machine test plan" in TESTING_3.md: real Wine/Undertale launch by name, real prefix checks on `gamevault:32`, `audio doctor` inside the Arch64/Arch86 guests,
-the host bridge with real PipeWire sinks and QEMU flags, Safari/Chrome over Tailscale, noVNC wrapper, KMSCON rendering, Python 3.10, MangoHud/xdotool measurements.
+the host bridge with real PipeWire sinks and QEMU flags, Safari/Chrome over Tailscale, noVNC wrapper, KMSCON rendering, MangoHud/xdotool measurements.

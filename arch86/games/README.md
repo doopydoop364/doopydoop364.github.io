@@ -4,7 +4,7 @@ A personal, local-first Linux game manager for **Arch Linux (x86-64)** and **Arc
 executable discovery, per-machine compatibility evidence, audio diagnostics with optional browser audio for VMs, saves and backups, an interactive terminal UI and an
 optional web GUI. Python 3.10+, no third-party runtime packages. Terminal first: nothing needs a web server, a desktop session is needed only to *play* games.
 
-> **Validation status (read this).** The automated suite (fixtures, loopback GameVault, fake Wine scripts, real sockets, real curses over a pty) passes on Python 3.14 and 3.13; Python 3.10 has not been run.
+> **Validation status (read this).** The automated suite (321 tests: fixtures, loopback GameVault, fake Wine scripts, real sockets, real curses over a pty) passes on Python 3.10 and 3.14 in this repository's GitHub Actions CI (with `ruff`), and on 3.13 locally.
 > No real Wine run, real game, VM, PipeWire routing, Tailscale link or Safari session has been verified by the developer. Undertale GOG 1.08 working on Arch64 under Wine 11.20 is *your* report; 3.0 is designed
 > around it but has not been re-run there. See [TESTING_3.md](docs/TESTING_3.md) for the exact real-machine plan.
 

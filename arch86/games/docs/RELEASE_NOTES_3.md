@@ -23,7 +23,7 @@ See MIGRATION_2_TO_3.md (`install --archive` semantics, `download add` reuse, `w
 docs/SECURITY.md has the 3.0 review: 5 findings fixed (token file sharing with GameVault credentials, manifest-directed restore, bridge config permissions, CSP/inline style, doctor cost).
 
 ## Known limitations
-* Python 3.10 not run locally; real Wine/Undertale/VM audio/Safari/Tailscale/noVNC not verified.
+* Python 3.10 and 3.14 pass in GitHub Actions CI (Ubuntu); real Wine/Undertale/VM audio/Safari/Tailscale/noVNC are not verified.
 * Shortcut files (`.lnk`, `.desktop`) are not parsed as discovery evidence. Registry-stored saves are not backed up.
 * FPS needs MangoHud or a Mesa HUD path and is otherwise "unavailable"; time-to-first-window needs `xdotool` on X11.
 * The audio bridge streams uncompressed PCM (≈1.5 Mbit/s at 48 kHz stereo); no Opus/WebRTC; plain HTTP is for private tunnels only.

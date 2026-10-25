@@ -8,14 +8,14 @@ python3 -m unittest discover -s tests -p 'test_identity.py'   # one area
 python3 -m compileall -q arch_games tests tools
 python3 tools/gen_cli_reference.py --write       # refresh docs/CLI_3.md (a test fails when it is stale)
 ```
-Verified with this suite on the development host (CachyOS, Python 3.14.8 and 3.13.14). **Python 3.10 was not available** and has not been run; a static check
-(`ast.parse(feature_version=(3,10))` and a grep for 3.11+ APIs) found nothing. Run the suite once under 3.10 on a VM that has it.
+Verified with this suite: 321 tests pass on Python 3.14.8 and 3.13.14 locally (with and without a graphical session) and on Python 3.10 and 3.14 in the repository's GitHub Actions
+workflow (`.github/workflows/arch-games.yml`: libarchive check, `ruff check`, the suite, compileall, `sh -n`). CI is Ubuntu: it says nothing about Arch, Wine, audio or your VMs.
 
 | Area | Test modules |
 |---|---|
 | 2.0 behaviour (regression) | the original 103 tests, unchanged except 3 deliberate semantic updates (`--extract-only`, download archive reuse needs `force`, query bound 8→12) |
 | Migrations | test_migrations (2.0 fixture, idempotent, rollback, newer schema refused) |
-| Names/aliases | test_identity |
+| Names/aliases | test_identity, test_version_ids (the real 2.0 state: prefix keyed `gamevault:32`, library listing `gamevault:32@34`) |
 | Discovery/launchers | test_discovery_launch (Undertale-shaped GOG layout, symlinks, uninstaller exclusion, launch by name with a fake wine) |
 | Install workflow | test_install_workflow, test_e2e_undertale (loopback GameVault → launch by name), test_failure_recovery |
 | Wine/runtime | test_wine_tools, test_prefix_recovery (2.0) |

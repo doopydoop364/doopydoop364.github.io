@@ -9,7 +9,8 @@ installing work over SSH, tmux and KMSCON. Global flags: `--state-dir DIR` (isol
 Every command that takes a game accepts: the canonical ID (`gamevault:32`, `gamevault:32@34`, `pacman:supertux`, `local:foo`), a package name, an alias you
 defined, or the title. Resolution order: exact ID → exact alias → exact title → case-insensitive title → normalized title (punctuation/accents/whitespace) →
 a *unique* fuzzy match. Several matches are never guessed: on a terminal you get a numbered picker, otherwise an error lists the candidate IDs, so scripts are deterministic.
-Non-exact matches are announced on stderr (`Resolved 'undertle' -> Undertale [gamevault:32] (fuzzy match)`).
+`gamevault:32` and `gamevault:32@34` are one game for everything on this machine (prefix, launcher, install, favorites, notes): commands that touch local state use the ID the state is already
+recorded under (announced as "Using the local state recorded under …"), while `download`/`install` planning keeps the versioned catalog ID. Non-exact matches are announced on stderr (`Resolved 'undertle' -> Undertale [gamevault:32] (fuzzy match)`).
 
     arch-games alias add undertale gamevault:32
     arch-games launch undertale          # also: info, install, analyze, settings game, wine status, saves ..., compat show ...
