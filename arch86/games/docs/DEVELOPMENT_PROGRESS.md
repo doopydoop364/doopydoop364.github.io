@@ -28,3 +28,12 @@ Review: inspected new and modified source, input validation and backward compati
 Validation: full accumulated unittest suite, compileall and git diff --check passed.
 Limitations: Live VMs and private GameVault server are not available; fixture results are not hardware verification.
 Git commit: `arch-games-2-phase-03`. Next: phase 4.
+
+## Phase 4: Archive and executable analysis
+
+Implemented isolated libarchive inspection/extraction for ZIP/TAR/TAR.GZ/7z/RAR with CPU, memory, time, count, size and compression limits. Refuses traversal, links, special files, duplicate paths and encrypted/corrupt entries. Original benign 7z/RAR fixtures plus synthetic executable archive tests. Twenty tests pass.
+
+Review: inspected new and modified source, input validation and backward compatibility.
+Validation: full accumulated unittest suite, compileall and git diff --check passed.
+Limitations: Live VMs and private GameVault server are not available; fixture results are not hardware verification.
+Git commit: `arch-games-2-phase-04`. Next: phase 5.
