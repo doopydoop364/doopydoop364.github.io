@@ -17,7 +17,7 @@ see `VALIDATION.md` and the real-VM checklist in `TESTING_3.md` once written.
 - [~] P1 Versioned DB migrations done (backup, idempotent, rollback, 2.0 fixture); full CLI refactor into services deferred to when TUI/web need it (P9/P10)
 - [x] P2 Friendly names, aliases, ambiguity handling across commands
 - [x] P3 Executable discovery, classification, launcher registration, `launch NAME` (fixture-verified; real Undertale launch NOT verified)
-- [ ] P4 One-command `install` workflow with persisted, resumable job state
+- [x] P4 One-command `install` workflow with persisted, resumable job state (fixture-verified; no real installer run)
 - [ ] P5 Wine: doctor/status/logs, per-game settings, runtime abstraction, prefix backup/restore/export
 - [ ] P6 Audio doctor/devices/test
 - [ ] P7 Remote audio architecture decision + prototype (host bridge)
@@ -56,3 +56,14 @@ Behaviour: every game-taking command resolves names via the resolver (ID -> alia
 registered launcher; with none, discovery runs and the user must confirm (non-interactive refuses to guess).
 Known issues / remaining: .desktop/.lnk shortcut evidence is not parsed (documented limitation); fuzzy matching is
 announced on stderr. Python 3.10 compatibility untested locally (no interpreter) - CI/VM check needed.
+
+### Phase 4 (done; 142 -> 144 tests pass)
+`installation/workflow.py` (steps locate, acquire, verify, inspect, plan, approve, extract, prefix, installer, discover,
+register, test, finish; job in namespace `install_jobs`). CLI: `install GAME [--archive F | --directory D] [--yes]
+[--approve-installer] [--plan-only] [--installer MEMBER] [--silent-inno] [--test-launch] [--abort] [--status]
+[--extract-only]`. Safety: `--yes` approves extraction only; running the downloaded installer needs
+`--approve-installer` (or an interactive yes). Existing completed downloads are reused. Behaviour change vs 2.0:
+`install ID --archive F` now plans a full install; the 2.0 extract-only behaviour is `--extract-only`.
+Executable discovery also detects extension-less executable ELF files. Launch records gain `purpose`.
+Limits: GOG multi-part `.bin` handling relies on extraction placing parts next to the setup exe; Inno silent flags
+are opt-in and only offered with an Inno Setup marker; no real Wine installer was executed.

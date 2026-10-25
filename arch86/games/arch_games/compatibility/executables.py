@@ -105,6 +105,8 @@ def inspect_bytes(data, name=None):
                 ["PE signature, optional header and COFF machine"],
                 subsystem=subsystem,
             )
+            if b"Inno Setup Setup Data" in data:
+                binary.evidence.append("Inno Setup Setup Data marker present")
             if is_installer(binary.to_dict(), name) or b"Inno Setup Setup Data" in data:
                 binary.role = "installer"
                 binary.evidence.append(

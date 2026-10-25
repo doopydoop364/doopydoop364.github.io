@@ -159,7 +159,8 @@ class Launcher:
         plan["registered"] = True
         return plan
 
-    def launch(self, plan):
+    def launch(self, plan, timeout=None):
+        """Run a plan. With timeout, a still-running process is stopped and recorded as a supervised test."""
         ident = uuid.uuid4().hex
         path = self.config.directory("logs") / ("launch-" + ident + ".log")
         record = {
@@ -184,6 +185,7 @@ class Launcher:
         ).hexdigest()
         record.update(
             id=ident,
+            purpose=plan.get("purpose", "game"),
             started_at=datetime.now(timezone.utc).isoformat(),
             state="running",
             log=str(path),
@@ -205,8 +207,17 @@ class Launcher:
                     stdin=None if interactive else subprocess.DEVNULL,
                     start_new_session=not interactive,
                 )
-                result = process.wait()
-            record.update(state="exited", exit_code=result)
+                if timeout:
+                    try:
+                        result = process.wait(timeout=timeout)
+                    except subprocess.TimeoutExpired:
+                        self.stop(process, group=not plan.get("interactive", False))
+                        record.update(state="stopped_after_test", exit_code=None, test_seconds=timeout)
+                        result = None
+                else:
+                    result = process.wait()
+            if result is not None or record["state"] == "running":
+                record.update(state="exited", exit_code=result)
         except KeyboardInterrupt:
             if process:
                 self.stop(process, group=not plan.get("interactive", False))

@@ -93,6 +93,7 @@ class ArchiveRegressionTests(unittest.TestCase):
                 "--archive",
                 str(self.archive),
                 "--yes",
+                "--extract-only",
             ],
             cwd=self.root,
             env={**os.environ, "PYTHONPATH": str(self.root)},

@@ -145,7 +145,10 @@ def _walk(root, max_depth=MAX_DEPTH, limit=MAX_ENTRIES):
                     if entry.is_dir(follow_symlinks=False):
                         if depth < max_depth and lowered not in PRUNE_DIRS and not (depth == 0 and lowered in SKIP_DIRS):
                             stack.append((Path(entry.path), depth + 1))
-                    elif entry.is_file(follow_symlinks=False) and lowered.endswith((".exe", ".sh", ".x86_64", ".x86", ".bin")):
+                    elif entry.is_file(follow_symlinks=False) and (
+                        lowered.endswith((".exe", ".sh", ".x86_64", ".x86", ".bin"))
+                        or (not Path(lowered).suffix and entry.stat(follow_symlinks=False).st_mode & 0o111)
+                    ):
                         yield Path(entry.path), depth
         except OSError:
             continue
@@ -194,7 +197,12 @@ def prefix_path(config, db, game_id, prefix_id=None):
 def _successful_launch_paths(db, game_id):
     paths = {}
     for launch in db.mapping("launches").values():
-        if launch.get("game_id") == game_id and launch.get("exit_code") == 0 and launch.get("executable"):
+        if (
+            launch.get("game_id") == game_id
+            and launch.get("exit_code") == 0
+            and launch.get("executable")
+            and launch.get("purpose", "game") == "game"
+        ):
             paths[launch["executable"]] = max(paths.get(launch["executable"], ""), launch.get("started_at", ""))
     return paths
 
@@ -326,6 +334,8 @@ def confidence(candidates):
     games = [c for c in candidates if c["role"] == "game"]
     if not games:
         return "none"
-    if games[0]["score"] >= 70 and (len(games) == 1 or games[0]["score"] - games[1]["score"] >= 20):
+    if (len(games) == 1 and games[0]["score"] >= 50) or (
+        games[0]["score"] >= 70 and games[0]["score"] - games[1]["score"] >= 20
+    ):
         return "high"
     return "uncertain"

@@ -89,6 +89,21 @@ def make_parser():
     install.add_argument("--yes", action="store_true")
     install.add_argument("--reinstall", action="store_true")
     install.add_argument("--timeout", type=int, default=600)
+    install.add_argument("--directory", help="Use an already-extracted/installed game folder in place")
+    install.add_argument("--plan-only", action="store_true", help="Show the plan; execute nothing")
+    install.add_argument("--installer", help="Archive member to run when several installers exist")
+    install.add_argument(
+        "--approve-installer", action="store_true", help="Explicitly approve running the downloaded installer"
+    )
+    install.add_argument("--silent-inno", action="store_true", help="Pass Inno Setup silent flags (only if evidence shows Inno)")
+    install.add_argument("--test-launch", action="store_true", help="Supervised, time-limited launch after install")
+    install.add_argument("--test-seconds", type=int, default=20)
+    install.add_argument("--prefix-arch", choices=["win32", "win64"])
+    install.add_argument("--sha256", help="Expected SHA-256 of the archive")
+    install.add_argument("--offline", action="store_true")
+    install.add_argument("--abort", action="store_true", help="Cancel the unfinished job (files go to backups)")
+    install.add_argument("--status", action="store_true", help="Show the saved installation job")
+    install.add_argument("--extract-only", action="store_true", help="2.0 behaviour: extract --archive, never run anything")
     uninstall = sub.add_parser("uninstall", help="Remove a managed game; archives/prefixes retained")
     uninstall.add_argument("game")
     uninstall.add_argument("--yes", action="store_true")
@@ -289,6 +304,68 @@ def register_candidate(config, db, game_id, candidate, **options):
         evidence=["Discovery score {}".format(candidate["score"])] + candidate["evidence"],
         **options,
     )
+
+
+def catalog_title(config, db, game_id):
+    from .identity.service import build_resolver
+
+    try:
+        resolver, _ = build_resolver(config, db)
+        return resolver.by_id[game_id]["title"] if game_id in resolver.by_id else game_title(config, db, game_id)
+    except AppError:
+        return game_title(config, db, game_id)
+
+
+def install_command(args, config, db):
+    from .installation.workflow import Options, Workflow
+
+    def confirm(question):
+        return input(question + " [y/N] ").strip().lower() == "y"
+
+    def choose(question, labels):
+        print(question, file=sys.stderr)
+        for number, label in enumerate(labels[:10], 1):
+            print(clean("{:2}. {}".format(number, label)), file=sys.stderr)
+        answer = input("Number (blank cancels): ").strip()
+        return int(answer) - 1 if answer.isdecimal() and 1 <= int(answer) <= min(10, len(labels)) else None
+
+    def library_find(game_id):
+        from .catalog.library import Library
+
+        return Library(config, db).load("gamevault", args.offline).find(game_id, alternatives=True)
+
+    flow = Workflow(
+        config,
+        db,
+        say=lambda text: print(clean(text), file=sys.stderr),
+        confirm=confirm if interactive(args) else None,
+        choose=choose if interactive(args) else None,
+        library_find=library_find,
+    )
+    if args.status:
+        return emit(flow.job(args.game) or {"status": "no job"})
+    if args.abort:
+        return emit(flow.abort(args.game))
+    options = Options(
+        archive=args.archive,
+        directory=args.directory,
+        yes=args.yes,
+        reinstall=args.reinstall,
+        plan_only=args.plan_only,
+        installer_member=args.installer,
+        silent_inno=args.silent_inno,
+        approve_installer=args.approve_installer,
+        test_launch=args.test_launch,
+        test_seconds=args.test_seconds,
+        timeout=args.timeout,
+        offline=args.offline,
+        prefix_arch=args.prefix_arch,
+        expected_sha256=args.sha256,
+    )
+    report = flow.run(args.game, catalog_title(config, db, args.game), options)
+    emit(report)
+    if report["status"] in {"awaiting_approval", "awaiting_selection", "plan_only"}:
+        print("Installation paused: {}. {}".format(report["status"], " ".join(report["next"])), file=sys.stderr)
 
 
 def alias_command(args, config, db):
@@ -746,6 +823,8 @@ def dispatch(args, config, db):
         ):
             return emit(Installer(config, db).uninstall(args.game, args.purge))
         return
+    if action == "install" and not (args.game.startswith("pacman:") or args.extract_only):
+        return install_command(args, config, db)
     if action == "install" and args.archive:
         from .runtime.installer import Installer
         from .models import Game
