@@ -20,6 +20,7 @@ class Report:
     evidence: list = field(default_factory=list)
     uncertainties: list = field(default_factory=list)
     fingerprint: str = ""
+    evidence_scope: str = "game"
 
     def to_dict(self):
         return asdict(self)
@@ -40,6 +41,22 @@ def analyze(game, profile, executable=None, requirements=None, feedback=None):
     req = dict(requirements or {})
     binary = executable.to_dict() if hasattr(executable, "to_dict") else executable or {}
     report = Report(fingerprint=fingerprint(profile))
+    if binary.get("role") == "installer":
+        report.evidence_scope = "installer"
+        report.evidence = list(binary.get("evidence", []))
+        report.evidence.append(
+            "Installer header: {} / {} / {}; installed game architecture is unknown".format(
+                binary.get("format", "unknown"),
+                binary.get("architecture", "unknown"),
+                binary.get("subsystem", "unknown"),
+            )
+        )
+        report.runtime = "Wine for Windows installer only; installed game runtime unknown"
+        report.uncertainties = [
+            "Installer architecture does not establish payload/game architecture",
+            "Game executables, dependencies and gameplay have not been inspected",
+        ]
+        return report
     os_name = binary.get("os", game.os)
     arch = binary.get("architecture", game.architecture)
     host = profile.get("os_architecture", "unknown")

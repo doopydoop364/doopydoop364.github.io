@@ -21,3 +21,12 @@ read-only library mount with no credentials, networking or execution rights and
 export JSON keyed by immutable version ID plus archive SHA-256. The client could
 import that signed/authenticated sidecar as evidence with provenance. This design
 is not deployed and the client does not trust arbitrary remote scanner claims.
+
+Member-only analysis passes --member to the isolated worker, reads only the
+selected executable prefix, and stops without visiting later headers. Sequential
+or solid archives can require skipping prior headers/data. These results are not
+a complete archive listing or integrity/extraction-safety certificate; extraction
+always performs its own full validation. CPU/memory/file/size limits are unchanged.
+Use `arch-games analyze ARCHIVE --member MEMBER --debug` for credential-redacted
+worker status/native errors/tracebacks. SIGKILL does not prove an OOM condition.
+See ARCHIVE_ANALYSIS_FIX.md for the native-install import failure and regression.

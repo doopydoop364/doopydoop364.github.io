@@ -3,6 +3,7 @@
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 import struct
+import re
 
 MAX_HEADER = 1024 * 1024
 
@@ -15,12 +16,36 @@ class Executable:
     os: str = "unknown"
     imports: list = field(default_factory=list)
     evidence: list = field(default_factory=list)
+    role: str = "unknown"
+    subsystem: str = "unknown"
 
     def to_dict(self):
         return asdict(self)
 
 
-def inspect_bytes(data):
+def is_installer(binary, name=None):
+    if not binary:
+        return False
+    if binary.get("role") == "installer":
+        return True
+    basename = str(name or "").replace("\\", "/").rsplit("/", 1)[-1]
+    return binary.get("os") == "windows" and bool(
+        re.match(r"^(?:setup|install(?:er)?)(?:[_. -]|\.exe$|$)", basename, re.I)
+    )
+
+
+def label_executable(binary, name=None):
+    value = dict(binary)
+    if is_installer(value, name):
+        value["role"] = "installer"
+        value["evidence"] = list(value.get("evidence", []))
+        note = "Installer evidence only; installed game architecture is not established"
+        if note not in value["evidence"]:
+            value["evidence"].append(note)
+    return value
+
+
+def inspect_bytes(data, name=None):
     data = data[:MAX_HEADER]
     result = Executable()
     if data.startswith(b"\x7fELF"):
@@ -68,14 +93,24 @@ def inspect_bytes(data):
             if (arch == "i686" and bits != 32) or (arch in {"x86_64", "aarch64"} and bits != 64):
                 return result
             imports = _pe_imports(data, optional, optional_size, sections, bits)
-            return Executable(
+            subsystem = {2: "Windows GUI", 3: "Windows console"}.get(
+                struct.unpack_from("<H", data, optional + 68)[0], "unknown"
+            )
+            binary = Executable(
                 "PE32" if bits == 32 else "PE32+",
                 arch,
                 bits,
                 "windows",
                 imports,
                 ["PE signature, optional header and COFF machine"],
+                subsystem=subsystem,
             )
+            if is_installer(binary.to_dict(), name) or b"Inno Setup Setup Data" in data:
+                binary.role = "installer"
+                binary.evidence.append(
+                    "Installer filename or bounded Inno Setup marker hint; payload not inspected"
+                )
+            return Executable(**label_executable(binary.to_dict(), name))
     return Executable("DOS", "i686", 16, "dos", evidence=["MZ DOS header; no recognized PE secondary header"])
 
 
@@ -127,4 +162,4 @@ def inspect_file(path):
     if not path.is_file():
         return Executable(evidence=["Not a regular file"])
     with path.open("rb") as stream:
-        return inspect_bytes(stream.read(MAX_HEADER))
+        return inspect_bytes(stream.read(MAX_HEADER), name=path.name)

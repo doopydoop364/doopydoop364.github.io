@@ -4,6 +4,7 @@ from dataclasses import replace
 from .pacman import load_catalog, visible
 from .filters import merge_catalogs, select
 from ..compatibility.analyzer import analyze
+from ..compatibility.executables import is_installer, label_executable
 from ..config import AppError
 from ..gamevault.client import Client
 from ..models import Game
@@ -33,6 +34,35 @@ def expand_versions(game):
             )
         )
     return result or [game]
+
+
+def evidence_binary(local, manifest, feedback=None):
+    """Keep installer architecture out of game predictions, including older records."""
+    installer = (local.get("installer_analysis") or {}).get("executable")
+    if installer:
+        installer = dict(installer, role="installer")
+    observations = [(local.get("executable"), local.get("member") or local.get("source_path"))]
+    if feedback:
+        observations.append((feedback.get("binary"), feedback.get("executable")))
+    game_binary = None
+    for binary, name in observations:
+        if not binary:
+            continue
+        binary = label_executable(binary, name)
+        if binary.get("role") == "installer":
+            installer = binary
+        elif game_binary is None:
+            game_binary = binary
+    native = []
+    for entry in manifest.get("executables", []):
+        binary = label_executable(entry["executable"], entry.get("name"))
+        if binary.get("role") == "installer":
+            installer = installer or binary
+        else:
+            native.append(binary)
+    if game_binary is None and len(native) == 1:
+        game_binary = native[0]
+    return game_binary, installer
 
 
 class Library:
@@ -85,8 +115,11 @@ class Library:
                 and local["archive_sha256"] != installs[game.id].get("archive_sha256")
             ):
                 local = {}
-            if local.get("executable"):
-                game.architecture = local["executable"].get("architecture", game.architecture)
+            binary, installer = evidence_binary(local, installs.get(game.id, {}))
+            if binary:
+                game.architecture = binary.get("architecture", game.architecture)
+            elif installer:
+                game.architecture = "unknown"
             identity = identities.get(game.id)
             if identity:
                 game.metadata["canonical_id"] = identity["canonical"]
@@ -102,21 +135,19 @@ class Library:
                 and local["archive_sha256"] != installs[game.id].get("archive_sha256")
             ):
                 local = {}
-            if local.get("executable"):
-                game.architecture = local["executable"].get("architecture", game.architecture)
             from ..compatibility.feedback import current_feedback
 
             feedback = current_feedback(self.db, game.id, feedback_context)
-            if feedback and feedback.get("binary") and not local.get("executable"):
-                local = dict(local, executable=feedback["binary"])
-            if game.id in installs and not local.get("executable"):
-                binaries = installs[game.id].get("executables", [])
-                if len(binaries) == 1:
-                    local = dict(local, executable=binaries[0]["executable"])
-            if local.get("executable"):
-                game.architecture = local["executable"].get("architecture", game.architecture)
+            binary, installer = evidence_binary(local, installs.get(game.id, {}), feedback)
+            if feedback and is_installer(feedback.get("binary"), feedback.get("executable")):
+                feedback = None
+            if binary:
+                game.architecture = binary.get("architecture", game.architecture)
+            elif installer:
+                game.architecture = "unknown"
+                game.metadata["analysis_source"] = "Installer header only; game architecture unmeasured"
             self.reports[game.id] = analyze(
-                game, self.profile, local.get("executable"), local.get("requirements"), feedback
+                game, self.profile, binary or installer, local.get("requirements"), feedback
             ).to_dict()
         return self
 

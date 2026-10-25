@@ -107,6 +107,6 @@ permanent deletion of those selected files. No server files or data are deleted.
 
 Automated fixture and loopback tests are the primary evidence. No private server,
 real Arch86/Arch64 VM, hardware graphics stack, real game or real Wine execution
-has been verified during this development. The full 77-test suite passes on Python 3.10.20 and 3.14.8; a wheel installation and gallery interaction were checked separately. Read the validation matrix before
+has been verified during this development. The full 88-test suite passes on Python 3.10.20 and 3.14.8; a wheel installation and gallery interaction were checked separately. Read the validation matrix before
 production use. The branch is for review and VM acceptance testing; no main
 branch merge or production deployment is performed.

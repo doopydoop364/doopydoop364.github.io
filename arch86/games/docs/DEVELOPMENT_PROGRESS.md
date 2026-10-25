@@ -184,3 +184,20 @@ merged into main.
 | 15 | `1ea85d4a4113847a8007362ffe9278abbe785654` |
 | 16 | `452e41e070d3fcf7a372ed73217951980cdfa10b` |
 | 17 | `88058cee4bd436a2a2263025e76f0cb43701fa9b` |
+
+## Archive-analysis regression fix
+
+Confirmed the native-install failure with a synthetic RAR4 and unrelated CWD:
+worker exit 1 / ModuleNotFoundError, masked by the old generic resource error.
+Fixed isolated worker startup using the current installation's explicit package
+root; retained the existing resource budgets. Added typed errors and redacted
+--debug diagnostics, selected-member early stop, PE GUI/installer scope, separate
+installer persistence, and legacy/catalog protections against installer-derived
+game architecture or verification. Synthetic fixtures only; no game/installer
+execution or live VM configuration changes. Full trace, reproduction, security
+review and limitations: ARCHIVE_ANALYSIS_FIX.md. Commit reference: the commit
+containing this entry (`git log --all --grep='Fix native archive worker startup'`).
+
+Validation for this fix: 88/88 tests pass on Python 3.14.8 and 88/88 on Python
+3.10.20, including all 77 existing tests and 11 new regression cases. Ruff lint,
+formatting, compileall, shell syntax and git diff whitespace checks pass.

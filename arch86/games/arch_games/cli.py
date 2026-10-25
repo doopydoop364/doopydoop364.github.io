@@ -13,6 +13,7 @@ from .config import AppError, Config, server_url
 from .gamevault.client import Client
 from .storage.database import Database
 from .ui.terminal import clean
+from .compatibility.archive_errors import ArchiveError
 
 
 def secret_prompt(prompt):
@@ -44,6 +45,7 @@ def make_parser():
     parser = argparse.ArgumentParser(prog="arch-games", description="Local-first Arch Linux game library")
     parser.add_argument("--version", action="version", version=__version__)
     parser.add_argument("--state-dir", help="Isolated configuration/data/cache root")
+    parser.add_argument("--debug", action="store_true", help="Show redacted archive-worker diagnostics")
     sub = parser.add_subparsers(dest="action")
     menu = sub.add_parser("menu", help="Keyboard terminal interface")
     menu.add_argument("--plain", action="store_true")
@@ -59,6 +61,12 @@ def make_parser():
     catalog_options(reports)
     analyze = sub.add_parser("analyze", help="Inspect a local executable/archive without running it")
     analyze.add_argument("path")
+    analyze.add_argument(
+        "--debug",
+        action="store_true",
+        default=argparse.SUPPRESS,
+        help="Show redacted archive-worker diagnostics",
+    )
     analyze.add_argument("--game", help="Save evidence against this catalog ID")
     analyze.add_argument("--member", help="Explicit archive executable member to use as evidence")
     analyze.add_argument("--graphics", choices=["2d", "3d", "unknown"], default="unknown")
@@ -231,7 +239,7 @@ def gamevault_command(args, config, db):
 def analyze_command(args, config, db):
     from .compatibility.executables import inspect_file
     from .compatibility.archives import inspect_archive
-    from .compatibility.analyzer import analyze
+    from .compatibility.analyzer import Report, analyze, fingerprint
     from .models import Game
     from .platform import apply_overrides, system_profile
 
@@ -243,10 +251,11 @@ def analyze_command(args, config, db):
     if binary["format"] == "unknown" and path.name.lower().endswith(
         (".zip", ".tar", ".tar.gz", ".tgz", ".7z", ".rar")
     ):
-        archive = inspect_archive(path)
+        archive = inspect_archive(path, member=args.member)
         if args.member:
+            selected = archive["selected_member"]
             record = next(
-                (r for r in archive["entries"] if r["name"] == args.member and r.get("executable")), None
+                (r for r in archive["entries"] if r["name"] == selected and r.get("executable")), None
             )
             if not record:
                 raise AppError("Selected archive member has no recognized executable header")
@@ -269,14 +278,42 @@ def analyze_command(args, config, db):
     if args.game:
         from .downloads.verification import sha256
 
-        value.update(archive_sha256=sha256(path), source_path=str(path.resolve()), member=args.member)
-        db.put("analysis", args.game, value)
+        value.update(
+            archive_sha256=sha256(path),
+            source_path=str(path.resolve()),
+            member=archive["selected_member"] if archive else args.member,
+        )
+        previous = db.get("analysis", args.game, {})
+        if binary.get("role") == "installer":
+            # Installer observations must not replace existing game executable evidence.
+            saved = dict(previous, installer_analysis=dict(value, evidence_scope="installer"))
+        else:
+            saved = value
+            if previous.get("installer_analysis"):
+                saved["installer_analysis"] = previous["installer_analysis"]
+        db.put("analysis", args.game, saved)
+    profile = apply_overrides(system_profile(config.data_dir), config)
+    if archive is not None and not args.member:
+        report = Report(
+            evidence_scope="archive_listing",
+            fingerprint=fingerprint(profile),
+            evidence=["Archive listing only; no executable was selected"],
+            uncertainties=[
+                "Select a member to inspect its executable header",
+                "Installer architecture does not establish installed game architecture",
+            ],
+        )
+    else:
+        report = analyze(game, profile, binary, requirements)
     emit(
         {
-            "report": analyze(
-                game, apply_overrides(system_profile(config.data_dir), config), binary, requirements
-            ).to_dict(),
+            "report": report.to_dict(),
             "executable": binary,
+            "evidence_scope": report.evidence_scope
+            if archive
+            else "installer"
+            if binary.get("role") == "installer"
+            else "executable",
             "archive": archive,
         }
     )
@@ -571,6 +608,16 @@ def main(argv=None):
         db = Database(config.data_dir / "state.db")
         dispatch(args, config, db)
         return 0
+    except ArchiveError as exc:
+        print("Error: " + clean(str(exc)), file=sys.stderr)
+        if args.debug:
+            secrets = []
+            try:
+                secrets = list(config.credentials().values())
+            except (AppError, OSError):
+                pass
+            print(exc.diagnostics(secrets), file=sys.stderr)
+        return 1
     except (AppError, OSError, ValueError) as exc:
         print("Error: " + clean(str(exc)), file=sys.stderr)
         return 1

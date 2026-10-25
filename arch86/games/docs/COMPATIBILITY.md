@@ -50,3 +50,10 @@ matching OS/architecture/edition/build can merge. `catalog forget ID` removes an
 assertion. Source-specific views preserve individual entries, and installed state
 never falsely marks an uninstalled Pacman package installed. Titles alone do not
 merge entries. Engine names in archive reports are labeled filename hints.
+
+Setup/install filename hints and Inno Setup markers now label installer evidence.
+A PE32 i386 Windows GUI setup program establishes the installer's architecture;
+the installed game's architecture and compatibility stay unknown. Installer
+observations are saved separately under installer_analysis, preserving existing
+actual game evidence. Legacy setup selections and installer feedback are excluded
+from game architecture and verified-gameplay inference.

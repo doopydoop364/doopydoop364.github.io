@@ -1,11 +1,11 @@
 # Complete CLI reference
 
-Global --state-dir PATH precedes the command and isolates all state. --help is available at every level. --yes bypasses the application confirmation for the requested install/removal/prefix operation; Pacman retains its own confirmation. Launch and download add/run are explicit user actions.
+Global --state-dir PATH precedes the command and isolates all state. --debug shows bounded, redacted archive-worker diagnostics. --help is available at every level. --yes bypasses the application confirmation for the requested install/removal/prefix operation; Pacman retains its own confirmation. Launch and download add/run are explicit user actions.
 
 ## arch-games
 
 ```text
-usage: arch-games [-h] [--version] [--state-dir STATE_DIR]
+usage: arch-games [-h] [--version] [--state-dir STATE_DIR] [--debug]
                   {menu,list,doctor,info,details,reports,analyze,web,install,uninstall,installed,gamevault,download,prefix,launch,history,feedback,catalog,settings} ...
 
 Local-first Arch Linux game library
@@ -37,6 +37,7 @@ options:
   --version             show program's version number and exit
   --state-dir STATE_DIR
                         Isolated configuration/data/cache root
+  --debug               Show redacted archive-worker diagnostics
 ```
 
 ## arch-games menu
@@ -146,7 +147,7 @@ options:
 ## arch-games analyze
 
 ```text
-usage: arch-games analyze [-h] [--game GAME] [--member MEMBER]
+usage: arch-games analyze [-h] [--debug] [--game GAME] [--member MEMBER]
                           [--graphics {2d,3d,unknown}] [--ram-mb RAM_MB]
                           [--vulkan] [--terminal]
                           path
@@ -156,6 +157,7 @@ positional arguments:
 
 options:
   -h, --help            show this help message and exit
+  --debug               Show redacted archive-worker diagnostics
   --game GAME           Save evidence against this catalog ID
   --member MEMBER       Explicit archive executable member to use as evidence
   --graphics {2d,3d,unknown}
