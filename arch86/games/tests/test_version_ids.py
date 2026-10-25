@@ -63,7 +63,7 @@ class V2StateTests(unittest.TestCase):
         self.assertEqual(code, 0, err)
         lines = self.log.read_text().splitlines()  # (the first entries are Wine's --version probe, which has no prefix)
         self.assertIn(str(self.prefix), lines)
-        self.assertTrue(any(l.endswith("UNDERTALE.exe") for l in lines))
+        self.assertTrue(any(line.endswith("UNDERTALE.exe") for line in lines))
         self.assertEqual(json.loads(self.cli("prefix", "check", "undertale")[1])["path"], str(self.prefix))
         for argv in (["wine", "status", "undertale"], ["info", "undertale"], ["settings", "game", "undertale"], ["compat", "show", "undertale"], ["saves", "discover", "undertale"]):
             self.assertEqual(self.cli(*argv)[0], 0, argv)
