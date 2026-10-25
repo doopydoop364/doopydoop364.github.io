@@ -6,6 +6,7 @@ import sqlite3
 import os
 from pathlib import Path
 from ..config import AppError
+from .migrations import migrate
 
 
 class Database:
@@ -19,12 +20,12 @@ class Database:
             if path.stat().st_uid != os.getuid():
                 raise AppError("Local state database must be owned by this user")
             path.chmod(0o600)
-        self.connection = sqlite3.connect(path, timeout=15)
+        self.connection = sqlite3.connect(path, timeout=15, isolation_level=None)
         self.connection.execute("PRAGMA journal_mode=WAL")
         self.connection.execute(
             "CREATE TABLE IF NOT EXISTS records (namespace TEXT, key TEXT, value TEXT, updated TEXT, PRIMARY KEY(namespace,key))"
         )
-        self.connection.commit()
+        self.backup_path = migrate(self.connection, None if str(path) == ":memory:" else path)
 
     def put(self, namespace, key, value):
         now = datetime.now(timezone.utc).isoformat()

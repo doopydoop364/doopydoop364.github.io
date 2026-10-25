@@ -46,6 +46,9 @@ def make_parser():
     parser.add_argument("--version", action="version", version=__version__)
     parser.add_argument("--state-dir", help="Isolated configuration/data/cache root")
     parser.add_argument("--debug", action="store_true", help="Show redacted archive-worker diagnostics")
+    parser.add_argument(
+        "--non-interactive", action="store_true", help="Never prompt; ambiguous names fail with the candidate IDs"
+    )
     sub = parser.add_subparsers(dest="action")
     menu = sub.add_parser("menu", help="Keyboard terminal interface")
     menu.add_argument("--plain", action="store_true")
@@ -53,14 +56,15 @@ def make_parser():
     listing = sub.add_parser("list", help="Search the combined catalog")
     catalog_options(listing)
     sub.add_parser("doctor", help="Application integrity and optional prerequisites")
-    sub.add_parser("info", help="Measured system profile (JSON)")
+    info = sub.add_parser("info", help="Measured system profile, or everything known about one game")
+    info.add_argument("game", nargs="?")
     details = sub.add_parser("details", help="Game details and compatibility report")
     details.add_argument("game")
     details.add_argument("--offline", action="store_true")
     reports = sub.add_parser("reports", help="Compatibility reports, including unknown entries")
     catalog_options(reports)
     analyze = sub.add_parser("analyze", help="Inspect a local executable/archive without running it")
-    analyze.add_argument("path")
+    analyze.add_argument("path", help="Local file, or a game name to analyze its registered launcher")
     analyze.add_argument(
         "--debug",
         action="store_true",
@@ -146,7 +150,9 @@ def make_parser():
             cmd.add_argument("--purge", action="store_true")
     launch = sub.add_parser("launch", help="Explicitly launch a selected installed executable")
     launch.add_argument("game")
-    launch.add_argument("executable")
+    launch.add_argument(
+        "executable", nargs="?", help="Optional; omitted = use the registered launcher for this game"
+    )
     launch.add_argument("--method", choices=["auto", "native", "wine", "dosbox", "custom"], default="auto")
     launch.add_argument("--prefix")
     launch.add_argument("--arg", action="append", default=[])
@@ -161,6 +167,36 @@ def make_parser():
         action="store_true",
         help="Attach terminal input/output instead of capturing game output",
     )
+    alias = sub.add_parser("alias", help="Friendly names for games")
+    asub = alias.add_subparsers(dest="operation", required=True)
+    aadd = asub.add_parser("add")
+    aadd.add_argument("alias")
+    aadd.add_argument("game")
+    aadd.add_argument("--force", action="store_true")
+    asub.add_parser("list")
+    aremove = asub.add_parser("remove")
+    aremove.add_argument("alias")
+    discover = sub.add_parser("discover", help="Rank the executables that may start a game (nothing is run)")
+    discover.add_argument("game")
+    discover.add_argument("--dir", action="append", default=[], help="Extra directory to search")
+    discover.add_argument("--all", action="store_true", help="Include uninstallers, installers, helpers")
+    discover.add_argument("--json", action="store_true")
+    discover.add_argument("--register", type=int, metavar="RANK", help="Confirm and register this candidate")
+    launcher = sub.add_parser("launcher", help="Registered launcher per game")
+    lsub = launcher.add_subparsers(dest="operation", required=True)
+    lsub.add_parser("list")
+    for name in ["show", "remove"]:
+        lsub.add_parser(name).add_argument("game")
+    register = lsub.add_parser("register")
+    register.add_argument("game")
+    register.add_argument("executable", nargs="?", help="Absolute path; omitted = choose from discovery")
+    register.add_argument("--prefix")
+    register.add_argument("--cwd")
+    register.add_argument("--arg", action="append", default=[])
+    register.add_argument("--env", action="append", default=[])
+    register.add_argument("--allow-external", action="store_true")
+    register.add_argument("--force-role", action="store_true")
+    register.add_argument("--yes", action="store_true")
     sub.add_parser("history", help="Local launch history")
     feedback = sub.add_parser("feedback", help="Local user compatibility results; never uploaded")
     fsub = feedback.add_subparsers(dest="operation", required=True)
@@ -181,7 +217,7 @@ def make_parser():
     forget = csub.add_parser("forget")
     forget.add_argument("game")
     settings = sub.add_parser("settings", help="Show or change local preferences")
-    settings.add_argument("operation", choices=["show", "set"], nargs="?", default="show")
+    settings.add_argument("operation", choices=["show", "set", "game"], nargs="?", default="show")
     settings.add_argument("key", nargs="?")
     settings.add_argument("value", nargs="?")
     return parser
@@ -198,6 +234,145 @@ def filters(args):
         "verified": args.verified,
         "compatible": args.compatible,
         "sort": args.sort,
+    }
+
+
+def parse_env(values):
+    result = {}
+    for value in values:
+        if "=" not in value:
+            raise AppError("Environment values must be KEY=VALUE")
+        key, val = value.split("=", 1)
+        result[key] = val
+    return result
+
+
+def interactive(args):
+    return not args.non_interactive and sys.stdin.isatty() and sys.stdout.isatty()
+
+
+def game_title(config, db, game_id):
+    record = db.get("launchers", game_id) or {}
+    manifest = db.get("installs", game_id) or {}
+    return record.get("title") or (manifest.get("game") or {}).get("title") or game_id
+
+
+def choose_candidate(candidates, args):
+    """Present ranked candidates; returns the chosen one or raises with guidance. Never guesses."""
+    from .runtime.discovery import confidence
+
+    if not candidates:
+        raise AppError("No game executables found. Use 'discover --dir DIR' or 'launcher register GAME /abs/path.exe'")
+    for c in candidates[:10]:
+        print(clean("{:2}. [{}] {}  ({})".format(c["rank"], c["score"], c["path"], c["origin"])), file=sys.stderr)
+        for line in c["evidence"][:4]:
+            print(clean("      - " + line), file=sys.stderr)
+    if not interactive(args):
+        raise AppError(
+            "Executable not confirmed ({} confidence). Re-run 'discover GAME --register RANK' to confirm one.".format(
+                confidence(candidates)
+            )
+        )
+    answer = input("Register which candidate? 1-{} (blank cancels): ".format(min(10, len(candidates)))).strip()
+    if not answer.isdecimal() or not 1 <= int(answer) <= min(10, len(candidates)):
+        raise AppError("No executable selected")
+    return candidates[int(answer) - 1]
+
+
+def register_candidate(config, db, game_id, candidate, **options):
+    from .runtime.launchers import LauncherStore
+
+    return LauncherStore(config, db).register(
+        game_id,
+        game_title(config, db, game_id),
+        candidate["path"],
+        evidence=["Discovery score {}".format(candidate["score"])] + candidate["evidence"],
+        **options,
+    )
+
+
+def alias_command(args, config, db):
+    from .identity.resolver import add_alias, remove_alias
+    from .identity.service import build_resolver
+
+    if args.operation == "list":
+        return emit([row["value"] for row in db.all("aliases")])
+    if args.operation == "remove":
+        remove_alias(db, args.alias)
+        print("Alias removed")
+        return
+    resolver, _ = build_resolver(config, db)
+    target = resolver.resolve(args.game)[0]["id"]
+    emit(add_alias(db, resolver, args.alias, target, args.force))
+
+
+def discover_command(args, config, db):
+    from .runtime.discovery import confidence, discover
+
+    candidates = discover(config, db, args.game, game_title(config, db, args.game), args.dir, args.all)
+    if args.register:
+        chosen = next((c for c in candidates if c["rank"] == args.register), None)
+        if not chosen:
+            raise AppError("No candidate with that rank")
+        return emit(register_candidate(config, db, args.game, chosen))
+    if args.json:
+        return emit({"confidence": confidence(candidates), "candidates": candidates})
+    if not candidates:
+        print("No candidate executables found.")
+    for c in candidates:
+        print(clean("{:2}. [{:4}] {:16} {}".format(c["rank"], c["score"], c["role"], c["path"])))
+        for line in c["evidence"]:
+            print(clean("        - " + line))
+    print("Confidence: " + confidence(candidates) + "  (register with: discover GAME --register RANK)")
+
+
+def launcher_command(args, config, db):
+    from .runtime.discovery import discover
+    from .runtime.launchers import LauncherStore
+
+    store = LauncherStore(config, db)
+    if args.operation == "list":
+        return emit(list(store.all().values()))
+    if args.operation == "show":
+        record = store.get(args.game)
+        if not record:
+            raise AppError("No registered launcher for this game")
+        return emit(record)
+    if args.operation == "remove":
+        store.remove(args.game)
+        print("Launcher removed; game files untouched")
+        return
+    options = dict(
+        prefix=args.prefix,
+        arguments=args.arg,
+        env=parse_env(args.env),
+        cwd=args.cwd,
+        allow_external=args.allow_external,
+        force_role=args.force_role,
+    )
+    if args.executable:
+        candidate = {"path": str(Path(args.executable).expanduser()), "score": "user", "evidence": ["Path supplied by the user"]}
+    else:
+        candidate = choose_candidate(discover(config, db, args.game, game_title(config, db, args.game)), args)
+    emit(register_candidate(config, db, args.game, candidate, **options))
+
+
+def game_info(config, db, game_id):
+    from .runtime.launchers import LauncherStore
+
+    prefix = db.get("prefixes", game_id)
+    return {
+        "id": game_id,
+        "title": game_title(config, db, game_id),
+        "aliases": [r["value"]["alias"] for r in db.all("aliases") if r["value"]["game_id"] == game_id],
+        "installed": db.get("installs", game_id) is not None,
+        "launcher": LauncherStore(config, db).get(game_id),
+        "prefix": {k: prefix.get(k) for k in ("directory", "state", "requested_architecture", "detected_architecture")} if prefix else None,
+        "last_launch": max(
+            (v for v in db.mapping("launches").values() if v.get("game_id") == game_id),
+            key=lambda v: v.get("started_at", ""),
+            default=None,
+        ),
     }
 
 
@@ -254,7 +429,16 @@ def analyze_command(args, config, db):
 
     path = Path(args.path)
     if not path.is_file():
-        raise AppError("Analysis path is not a regular file")
+        from .identity.service import resolve_game_id
+
+        game_id = resolve_game_id(config, db, args.path, interactive=interactive(args))
+        record = db.get("launchers", game_id)
+        if not record:
+            raise AppError("No registered launcher for {}; run 'discover {}' first".format(game_id, game_id))
+        path = Path(record["executable"])
+        args.game = args.game or game_id
+        if not path.is_file():
+            raise AppError("Analysis path is not a regular file")
     binary = inspect_file(path).to_dict()
     archive = None
     if binary["format"] == "unknown" and path.name.lower().endswith(
@@ -345,6 +529,28 @@ def dispatch(args, config, db):
     from .platform import system_profile
 
     action = args.action or "menu"
+    from .identity.service import resolve_game_id
+    import re
+
+    def resolve(text):
+        try:
+            return resolve_game_id(config, db, text, interactive=interactive(args))
+        except AppError:
+            if re.fullmatch(r"[a-z0-9_-]+:[^\s]+", text):  # unknown but well-formed canonical ID (e.g. new local game)
+                return text
+            raise
+
+    if action in {"details", "install", "uninstall", "launch", "prefix", "feedback", "catalog", "download", "discover", "launcher", "info"} and getattr(args, "game", None):
+        if not (action == "launcher" and args.operation == "list"):
+            args.game = resolve(args.game)
+    if action == "settings" and args.operation == "game":
+        args.key = resolve(args.key or "")
+    if action == "alias":
+        return alias_command(args, config, db)
+    if action == "discover":
+        return discover_command(args, config, db)
+    if action == "launcher":
+        return launcher_command(args, config, db)
     if action == "gamevault":
         return gamevault_command(args, config, db)
     if action == "doctor":
@@ -385,7 +591,7 @@ def dispatch(args, config, db):
             }
         )
     if action == "info":
-        return emit(system_profile(config.data_dir))
+        return emit(game_info(config, db, args.game) if args.game else system_profile(config.data_dir))
     if action == "catalog":
         if args.operation == "forget":
             db.delete("catalog_identity", args.game)
@@ -406,6 +612,8 @@ def dispatch(args, config, db):
         )
         return
     if action == "settings":
+        if args.operation == "game":
+            return emit(game_info(config, db, args.key))
         return settings_command(args, config)
     if action == "analyze":
         return analyze_command(args, config, db)
@@ -431,23 +639,33 @@ def dispatch(args, config, db):
     if action == "launch":
         from .runtime.launcher import Launcher
 
-        custom_env = {}
-        for value in args.env:
-            if "=" not in value:
-                raise AppError("Environment values must be KEY=VALUE")
-            key, val = value.split("=", 1)
-            custom_env[key] = val
+        custom_env = parse_env(args.env)
         launcher = Launcher(config, db)
-        plan = launcher.plan(
-            args.game,
-            args.executable,
-            args.method,
-            args.prefix,
-            args.arg,
-            custom_env,
-            json.loads(args.command) if args.command else None,
-            args.allow_external,
-        )
+        if args.executable:
+            plan = launcher.plan(
+                args.game,
+                args.executable,
+                args.method,
+                args.prefix,
+                args.arg,
+                custom_env,
+                json.loads(args.command) if args.command else None,
+                args.allow_external,
+            )
+        else:
+            from .runtime.launchers import LauncherStore
+
+            if args.method != "auto" or args.prefix or args.command or args.allow_external:
+                raise AppError("--method/--prefix/--command/--allow-external need an explicit executable")
+            if not LauncherStore(config, db).get(args.game):
+                from .runtime.discovery import confidence, discover
+
+                print("No launcher registered for {}; searching installed files...".format(clean(args.game)), file=sys.stderr)
+                candidates = discover(config, db, args.game, game_title(config, db, args.game))
+                chosen = choose_candidate(candidates, args)
+                register_candidate(config, db, args.game, chosen)
+                print("Launcher registered.", file=sys.stderr)
+            plan = launcher.plan_registered(args.game, args.arg, custom_env)
         if args.dry_run:
             return emit({k: v for k, v in plan.items() if k != "env"} | {"custom_environment": custom_env})
         plan["interactive"] = args.interactive

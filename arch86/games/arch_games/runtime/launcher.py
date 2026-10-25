@@ -32,6 +32,8 @@ class Launcher:
         custom_env=None,
         command=None,
         allow_external=False,
+        extra_roots=(),
+        cwd=None,
     ):
         manifest = self.db.get("installs", game_id)
         root = (
@@ -43,7 +45,8 @@ class Launcher:
                 raise AppError("Relative executable paths require a managed installation")
             raw_path = root / raw_path
         path = raw_path.resolve()
-        if not allow_external and (root is None or not path.is_relative_to(root)):
+        roots = ([root] if root else []) + [Path(r) for r in extra_roots]
+        if not allow_external and not any(path.is_relative_to(r) for r in roots):
             raise AppError(
                 "Executable must be inside this managed game directory; --allow-external is an explicit override"
             )
@@ -116,7 +119,7 @@ class Launcher:
             raise AppError("Unknown launch method")
         return {
             "argv": argv,
-            "cwd": str(path.parent),
+            "cwd": str(Path(cwd).resolve() if cwd else path.parent),
             "env": env,
             "method": selected,
             "game_id": game_id,
@@ -125,6 +128,36 @@ class Launcher:
             "archive_sha256": manifest.get("archive_sha256") if manifest else None,
             "prefix": prefix or game_id if selected == "wine" else None,
         }
+
+    def plan_registered(self, game_id, extra_arguments=(), extra_env=None):
+        """Plan from the persisted, user-confirmed launcher; never guesses an executable."""
+        from .launchers import LauncherStore
+
+        store = LauncherStore(self.config, self.db)
+        record = store.get(game_id)
+        if not record:
+            raise AppError("No launcher is registered for this game")
+        if not record.get("confirmed"):
+            raise AppError("The registered launcher was never confirmed; run 'launcher register' again")
+        path = Path(record["executable"])
+        if not path.is_file():
+            raise AppError("Registered executable no longer exists: {}; run 'discover' and register again".format(path))
+        env = dict(record.get("environment") or {})
+        env.update(extra_env or {})
+        plan = self.plan(
+            game_id,
+            str(path),
+            record["runner"],
+            record.get("prefix"),
+            list(record.get("arguments") or []) + list(extra_arguments),
+            env,
+            None,
+            False,
+            extra_roots=store.allowed_roots(game_id, record),
+            cwd=record.get("working_directory"),
+        )
+        plan["registered"] = True
+        return plan
 
     def launch(self, plan):
         ident = uuid.uuid4().hex

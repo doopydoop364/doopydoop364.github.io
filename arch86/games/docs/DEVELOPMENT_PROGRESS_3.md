@@ -14,9 +14,9 @@ see `VALIDATION.md` and the real-VM checklist in `TESTING_3.md` once written.
 ## Requirement checklist (status: [ ] todo, [~] partial, [x] done+tested)
 
 - [x] P0 Discovery, baseline, architecture and migration plan
-- [ ] P1 Shared services + versioned DB migrations (backup, idempotent, 2.0 fixtures)
-- [ ] P2 Friendly names, aliases, ambiguity handling across commands
-- [ ] P3 Executable discovery, classification, launcher registration, `launch NAME`
+- [~] P1 Versioned DB migrations done (backup, idempotent, rollback, 2.0 fixture); full CLI refactor into services deferred to when TUI/web need it (P9/P10)
+- [x] P2 Friendly names, aliases, ambiguity handling across commands
+- [x] P3 Executable discovery, classification, launcher registration, `launch NAME` (fixture-verified; real Undertale launch NOT verified)
 - [ ] P4 One-command `install` workflow with persisted, resumable job state
 - [ ] P5 Wine: doctor/status/logs, per-game settings, runtime abstraction, prefix backup/restore/export
 - [ ] P6 Audio doctor/devices/test
@@ -44,3 +44,15 @@ Weaknesses: no schema version, no name resolution (`Library.find` is exact ID/pa
 executable, `dispatch()` in cli.py is one 300-line function, Wine launch needs a manifest root.
 Strategy: keep the KV store (existing data stays valid), add a `schema_meta` table and numbered migrations,
 add new namespaces rather than altering old ones, add `identity/`, `runtime/discovery.py`, `runtime/launchers.py`.
+
+### Phases 1-3 (done, tests: 127 pass, Python 3.14.8; 3.10 not available on this host)
+Files: `storage/migrations.py`, `storage/database.py` (schema v2, backup in `data/db-backups/`),
+`identity/resolver.py`, `identity/service.py`, `runtime/discovery.py`, `runtime/launchers.py`,
+`runtime/launcher.py` (`plan_registered`, `extra_roots`, `cwd`), `cli.py` (`alias`, `discover`, `launcher`,
+`info GAME`, `settings game GAME`, `launch GAME [EXE]`, `analyze GAME`, `--non-interactive`).
+Tests added: test_migrations (5), test_identity (9), test_discovery_launch (10).
+Behaviour: every game-taking command resolves names via the resolver (ID -> alias -> title -> casefold -> normalized
+-> unique fuzzy; ambiguity is an error listing IDs, or an interactive picker on a TTY). `launch NAME` uses the
+registered launcher; with none, discovery runs and the user must confirm (non-interactive refuses to guess).
+Known issues / remaining: .desktop/.lnk shortcut evidence is not parsed (documented limitation); fuzzy matching is
+announced on stderr. Python 3.10 compatibility untested locally (no interpreter) - CI/VM check needed.
