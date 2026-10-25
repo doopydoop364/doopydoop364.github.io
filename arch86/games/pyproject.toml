@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "arch-games"
+version = "2.0.0"
+description = "A conservative, local-first Arch Linux game library"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+arch-games = "arch_games.cli:main"
+arch86-games = "arch_games.cli:main"
+arch64-games = "arch_games.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["arch_games*"]
+
+[tool.setuptools.package-data]
+arch_games = ["catalog.txt"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 110
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]
