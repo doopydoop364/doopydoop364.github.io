@@ -118,3 +118,12 @@ Review: inspected new and modified source, input validation and backward compati
 Validation: full accumulated unittest suite, compileall and git diff --check passed.
 Limitations: Live VMs and private GameVault server are not available; fixture results are not hardware verification.
 Git commit: `arch-games-2-phase-13`. Next: phase 14.
+
+## Phase 14: Configuration and application installer
+
+Replaced mutable-file installer with bounded source bootstrap and atomic user-owned staging, integrity manifest, update lock/recovery and legacy catalog migration. Preserves settings/data, keeps all aliases, adds uninstall and doctor, and reports optional tools without installing them. Fifty-six tests plus shell syntax checks pass, including spaces in home paths and unrelated launcher preservation.
+
+Review: inspected new and modified source, input validation and backward compatibility.
+Validation: full accumulated unittest suite, compileall and git diff --check passed.
+Limitations: Live VMs and private GameVault server are not available; fixture results are not hardware verification.
+Git commit: `arch-games-2-phase-14`. Next: phase 15.

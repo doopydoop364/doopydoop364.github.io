@@ -1,6 +1,6 @@
 """Compose repository availability, remote metadata and local evidence."""
 from dataclasses import replace
-from .pacman import visible
+from .pacman import load_catalog, visible
 from .filters import merge_catalogs, select
 from ..compatibility.analyzer import analyze
 from ..config import AppError
@@ -37,7 +37,8 @@ class Library:
     def load(self, source="all", offline=False):
         pacman, remote = [], []
         if source in {"all", "pacman"}:
-            pacman, warning = visible()
+            custom = self.config.config_dir / "catalog.txt"
+            pacman, warning = visible(load_catalog(custom) if custom.is_file() else None)
             if warning:
                 self.warnings.append(warning)
         if source in {"all", "gamevault"} and self.config.values.get("server_url"):

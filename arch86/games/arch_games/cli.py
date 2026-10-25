@@ -36,6 +36,7 @@ def make_parser():
     catalog_options(menu)
     listing = sub.add_parser("list", help="Search the combined catalog")
     catalog_options(listing)
+    sub.add_parser("doctor", help="Application integrity and optional prerequisites")
     sub.add_parser("info", help="Measured system profile (JSON)")
     details = sub.add_parser("details", help="Game details and compatibility report")
     details.add_argument("game")
@@ -241,6 +242,22 @@ def dispatch(args, config, db):
     action = args.action or "menu"
     if action == "gamevault":
         return gamevault_command(args, config, db)
+    if action == "doctor":
+        import ctypes.util
+        import shutil
+        from .downloads.verification import sha256
+        marker = Path(__file__).parents[1] / ".installed.json"
+        integrity = "Source checkout; no installation manifest"
+        if marker.is_file():
+            manifest = json.loads(marker.read_text())
+            damaged = [name for name, digest in manifest["files"].items()
+                       if not (marker.parent / name).is_file() or sha256(marker.parent / name) != digest]
+            if damaged:
+                raise AppError("Installed files failed integrity check: " + ", ".join(damaged))
+            integrity = "All installed file hashes match"
+        return emit({"integrity": integrity, "python": sys.version.split()[0],
+                     "optional": {name: bool(shutil.which(name)) for name in ["pacman", "wine", "wineboot", "dosbox", "glxinfo", "vulkaninfo"]},
+                     "libarchive": bool(ctypes.util.find_library("archive")), "data_dir": str(config.data_dir)})
     if action == "info":
         return emit(system_profile(config.data_dir))
     if action == "settings":
