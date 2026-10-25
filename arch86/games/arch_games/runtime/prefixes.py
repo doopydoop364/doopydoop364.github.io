@@ -304,6 +304,74 @@ class PrefixManager:
             )
             return {"backup": str(target), "note": "Stop games and Wine processes before backing up a prefix"}
 
+    def backups(self, ident):
+        """Backups of this prefix found in the backup directory, newest first (identified by their metadata)."""
+        result = []
+        root = self.config.directory("backups")
+        for entry in sorted(root.iterdir()):
+            if not entry.name.startswith("prefix-") or entry.is_symlink() or not entry.is_dir():
+                continue
+            try:
+                marker = read_json(entry / ".arch-games-prefix.json")
+            except AppError:
+                continue
+            if isinstance(marker, dict) and marker.get("game_id") == ident:
+                result.append({"id": entry.name, "path": str(entry), "created": entry.stat().st_mtime, "state": marker.get("state")})
+        return sorted(result, key=lambda b: -b["created"])
+
+    def restore(self, ident, backup_id, apply=False):
+        """Replace the prefix with a backup. Preview unless apply=True. The current prefix is kept as a backup."""
+        with self.lock():
+            source = child(self.config.directory("backups"), backup_id)
+            if not backup_id.startswith("prefix-") or not source.is_dir():
+                raise AppError("Unknown prefix backup")
+            marker = read_json(source / ".arch-games-prefix.json")
+            if not isinstance(marker, dict) or marker.get("game_id") != ident:
+                raise AppError("Backup does not belong to this game")
+            current = self.db.get("prefixes", ident)
+            preview = {
+                "game_id": ident,
+                "restore_from": str(source),
+                "replaces": str(self.path(ident)) if current else None,
+                "current_prefix_kept_as": "a new backup (nothing is deleted)",
+                "applied": False,
+            }
+            if not apply:
+                return preview
+            target = child(self.root, marker["directory"])
+            safety = None
+            if target.exists():
+                safety = child(self.config.directory("backups"), "prefix-prerestore-" + uuid.uuid4().hex)
+                os.replace(target, safety)
+            needed = sum(p.stat().st_size for p in source.rglob("*") if p.is_file() and not p.is_symlink())
+            if shutil.disk_usage(self.root).free < needed + RESERVE:
+                if safety:
+                    os.replace(safety, target)
+                raise AppError("Insufficient space to restore")
+            try:
+                shutil.copytree(source, target, symlinks=True)
+                self.db.put("prefixes", ident, marker)
+                health = self.check(ident)
+                if not health["healthy"]:
+                    raise AppError("Restored prefix failed its health check: " + "; ".join(health["issues"]))
+            except BaseException:
+                if target.exists():
+                    shutil.rmtree(target)
+                if safety:
+                    os.replace(safety, target)
+                if current:
+                    self.db.put("prefixes", ident, current)
+                raise
+            self.db.put("events", uuid.uuid4().hex, {"operation": "prefix restored", "game_id": ident, "from": backup_id, "previous": safety.name if safety else None})
+            return dict(preview, applied=True, previous_prefix_backup=str(safety) if safety else None, health=health["healthy"])
+
+    def export_metadata(self, ident):
+        record = self.db.get("prefixes", ident)
+        if not record:
+            raise AppError("No isolated prefix for this game")
+        keys = ("game_id", "directory", "requested_architecture", "detected_architecture", "wine_version", "state", "verified_at", "recovered_at", "instance_id")
+        return {"schema": 1, "prefix": {k: record.get(k) for k in keys}, "environment": record.get("environment") or {}, "backups": self.backups(ident)}
+
     def remove(self, ident, purge=False):
         with self.lock():
             path = self.path(ident)

@@ -163,6 +163,36 @@ def make_parser():
             cmd.add_argument("--yes", action="store_true")
         if name == "remove":
             cmd.add_argument("--purge", action="store_true")
+    for name in ["inspect", "backups", "export"]:
+        psub.add_parser(name).add_argument("game")
+    restore = psub.add_parser("restore", help="Restore a prefix backup (preview unless --apply)")
+    restore.add_argument("game")
+    restore.add_argument("backup")
+    restore.add_argument("--apply", action="store_true")
+    wine = sub.add_parser("wine", help="Wine runtimes, diagnostics and per-game settings")
+    wsub = wine.add_subparsers(dest="operation", required=True)
+    wdoctor = wsub.add_parser("doctor")
+    wdoctor.add_argument("--json", action="store_true")
+    wsub.add_parser("runtimes")
+    wreg = wsub.add_parser("register-runtime", help="Register an already-installed wine binary by path")
+    wreg.add_argument("name")
+    wreg.add_argument("path")
+    wsub.add_parser("status").add_argument("game")
+    wlogs = wsub.add_parser("logs")
+    wlogs.add_argument("game")
+    wlogs.add_argument("--lines", type=int, default=60)
+    wlogs.add_argument("--raw", action="store_true", help="Do not redact private paths and addresses")
+    wcfg = wsub.add_parser("config", help="Per-game Wine settings (stored; applied at launch)")
+    wcfg.add_argument("game")
+    wcfg.add_argument("--runtime")
+    wcfg.add_argument("--windows-version")
+    wcfg.add_argument("--dll-override", action="append", default=[], metavar="DLL=MODE")
+    wcfg.add_argument("--env", action="append", default=[])
+    wcfg.add_argument("--virtual-desktop", help="WIDTHxHEIGHT, or 'off'")
+    wcfg.add_argument("--debug", help="WINEDEBUG channels, or 'off'")
+    wcfg.add_argument("--clear", action="store_true")
+    wapply = wsub.add_parser("apply-version", help="Run winecfg to set the saved Windows version in the prefix")
+    wapply.add_argument("game")
     launch = sub.add_parser("launch", help="Explicitly launch a selected installed executable")
     launch.add_argument("game")
     launch.add_argument(
@@ -366,6 +396,98 @@ def install_command(args, config, db):
     emit(report)
     if report["status"] in {"awaiting_approval", "awaiting_selection", "plan_only"}:
         print("Installation paused: {}. {}".format(report["status"], " ".join(report["next"])), file=sys.stderr)
+
+
+def wine_command(args, config, db):
+    from .diagnostics.redact import redact
+    from .runtime import winetools
+
+    op = args.operation
+    if op == "doctor":
+        report = winetools.doctor(config, db)
+        if args.json:
+            return emit(report)
+        for item in report["checks"]:
+            print(clean("[{:4}] {}: {}".format(item["status"].upper(), item["check"], item["detail"])))
+            if item["fix"]:
+                print(clean("       fix: " + item["fix"]))
+        print(clean("Summary: " + json.dumps(report["summary"])))
+        return
+    if op == "runtimes":
+        return emit({k: v.to_dict() for k, v in winetools.runtimes(config).items()})
+    if op == "register-runtime":
+        winetools.register_runtime(config, args.name, args.path)
+        print("Runtime registered (path recorded only; nothing was downloaded or run)")
+        return
+    if op == "status":
+        return emit(winetools.status(config, db, args.game))
+    if op == "logs":
+        launches = sorted(
+            (v for v in db.mapping("launches").values() if v.get("game_id") == args.game),
+            key=lambda v: v.get("started_at", ""),
+        )
+        if not launches:
+            raise AppError("No launches recorded for this game")
+        record = launches[-1]
+        path = Path(record["log"])
+        if not path.is_file():
+            raise AppError("Launch log file is missing")
+        size = path.stat().st_size
+        with path.open("rb") as stream:
+            stream.seek(max(0, size - 256 * 1024))
+            text = stream.read().decode("utf-8", errors="replace")
+        text = "\n".join(text.splitlines()[-max(1, min(args.lines, 2000)):])
+        if not args.raw:
+            text = redact(text, [(record.get("prefix_path"), "<prefix>")])
+        print("# launch {} state={} exit={}{}".format(record["id"], record["state"], record.get("exit_code"), "" if args.raw else " (redacted)"))
+        print(clean(text))
+        return
+    if op == "config":
+        if args.clear:
+            winetools.clear_settings(db, args.game)
+            print("Per-game Wine settings cleared")
+            return
+        updates = {}
+        if args.runtime:
+            updates["runtime"] = args.runtime
+        if args.windows_version:
+            updates["windows_version"] = args.windows_version
+        if args.dll_override:
+            overrides = dict(winetools.get_settings(db, args.game).get("dll_overrides") or {})
+            for item in args.dll_override:
+                if "=" not in item:
+                    raise AppError("DLL overrides look like dxgi=n,b")
+                dll, mode = item.split("=", 1)
+                overrides[dll] = mode
+            updates["dll_overrides"] = overrides
+        if args.env:
+            updates["env"] = dict(winetools.get_settings(db, args.game).get("env") or {}, **parse_env(args.env))
+        if args.virtual_desktop is not None:
+            updates["virtual_desktop"] = None if args.virtual_desktop == "off" else args.virtual_desktop
+        if args.debug is not None:
+            updates["debug"] = None if args.debug == "off" else args.debug
+        return emit(winetools.save_settings(db, args.game, updates) if updates else winetools.get_settings(db, args.game))
+    if op == "apply-version":
+        import subprocess
+
+        settings = winetools.get_settings(db, args.game)
+        if not settings.get("windows_version"):
+            raise AppError("No windows_version saved; use 'wine config GAME --windows-version win7'")
+        from .runtime.prefixes import PrefixManager
+
+        health = PrefixManager(config, db).check(args.game)
+        if not health["healthy"]:
+            raise AppError("Prefix is not healthy; run prefix check first")
+        env = dict(__import__("arch_games.runtime.environment", fromlist=["environment"]).environment(), WINEPREFIX=health["path"])
+        known = winetools.runtimes(config)
+        runtime = known.get(settings.get("runtime", "system"))
+        if not runtime:
+            raise AppError("Wine runtime unavailable")
+        result = subprocess.run([runtime.wine, "winecfg", "-v", settings["windows_version"]], env=env, capture_output=True, text=True, timeout=120)
+        if result.returncode:
+            raise AppError("winecfg failed; run 'wine logs' or retry with a graphical session")
+        print("Windows version set to " + settings["windows_version"])
+        return
 
 
 def alias_command(args, config, db):
@@ -624,6 +746,10 @@ def dispatch(args, config, db):
         args.key = resolve(args.key or "")
     if action == "alias":
         return alias_command(args, config, db)
+    if action == "wine":
+        if args.operation in {"status", "logs", "config", "apply-version"}:
+            args.game = resolve(args.game)
+        return wine_command(args, config, db)
     if action == "discover":
         return discover_command(args, config, db)
     if action == "launcher":
@@ -765,6 +891,20 @@ def dispatch(args, config, db):
             return emit(manager.recover(args.game, args.timeout))
         if args.operation == "backup":
             return emit(manager.backup(args.game))
+        if args.operation == "inspect":
+            from .runtime.winetools import inspect_prefix
+
+            return emit(inspect_prefix(config, db, args.game))
+        if args.operation == "backups":
+            return emit(manager.backups(args.game))
+        if args.operation == "export":
+            return emit(manager.export_metadata(args.game))
+        if args.operation == "restore":
+            if args.apply and interactive(args):
+                question = "Replace the prefix with backup {}? The current one is kept. [y/N] ".format(clean(args.backup))
+                if input(question).strip().lower() != "y":
+                    return
+            return emit(manager.restore(args.game, args.backup, apply=args.apply))
         if (
             not args.yes
             and input(

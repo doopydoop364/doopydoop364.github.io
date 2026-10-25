@@ -18,7 +18,7 @@ see `VALIDATION.md` and the real-VM checklist in `TESTING_3.md` once written.
 - [x] P2 Friendly names, aliases, ambiguity handling across commands
 - [x] P3 Executable discovery, classification, launcher registration, `launch NAME` (fixture-verified; real Undertale launch NOT verified)
 - [x] P4 One-command `install` workflow with persisted, resumable job state (fixture-verified; no real installer run)
-- [ ] P5 Wine: doctor/status/logs, per-game settings, runtime abstraction, prefix backup/restore/export
+- [x] P5 Wine: doctor/status/logs, per-game settings, runtime abstraction, prefix backup/restore/export (fixture-verified)
 - [ ] P6 Audio doctor/devices/test
 - [ ] P7 Remote audio architecture decision + prototype (host bridge)
 - [ ] P8 Remote audio integration, auth, isolation, browser page
@@ -67,3 +67,12 @@ register, test, finish; job in namespace `install_jobs`). CLI: `install GAME [--
 Executable discovery also detects extension-less executable ELF files. Launch records gain `purpose`.
 Limits: GOG multi-part `.bin` handling relies on extraction placing parts next to the setup exe; Inno silent flags
 are opt-in and only offered with an Inno Setup marker; no real Wine installer was executed.
+
+### Phase 5 (done; 158 tests pass)
+`runtime/winetools.py` (runtime discovery + layout classification wow64/multilib/win32-only/win64-only from library
+dirs, `wine doctor/runtimes/register-runtime/status/logs/config/apply-version`, per-game settings in namespace
+`game_settings` merged into launch plans), `diagnostics/redact.py`, `PrefixManager.backups/restore/export_metadata`,
+`prefix inspect/backups/restore/export`. Prefix recovery code untouched. Restore keeps the replaced prefix as a backup
+and rolls back if the restored prefix fails its health check. Tests: test_wine_tools (14).
+Limits: layout detection is evidence from file layout, not an execution probe; `apply-version` runs `winecfg -v` and is
+unverified without real Wine; missing-DLL detection is a heuristic.

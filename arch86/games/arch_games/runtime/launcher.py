@@ -117,7 +117,7 @@ class Launcher:
             argv[0] = str(Path(runner).resolve())
         else:
             raise AppError("Unknown launch method")
-        return {
+        plan = {
             "argv": argv,
             "cwd": str(Path(cwd).resolve() if cwd else path.parent),
             "env": env,
@@ -128,6 +128,13 @@ class Launcher:
             "archive_sha256": manifest.get("archive_sha256") if manifest else None,
             "prefix": prefix or game_id if selected == "wine" else None,
         }
+        if selected == "wine":
+            from . import winetools
+
+            settings = winetools.get_settings(self.db, game_id)
+            known = winetools.runtimes(self.config, which=self.which) if settings.get("runtime") else {}
+            winetools.apply_to_plan(settings, plan, known)
+        return plan
 
     def plan_registered(self, game_id, extra_arguments=(), extra_env=None):
         """Plan from the persisted, user-confirmed launcher; never guesses an executable."""
