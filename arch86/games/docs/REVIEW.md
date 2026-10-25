@@ -29,9 +29,10 @@ files during the sequential phases and the integration pass.
   unrelated launcher protection and removal retaining all user data.
 
 Current suite: 77 tests, passing on x86-64 Python 3.10.20 and 3.14.8. No game was
-executed. Native 32-bit Python, real Pacman transactions, real Wine/graphics,
-private GameVault services and hosted CI execution remain external validation
-items. See VALIDATION.md; mocks do not satisfy those acceptance checks.
+executed. Native 32-bit Python, real Pacman transactions, real Wine/graphics and
+private GameVault services remain external validation items. Hosted GitHub Actions
+subsequently passed for the phase-17 code on both Python versions; see the final
+record in DEVELOPMENT_PROGRESS.md. See VALIDATION.md; mocks do not satisfy those acceptance checks.
 
 The public Arch Wiki and Arch Linux 32 website returned access-control pages
 when consulted during this pass. No attempt was made to bypass them. Wine

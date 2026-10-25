@@ -154,3 +154,33 @@ Review: inspected new and modified source, input validation and backward compati
 Validation: full accumulated unittest suite, compileall and git diff --check passed.
 Limitations: Live VMs and private GameVault server are not available; fixture results are not hardware verification.
 Git commit: `arch-games-2-phase-17`. Next: final delivery and real-VM validation.
+
+## Final verification record
+
+All 17 phase commits are published on feature/arch-games-2. Hosted GitHub Actions
+passed for the phase-17 code commit on Python 3.10 and 3.14:
+https://github.com/doopydoop364/doopydoop364.github.io/actions/runs/40227423391 .
+The final suite contains 77 passing tests. Wheel installation, all aliases, bundled
+catalog and gallery search/details were additionally validated. Live VMs, actual
+Wine/gameplay and the private server remain unverified; nothing was deployed or
+merged into main.
+
+| Phase | Git commit |
+|---|---|
+| 1 | `828f872512c96c936cc58f1bbfc6e79319d74bd7` |
+| 2 | `8b93fc29e213667030b885ad3eca7e22373dc0cc` |
+| 3 | `68eba38b761afea717901eb130358164dde326e4` |
+| 4 | `1a4336317af4d77fe0f668e1a688b0f93676858e` |
+| 5 | `2b909aec239d1f6e8f3187edd00d4e17b733a45b` |
+| 6 | `0f39514a25e41b1216564d88b4533ad98990a9b9` |
+| 7 | `b0759a35fc27d13a456029139540af4cff1d3271` |
+| 8 | `7c6bb3f6e7cd726b2c6f1170c84851956f4b559b` |
+| 9 | `177893f6d9c9b861c557b16662587bdda5c9a898` |
+| 10 | `1955ec45da2c345a5aaba4c09ec310d3a3787347` |
+| 11 | `9529033db2365fec6cef4e18e3eed3aada8a8dfc` |
+| 12 | `f67831e24665f8ed24940cdd7e459627858c21d9` |
+| 13 | `c920a7c010722f404e430dd152e2029c0cdf4354` |
+| 14 | `ca9e71ab19fce917fcddb1728da4b4bcc623d59f` |
+| 15 | `1ea85d4a4113847a8007362ffe9278abbe785654` |
+| 16 | `452e41e070d3fcf7a372ed73217951980cdfa10b` |
+| 17 | `88058cee4bd436a2a2263025e76f0cb43701fa9b` |

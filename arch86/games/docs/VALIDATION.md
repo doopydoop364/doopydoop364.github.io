@@ -44,3 +44,9 @@ Unverified external dependencies: private GameVault version/auth, private networ
 real Pacman transactions, 32-bit Python ABI and libarchive, display stacks and Wine,
 real games and practical graphics performance. They are acceptance prerequisites,
 not features claimed to have passed a mocked hardware test.
+
+Hosted CI passed the Python 3.10/3.14 matrix for the complete phase-17 implementation:
+https://github.com/doopydoop364/doopydoop364.github.io/actions/runs/40227423391 .
+Local final runs: 77/77 tests on Python 3.10.20 and 77/77 on Python 3.14.8.
+Ruff, formatting, compileall, shell syntax, installed wheel/aliases/catalog and
+browser search/details checks passed. No actual game execution was used.
