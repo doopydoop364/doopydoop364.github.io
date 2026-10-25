@@ -91,3 +91,12 @@ Review: inspected new and modified source, input validation and backward compati
 Validation: full accumulated unittest suite, compileall and git diff --check passed.
 Limitations: Live VMs and private GameVault server are not available; fixture results are not hardware verification.
 Git commit: `arch-games-2-phase-10`. Next: phase 11.
+
+## Phase 11: Wine prefix manager
+
+Added explicit win32/win64 isolated prefix creation using installed wineboot, measured registry architecture, health/version/dependency reporting, logs, backups and confirmed removal. Disables Wine mono/gecko bootstrap downloads during creation; no unofficial runtime installers. Forty-five tests pass with mocked Wine, architecture rejection and retained failure diagnostics.
+
+Review: inspected new and modified source, input validation and backward compatibility.
+Validation: full accumulated unittest suite, compileall and git diff --check passed.
+Limitations: Live VMs and private GameVault server are not available; fixture results are not hardware verification.
+Git commit: `arch-games-2-phase-11`. Next: phase 12.

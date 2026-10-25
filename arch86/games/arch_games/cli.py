@@ -96,6 +96,18 @@ def make_parser():
     retry = dsub.add_parser("retry")
     retry.add_argument("id")
     retry.add_argument("--restart", action="store_true")
+    prefix = sub.add_parser("prefix", help="Isolated per-game Wine environments")
+    psub = prefix.add_subparsers(dest="operation", required=True)
+    psub.add_parser("list")
+    for name in ["create", "check", "backup", "remove"]:
+        cmd = psub.add_parser(name)
+        cmd.add_argument("game")
+        if name == "create":
+            cmd.add_argument("--arch", choices=["win32", "win64"], default="win64")
+        if name in {"create", "remove"}:
+            cmd.add_argument("--yes", action="store_true")
+        if name == "remove":
+            cmd.add_argument("--purge", action="store_true")
     settings = sub.add_parser("settings", help="Show or change local preferences")
     settings.add_argument("operation", choices=["show", "set"], nargs="?", default="show")
     settings.add_argument("key", nargs="?")
@@ -215,6 +227,18 @@ def dispatch(args, config, db):
         return settings_command(args, config)
     if action == "analyze":
         return analyze_command(args, config, db)
+    if action == "prefix":
+        from .runtime.prefixes import PrefixManager
+        manager = PrefixManager(config, db)
+        if args.operation == "list":
+            return emit([row["value"] for row in db.all("prefixes")])
+        if args.operation == "check":
+            return emit(manager.check(args.game))
+        if args.operation == "backup":
+            return emit(manager.backup(args.game))
+        if not args.yes and input("{} isolated Wine prefix for {}? [y/N] ".format(args.operation.title(), clean(args.game))).lower() != "y":
+            return
+        return emit(manager.create(args.game, args.arch) if args.operation == "create" else manager.remove(args.game, args.purge))
     if action == "download":
         from .downloads.manager import DownloadManager
         manager = DownloadManager(config, db)
