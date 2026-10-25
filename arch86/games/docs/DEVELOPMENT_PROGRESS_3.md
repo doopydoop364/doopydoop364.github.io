@@ -1,0 +1,46 @@
+# Arch Games 3.0 development progress
+
+Branch: `feature/arch-games-3` (based on `feature/arch-games-2` @ a5537c5). Never merged to `main`.
+Baseline (Phase 0): 103 tests pass, Python 3.14.8 (`python3 -m unittest discover -s tests`).
+This file is the resume point for a future session: update it after every phase.
+
+## Verification honesty
+
+Everything below is **automated fixture verification** unless a line says otherwise. The development host
+(CachyOS, no Wine installed) has no access to the Arch64/Arch86 VMs, the private GameVault, PipeWire
+routing or noVNC. Real Undertale launching, real Wine runs and real browser audio are **not** verified here;
+see `VALIDATION.md` and the real-VM checklist in `TESTING_3.md` once written.
+
+## Requirement checklist (status: [ ] todo, [~] partial, [x] done+tested)
+
+- [x] P0 Discovery, baseline, architecture and migration plan
+- [ ] P1 Shared services + versioned DB migrations (backup, idempotent, 2.0 fixtures)
+- [ ] P2 Friendly names, aliases, ambiguity handling across commands
+- [ ] P3 Executable discovery, classification, launcher registration, `launch NAME`
+- [ ] P4 One-command `install` workflow with persisted, resumable job state
+- [ ] P5 Wine: doctor/status/logs, per-game settings, runtime abstraction, prefix backup/restore/export
+- [ ] P6 Audio doctor/devices/test
+- [ ] P7 Remote audio architecture decision + prototype (host bridge)
+- [ ] P8 Remote audio integration, auth, isolation, browser page
+- [ ] P9 TUI redesign
+- [ ] P10 Optional web GUI + API
+- [ ] P11 Compatibility evidence model, machine profiles
+- [ ] P12 History, playtime, performance, benchmark
+- [ ] P13 Saves and backups
+- [ ] P14 Multi-machine, favorites, tags, notes, recommendations, search
+- [ ] P15 Hardening / security review
+- [ ] P16 Integration validation
+- [ ] P17 Docs and release prep (all 14 documents in the spec)
+- [ ] P18 Requirement-by-requirement audit
+
+## Phase log
+
+### Phase 0 — discovery (done)
+Findings: ~6.3k lines, stdlib only. State is a generic SQLite key/value table `records(namespace,key,value,updated)`
+(namespaces: installs, prefixes, launches, analysis, feedback, downloads, library, catalog_identity, events,
+install_transactions). Game IDs: `pacman:*`, `local:*`, `gamevault:ID[@VERSION]`. Prefixes are keyed by game ID.
+`launch GAME EXECUTABLE` requires an explicit path inside a managed install dir (or `--allow-external`).
+Weaknesses: no schema version, no name resolution (`Library.find` is exact ID/package), launcher has no persisted
+executable, `dispatch()` in cli.py is one 300-line function, Wine launch needs a manifest root.
+Strategy: keep the KV store (existing data stays valid), add a `schema_meta` table and numbered migrations,
+add new namespaces rather than altering old ones, add `identity/`, `runtime/discovery.py`, `runtime/launchers.py`.
