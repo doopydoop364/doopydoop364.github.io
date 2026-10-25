@@ -26,7 +26,7 @@ see `VALIDATION.md` and the real-VM checklist in `TESTING_3.md` once written.
 - [x] P10 Optional web GUI + API
 - [x] P11 Compatibility evidence model, machine profiles
 - [x] P12 History, playtime, performance, benchmark (FPS only via real mechanisms, never verified on hardware)
-- [ ] P13 Saves and backups
+- [x] P13 Saves and backups
 - [ ] P14 Multi-machine, favorites, tags, notes, recommendations, search
 - [ ] P15 Hardening / security review
 - [ ] P16 Integration validation
@@ -119,3 +119,10 @@ Test change: bulk query bound raised 8 -> 12 (still constant for 2000 games).
 `notes`, `tag add|remove|list`; library applies custom titles (resolver matches them). Sampler reads /proc for the process tree (CPU as percent of one core, RSS, lifetime,
 optional first-window time via xdotool); FPS comes only from MangoHud logs or Mesa Gallium HUD dumps and otherwise is reported unavailable. Tests: tests/test_performance_history.py (16,
 including a real busy-loop process sampled via /proc). NOT verified: MangoHud/Gallium HUD with a real game, xdotool window detection, Wine process-tree sampling.
+
+### Phase 13 (done; 266 tests pass)
+`saves/service.py` + CLI `saves discover|paths|add|remove|backup|list|show|verify|restore`. Discovery looks in Wine prefix user profiles, conventional Linux data dirs and the game folder, never
+follows symlinks (Wine links Documents to the real home), registers nothing automatically; manual folders are validated (no `/`, home, system dirs, symlinks). Backups are hash-verified, atomic (staging
+dir + rename), 0700, size/file-count bounded; restore previews first, needs `--apply --yes`, refuses damaged backups/symlink targets, makes a `pre-restore` safety backup, never deletes. Hooks make a save backup
+before `install --reinstall`, `prefix restore --apply` and `prefix remove` (when save folders are registered; otherwise it says nothing could be protected). Tests: tests/test_saves.py (13).
+Limits: registry-stored saves are not covered; no cross-machine sync (by design in 3.0).

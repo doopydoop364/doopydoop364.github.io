@@ -238,6 +238,26 @@ def make_parser():
     cexp.add_argument("--output", help="File to write (default: stdout)")
     cimp = csub2.add_parser("import")
     cimp.add_argument("file")
+    saves = sub.add_parser("saves", help="Find, back up and restore game saves (local only)")
+    ssub = saves.add_subparsers(dest="operation", required=True)
+    for name in ["discover", "paths", "list", "backup"]:
+        sp = ssub.add_parser(name)
+        sp.add_argument("game")
+        if name == "backup":
+            sp.add_argument("--reason", default="manual", choices=["manual", "pre-reinstall", "pre-prefix-change"])
+    for name in ["add", "remove"]:
+        sp = ssub.add_parser(name, help="Register / unregister a save folder you choose")
+        sp.add_argument("game")
+        sp.add_argument("path")
+    for name in ["show", "verify"]:
+        sp = ssub.add_parser(name)
+        sp.add_argument("game")
+        sp.add_argument("backup")
+    srestore = ssub.add_parser("restore", help="Preview (default) or apply a restore")
+    srestore.add_argument("game")
+    srestore.add_argument("backup")
+    srestore.add_argument("--apply", action="store_true")
+    srestore.add_argument("--yes", action="store_true")
     favorite = sub.add_parser("favorite", help="Mark favorite games")
     fsub2 = favorite.add_subparsers(dest="operation", required=True)
     fsub2.add_parser("list")
@@ -865,11 +885,46 @@ def dispatch(args, config, db):
                 return text
             raise
 
-    if action in {"details", "install", "uninstall", "launch", "prefix", "feedback", "catalog", "download", "discover", "launcher", "info", "repair", "performance", "benchmark"} and getattr(args, "game", None):
+    if action in {"details", "install", "uninstall", "launch", "prefix", "feedback", "catalog", "download", "discover", "launcher", "info", "repair", "performance", "benchmark", "saves"} and getattr(args, "game", None):
         if not (action == "launcher" and args.operation == "list"):
             args.game = resolve(args.game)
     if action == "settings" and args.operation == "game":
         args.key = resolve(args.key or "")
+    if action == "saves":
+        from .saves.service import SaveManager
+
+        manager = SaveManager(config, db)
+        game_id = resolve(args.game)
+        say = lambda t: print(clean(t), file=sys.stderr)  # noqa: E731
+        op = args.operation
+        if op == "discover":
+            found = manager.discover(game_id, catalog_title(config, db, game_id))
+            return emit({"candidates": found, "note": "Nothing is registered automatically. Register a folder with: saves add GAME PATH. Registry-stored saves are not covered."})
+        if op == "paths":
+            return emit(manager.paths(game_id))
+        if op == "add":
+            return emit(manager.add_path(game_id, args.path))
+        if op == "remove":
+            manager.remove_path(game_id, args.path)
+            print("Save folder unregistered (files untouched)")
+            return
+        if op == "backup":
+            return emit(manager.backup(game_id, args.reason, title=catalog_title(config, db, game_id), say=say))
+        if op == "list":
+            return emit(manager.list_backups(game_id))
+        if op == "show":
+            return emit(manager.manifest(game_id, args.backup)[0])
+        if op == "verify":
+            return emit(manager.verify(game_id, args.backup))
+        if op == "restore":
+            if args.apply and not args.yes:
+                if not interactive(args):
+                    raise AppError("Restoring replaces files; add --yes to confirm (preview first without --apply)")
+                preview = manager.preview(game_id, args.backup)
+                print("{} file(s) would be overwritten, {} are new.".format(preview["overwrites"], preview["new"]), file=sys.stderr)
+                if input("Restore now? A safety backup of current saves is made first. [y/N] ").strip().lower() != "y":
+                    return
+            return emit(manager.restore(game_id, args.backup, confirm=args.apply, say=say))
     if action == "machine":
         from .compatibility import intelligence
 
@@ -1142,6 +1197,10 @@ def dispatch(args, config, db):
             return emit(manager.backups(args.game))
         if args.operation == "export":
             return emit(manager.export_metadata(args.game))
+        if args.operation == "restore" and args.apply:
+            from .saves.service import SaveManager
+
+            SaveManager(config, db).backup_if_known(args.game, "pre-prefix-change", say=lambda t: print(clean(t), file=sys.stderr))
         if args.operation == "restore":
             if args.apply and interactive(args):
                 question = "Replace the prefix with backup {}? The current one is kept. [y/N] ".format(clean(args.backup))
@@ -1156,6 +1215,10 @@ def dispatch(args, config, db):
             != "y"
         ):
             return
+        if args.operation == "remove":
+            from .saves.service import SaveManager
+
+            SaveManager(config, db).backup_if_known(args.game, "pre-prefix-change", say=lambda t: print(clean(t), file=sys.stderr))
         return emit(
             manager.create(args.game, args.arch, timeout=args.timeout)
             if args.operation == "create"

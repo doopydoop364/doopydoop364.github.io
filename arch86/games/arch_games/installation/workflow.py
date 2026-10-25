@@ -418,6 +418,10 @@ class Workflow:
         if self.db.get("installs", gid) and not o.reinstall:
             self.say("Already extracted; reusing the managed directory.")
             return
+        if o.reinstall:
+            from ..saves.service import SaveManager
+
+            SaveManager(self.config, self.db).backup_if_known(gid, "pre-reinstall", say=self.say)
         self.say("Extracting into a managed directory (nothing is executed)...")
         self.installer.install(game, self._file(job), reinstall=o.reinstall and bool(self.db.get("installs", gid)), timeout=o.timeout, progress=self.say)
         job["created_install"] = True
