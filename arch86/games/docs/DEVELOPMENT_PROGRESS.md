@@ -109,3 +109,12 @@ Review: inspected new and modified source, input validation and backward compati
 Validation: full accumulated unittest suite, compileall and git diff --check passed.
 Limitations: Live VMs and private GameVault server are not available; fixture results are not hardware verification.
 Git commit: `arch-games-2-phase-12`. Next: phase 13.
+
+## Phase 13: Compatibility feedback
+
+Implemented local works/issues/slow/fails/untested attestations with machine, Wine, graphics, runtime, notes and date. Successful verification requires completed launch or explicit manual attestation. Installation changes, executable changes and subsequent launches invalidate old effective results. Fifty-three tests pass; no feedback is uploaded.
+
+Review: inspected new and modified source, input validation and backward compatibility.
+Validation: full accumulated unittest suite, compileall and git diff --check passed.
+Limitations: Live VMs and private GameVault server are not available; fixture results are not hardware verification.
+Git commit: `arch-games-2-phase-13`. Next: phase 14.

@@ -29,11 +29,8 @@ class Library:
     def __init__(self, config, db, profile=None):
         self.config, self.db = config, db
         self.profile = profile if profile is not None else system_profile(config.data_dir)
-        for capability in ["win32", "win64", "wow64"]:
-            key = "wine_" + capability
-            if key in config.values:
-                self.profile.setdefault("wine", {})[capability] = config.values[key]
-                self.profile["wine"].setdefault("evidence", []).append("User-asserted capability: " + capability)
+        from ..platform import apply_overrides
+        apply_overrides(self.profile, config)
         self.games, self.reports, self.warnings = [], {}, []
         self.sync = {}
 
@@ -58,7 +55,14 @@ class Library:
         for game in self.games:
             game.installed = game.installed or game.id in installs
             local = self.db.get("analysis", game.id, {})
-            feedback = self.db.get("feedback", game.id)
+            from ..compatibility.feedback import current_feedback
+            feedback = current_feedback(self.db, game.id)
+            if feedback and feedback.get("binary") and not local.get("executable"):
+                local = dict(local, executable=feedback["binary"])
+            if game.id in installs and not local.get("executable"):
+                binaries = installs[game.id].get("executables", [])
+                if len(binaries) == 1:
+                    local = dict(local, executable=binaries[0]["executable"])
             self.reports[game.id] = analyze(game, self.profile, local.get("executable"),
                                            local.get("requirements"), feedback).to_dict()
         return self

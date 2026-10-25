@@ -44,3 +44,15 @@ def system_profile(path=None, run=None, which=None, environ=None):
             "runtimes": {name: finder(name) for name in ["dosbox", "dosbox-staging", "proton", "steam"]},
             "evidence": ["Kernel architecture (CPU execution mode); /proc/meminfo; filesystem free space"],
             "uncertainties": ["CPU hardware may support more modes than the running kernel; no execution probe performed"]}
+
+
+def apply_overrides(profile, config):
+    for capability in ["win32", "win64", "wow64"]:
+        key = "wine_" + capability
+        if key in config.values:
+            profile.setdefault("wine", {})[capability] = config.values[key]
+            message = "User-asserted capability: " + capability
+            evidence = profile["wine"].setdefault("evidence", [])
+            if message not in evidence:
+                evidence.append(message)
+    return profile

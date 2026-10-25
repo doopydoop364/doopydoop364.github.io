@@ -11,7 +11,7 @@ from ..compatibility.analyzer import fingerprint
 from ..compatibility.executables import inspect_file
 from ..config import AppError
 from ..downloads.verification import sha256
-from ..platform import system_profile
+from ..platform import apply_overrides, system_profile
 from .environment import environment
 from .installer import child
 from .prefixes import PrefixManager
@@ -98,8 +98,12 @@ class Launcher:
         ident = uuid.uuid4().hex
         path = self.config.directory("logs") / ("launch-" + ident + ".log")
         record = {k: plan[k] for k in ["game_id", "executable", "executable_sha256", "archive_sha256", "method", "prefix", "argv"]}
+        import hashlib
+        import json
+        runtime = {"argv": plan["argv"], "env": plan["env"], "prefix": plan["prefix"]}
+        record["runtime_fingerprint"] = hashlib.sha256(json.dumps(runtime, sort_keys=True).encode()).hexdigest()
         record.update(id=ident, started_at=datetime.now(timezone.utc).isoformat(),
-                      state="running", log=str(path), fingerprint=fingerprint(system_profile(self.config.data_dir)))
+                      state="running", log=str(path), fingerprint=fingerprint(apply_overrides(system_profile(self.config.data_dir), self.config)))
         self.db.put("launches", ident, record)
         process = None
         try:

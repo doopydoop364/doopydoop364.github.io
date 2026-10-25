@@ -119,6 +119,15 @@ def make_parser():
     launch.add_argument("--allow-external", action="store_true")
     launch.add_argument("--dry-run", action="store_true")
     sub.add_parser("history", help="Local launch history")
+    feedback = sub.add_parser("feedback", help="Local user compatibility results; never uploaded")
+    fsub = feedback.add_subparsers(dest="operation", required=True)
+    fsub.add_parser("list")
+    save = fsub.add_parser("set")
+    save.add_argument("game")
+    save.add_argument("result", choices=["works", "issues", "slow", "fails", "untested"])
+    save.add_argument("--notes", default="")
+    save.add_argument("--launch")
+    save.add_argument("--manual", action="store_true")
     settings = sub.add_parser("settings", help="Show or change local preferences")
     settings.add_argument("operation", choices=["show", "set"], nargs="?", default="show")
     settings.add_argument("key", nargs="?")
@@ -238,6 +247,13 @@ def dispatch(args, config, db):
         return settings_command(args, config)
     if action == "analyze":
         return analyze_command(args, config, db)
+    if action == "feedback":
+        from .compatibility.feedback import save_feedback
+        from .platform import apply_overrides
+        if args.operation == "list":
+            return emit([row["value"] for row in db.all("feedback")])
+        return emit(save_feedback(db, args.game, args.result, apply_overrides(system_profile(config.data_dir), config),
+                                  args.notes, args.launch, args.manual))
     if action == "history":
         return emit([row["value"] for row in db.all("launches")])
     if action == "launch":
