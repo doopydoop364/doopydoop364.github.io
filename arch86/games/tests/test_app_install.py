@@ -32,7 +32,7 @@ class AppInstallTests(unittest.TestCase):
             result = subprocess.run(
                 [str(self.installer.bin / name), "--version"], capture_output=True, text=True
             )
-            self.assertEqual(result.stdout.strip(), "2.0.0")
+            self.assertEqual(result.stdout.strip(), "3.0.0")
         self.installer.uninstall()
         self.assertTrue(settings.is_file())
         self.assertTrue((legacy / "catalog.txt").is_file())
@@ -77,3 +77,31 @@ class AppInstallTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout.strip(), "-")
+
+
+class InstalledLayoutTests(AppInstallTests):
+    """The installed copy must contain every optional component, and work from the installed launcher."""
+
+    def test_installed_copy_ships_new_components_and_runs(self):
+        self.installer.install(ROOT)
+        app = self.installer.app
+        for rel in ("arch_games/ui/web/static/app.js", "arch_games/ui/web/static/index.html", "arch_games/remote/static/player.js",
+                    "arch_games/remote/static/wrapper.html", "host-tools/audio-bridge/make-pyz.sh", "tools/bench_startup.py", "docs/REMOTE_AUDIO_3.md"):
+            self.assertTrue((app / rel).is_file(), rel)
+        manifest = json.loads((app / ".installed.json").read_text())
+        self.assertEqual(manifest["version"], "3.0.0")
+        self.assertIn("arch_games/remote/static/player.js", manifest["files"])
+        state = self.home / "st"
+        for argv in (["--version"], ["--state-dir", str(state), "audio", "devices"], ["--state-dir", str(state), "alias", "list"], ["--state-dir", str(state), "machine", "show"]):
+            result = subprocess.run([str(self.installer.bin / "arch-games"), *argv], capture_output=True, text=True, timeout=60)
+            self.assertEqual(result.returncode, 0, (argv, result.stderr))
+
+    def test_upgrade_from_2_0_launcher_and_data_is_preserved(self):
+        self.installer.bin.mkdir(parents=True)
+        old = self.installer.bin / "arch-games"
+        old.write_text("#!/bin/sh\n# Managed by Arch Games 2.0\nexec python3 -B /old/arch86-games.py \"$@\"\n")
+        self.installer.config.mkdir(parents=True, exist_ok=True)
+        (self.installer.config / "settings.json").write_text('{"show_all": true, "server_url": "https://gv.example"}')
+        self.installer.install(ROOT)
+        self.assertIn("Arch Games 3.0", (self.installer.bin / "arch-games").read_text())
+        self.assertEqual(json.loads((self.installer.config / "settings.json").read_text())["server_url"], "https://gv.example")

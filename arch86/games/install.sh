@@ -25,7 +25,7 @@ from urllib.request import urlopen
 if sys.version_info < (3, 10):
     sys.exit('Python 3.10+ is required')
 parser=argparse.ArgumentParser(add_help=False)
-parser.add_argument('--ref', default='feature/arch-games-2')
+parser.add_argument('--ref', default='feature/arch-games-3')
 parser.add_argument('--source')
 args,rest=parser.parse_known_args()
 if args.source:

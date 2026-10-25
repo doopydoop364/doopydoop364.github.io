@@ -1,112 +1,47 @@
-# Arch Games 2.0
+# Arch Games 3.0
 
-A local-first game catalog, compatibility analyzer, download manager, archive
-installer and launcher for **Arch Linux 32 (i686/Pentium4)** and **Arch Linux
-x86-64**. Python 3.10+, no third-party Python runtime packages. Pacman browsing
-works without Wine or GameVault. Standard terminal, KMSCON, SSH and tmux are
-supported; the browser gallery binds only to localhost.
+A personal, local-first Linux game manager for **Arch Linux (x86-64)** and **Arch Linux 32 (i686)**: library, GameVault downloads, one-command Windows installs under Wine,
+executable discovery, per-machine compatibility evidence, audio diagnostics with optional browser audio for VMs, saves and backups, an interactive terminal UI and an
+optional web GUI. Python 3.10+, no third-party runtime packages. Terminal first: nothing needs a web server, a desktop session is needed only to *play* games.
 
-## Install
+> **Validation status (read this).** The automated suite (fixtures, loopback GameVault, fake Wine scripts, real sockets, real curses over a pty) passes on Python 3.14 and 3.13; Python 3.10 has not been run.
+> No real Wine run, real game, VM, PipeWire routing, Tailscale link or Safari session has been verified by the developer. Undertale GOG 1.08 working on Arch64 under Wine 11.20 is *your* report; 3.0 is designed
+> around it but has not been re-run there. See [TESTING_3.md](docs/TESTING_3.md) for the exact real-machine plan.
 
-Run as your ordinary VM user on either target:
-
+## Install / upgrade
 ```sh
-curl -fsSL https://raw.githubusercontent.com/doopydoop364/doopydoop364.github.io/feature/arch-games-2/arch86/games/install.sh | sh
-```
-
-This intentionally executes the application installer you requested. For a
-reviewable local installation, clone the development branch, inspect the source,
-and run `sh arch86/games/install.sh`. To pin a reviewed revision, use that SHA in
-the raw URL and pass `sh -s -- --ref SHA`. Nothing installs Wine, graphics tools or
-system packages automatically. The installer checks Pacman and Python, stages and
-smoke-tests application files, migrates a legacy custom catalog and preserves
-settings. Application upgrades retain the previous app version. All three aliases
-work: `arch-games`, `arch86-games`, `arch64-games`.
-
-```sh
+git clone -b feature/arch-games-3 https://github.com/doopydoop364/doopydoop364.github.io.git
+sh doopydoop364.github.io/arch86/games/install.sh
 arch-games doctor
-arch-games                    # keyboard menu; --plain is available via menu
-arch-games list --source pacman
-arch-games web                # open http://127.0.0.1:8765 inside the VM
 ```
+2.0 data is kept; the database is backed up and migrated on first run ([MIGRATION_2_TO_3.md](docs/MIGRATION_2_TO_3.md)). Nothing installs Wine or system packages for you ([INSTALLATION_3.md](docs/INSTALLATION_3.md)).
 
-If necessary: Fish `fish_add_path ~/.local/bin`, or add `~/.local/bin` to your
-shell's PATH. The local installation is under `${XDG_DATA_HOME:-~/.local/share}/arch-games/app`.
-No pip downloads are needed. Optional archive operations require system
-`libarchive`; other optional tools are reported by `arch-games doctor`.
-
-## Connect and play
-
+## Everyday use
 ```sh
-arch-games gamevault connect --url https://your-private-server.example
-arch-games gamevault status
-arch-games gamevault list
-arch-games list --source gamevault --all
-arch-games download add 'gamevault:12@34'
-arch-games download run
-arch-games download list
-arch-games install 'gamevault:12@34' --archive '/path/from/download/list/Game.zip'
-arch-games details 'gamevault:12@34' --offline
-arch-games prefix create 'gamevault:12@34' --arch win64
-arch-games launch 'gamevault:12@34' 'Game/Game.exe' --dry-run
-arch-games launch 'gamevault:12@34' 'Game/Game.exe'
-arch-games feedback set 'gamevault:12@34' works --notes 'Played for 20 minutes'
+arch-games                               # interactive manager (Library, Installed, GameVault, Downloads, Compatibility, Wine, Audio, Settings, Diagnostics)
+arch-games alias add undertale gamevault:32
+arch-games install undertale             # reuse/download, verify, inspect, plan; asks before anything runs
+arch-games install undertale --yes --approve-installer
+arch-games discover undertale --register 1   # confirm which .exe starts the game
+arch-games launch undertale              # right prefix, right folder, no manual WINEPREFIX
+arch-games compat set undertale --gameplay works --audio works   # your confirmation, this machine only
+arch-games doctor                        # application, database, storage, Wine, audio, remote audio, web
+arch-games web                           # optional GUI on 127.0.0.1:8765 (token login)
 ```
+Names, IDs, aliases and fuzzy matches all work; ambiguity is never guessed. Full list: [CLI_3.md](docs/CLI_3.md).
 
-IDs with `@` select a specific server version. Check your actual IDs and paths;
-these are examples, not assertions that the games exist. Installation only
-extracts files. Windows setup programs still need an explicit user launch with
-Wine; the app never runs them automatically. See the Wine guide before choosing
-win32 versus win64, particularly on modern WoW64 installations.
-
-## Compatibility is evidence, not a promise
-
-**Verified Working** means a local user attested to success for the recorded
-configuration. **Promising** is a reasoned, unverified prediction.
-**Experimental** has significant uncertainty. **Unlikely** indicates resource or
-performance concerns. **Unsupported** identifies a concrete blocker for the
-selected method. **Unknown** lacks meaningful evidence. Architecture, runtime,
-graphics, memory, dependencies, evidence and uncertainties are reported
-separately. A successful process exit does not verify gameplay.
-
-GameVault's public API has no executable architecture, system requirements,
-checksums or remote archive inspection. Such data is never invented. Use
-`analyze` on an already-local file, with an explicit member selection for archive
-evidence. Unknown GameVault entries are hidden by default in the combined view;
-`--all` exposes them with explanations. Pacman entries are filtered by this
-machine's configured repositories, which establishes availability, not gameplay.
+## What is new in 3.0 (details in [RELEASE_NOTES_3.md](docs/RELEASE_NOTES_3.md))
+Friendly names and aliases · executable discovery and persisted launchers · resumable guided installs with separate installer approval · Wine runtime/layout awareness, doctor/status/logs,
+per-game settings, prefix backup/restore/export · layered audio diagnostics · optional per-VM browser audio ([REMOTE_AUDIO_3.md](docs/REMOTE_AUDIO_3.md)) · redesigned TUI and optional web GUI
+([WEB_GUI_3.md](docs/WEB_GUI_3.md)) · evidence facts and per-machine classification ([COMPATIBILITY_3.md](docs/COMPATIBILITY_3.md)) · history, playtime, optional monitoring and explicit benchmarks ·
+save discovery/backup/restore · favorites, tags, notes, search, explainable recommendations, private sync bundles · download priorities, pause/resume and dedupe · versioned database migrations.
 
 ## Guides
-
-- [Complete CLI reference](docs/CLI.md)
-- [GameVault connection and offline use](docs/GAMEVAULT.md)
-- [Wine and prefixes](docs/WINE.md)
-- [Terminal and visual interfaces](docs/INTERFACES.md)
-- [Compatibility methodology](docs/COMPATIBILITY.md)
-- [Troubleshooting and target VMs](docs/TROUBLESHOOTING.md)
-- [Security boundaries](docs/SECURITY.md) and [archive limits](docs/ARCHIVE_SECURITY.md)
-- [Architecture and baseline audit](docs/ARCHITECTURE.md)
-- [API contract and version uncertainties](docs/GAMEVAULT_API.md)
-- [Developer guide](docs/DEVELOPMENT.md) and [phase progress](docs/DEVELOPMENT_PROGRESS.md)
-- [Integration validation and real-VM checklist](docs/VALIDATION.md)
+[Architecture](docs/ARCHITECTURE_3.md) · [Installation](docs/INSTALLATION_3.md) · [CLI](docs/CLI_3.md) · [Wine](docs/WINE_3.md) · [Audio](docs/AUDIO_3.md) · [Remote audio](docs/REMOTE_AUDIO_3.md) ·
+[Web GUI](docs/WEB_GUI_3.md) · [Compatibility](docs/COMPATIBILITY_3.md) · [Migration](docs/MIGRATION_2_TO_3.md) · [Testing](docs/TESTING_3.md) · [Troubleshooting](docs/TROUBLESHOOTING_3.md) ·
+[Security (incl. 3.0 review)](docs/SECURITY.md) · [Progress and requirement checklist](docs/DEVELOPMENT_PROGRESS_3.md).
+2.0 references that still apply: [GameVault](docs/GAMEVAULT.md), [API notes](docs/GAMEVAULT_API.md), [archive limits](docs/ARCHIVE_SECURITY.md), [prefix recovery](docs/PREFIX_RECOVERY_FIX.md), [methodology](docs/COMPATIBILITY.md).
 
 ## Remove
-
-```sh
-sh ~/.local/share/arch-games/app/uninstall.sh
-```
-
-With a custom XDG data location, use its corresponding app path. Removal deletes
-application files and managed aliases while retaining credentials, configuration,
-downloads, installed games, prefixes, backups and the old legacy installation.
-Use `gamevault disconnect` first if you also want local tokens removed. Game
-`uninstall ID` and `prefix remove ID` move files to backups; `--purge` requests
-permanent deletion of those selected files. No server files or data are deleted.
-
-## Validation status
-
-Automated fixture and loopback tests are the primary evidence. No private server,
-real Arch86/Arch64 VM, hardware graphics stack, real game or real Wine execution
-has been verified during this development. The full 103-test suite passes on Python 3.10.20 and 3.14.8; a wheel installation and gallery interaction were checked separately. Read the validation matrix before
-production use. The branch is for review and VM acceptance testing; no main
-branch merge or production deployment is performed.
+`sh ~/.local/share/arch-games/app/uninstall.sh` removes the application and aliases; settings, credentials, library, downloads, prefixes, backups and saves are retained. `uninstall ID` and `prefix remove ID`
+move files to backups; `--purge` deletes only the selected files. No server data is ever deleted.

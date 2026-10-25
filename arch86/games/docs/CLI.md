@@ -1,3 +1,5 @@
+> **2.0 reference.** Arch Games 3.0 extends this; see CLI_3.md for the current behaviour. The text below is kept unchanged.
+
 # Complete CLI reference
 
 Global --state-dir PATH precedes the command and isolates all state. --debug shows bounded, redacted archive-worker diagnostics. --help is available at every level. --yes bypasses the application confirmation for the requested install/removal/prefix operation; Pacman retains its own confirmation. Prefix recover revalidates existing files and updates only application metadata. Launch and download add/run are explicit user actions.

@@ -30,7 +30,7 @@ see `VALIDATION.md` and the real-VM checklist in `TESTING_3.md` once written.
 - [x] P14 Multi-machine, favorites, tags, notes, recommendations, search (+ download priorities/pause/dedupe)
 - [x] P15 Hardening / security review
 - [x] P16 Integration validation
-- [ ] P17 Docs and release prep (all 14 documents in the spec)
+- [x] P17 Docs and release prep (all 14 documents in the spec)
 - [ ] P18 Requirement-by-requirement audit
 
 ## Phase log
@@ -145,3 +145,8 @@ tests/test_e2e_undertale.py: loopback GameVault -> `gamevault list` -> alias -> 
 (Likely compatible -> Verified working only after `compat set`) -> DB integrity. The E2E found a real bug (download verification label treated as a dict) - fixed.
 tools/audio_bridge_selftest.py: serves a synthetic tone so the user can check browser/network/token on their own machines. Browser audio harness automated pieces: tests/test_remote_audio.py; real-browser run
 described in REMOTE_AUDIO_3.md. Fake Wine only records calls: this is NOT a Wine or gameplay test.
+
+### Phase 17 (done; 296 tests pass)
+Version 3.0.0 (package, pyproject, installer smoke test); installer ships docs/host-tools/tools and accepts 2.0 launchers; wheel built offline and checked for static assets; tests for installed layout and 2.0 upgrade.
+Docs written: README, ARCHITECTURE_3, INSTALLATION_3, CLI_3 (generated reference + sync test), WINE_3, AUDIO_3, REMOTE_AUDIO_3, WEB_GUI_3, COMPATIBILITY_3, MIGRATION_2_TO_3, TESTING_3 (incl. real-machine plan),
+TROUBLESHOOTING_3, RELEASE_NOTES_3, DEVELOPMENT_PROGRESS_3 (this file), SECURITY.md 3.0 section; 2.0 docs bannered.

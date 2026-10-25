@@ -1,3 +1,5 @@
+> **2.0 reference.** Arch Games 3.0 extends this; see COMPATIBILITY_3.md for the current behaviour. The text below is kept unchanged.
+
 # Compatibility methodology
 
 No single numerical score is used. Reports contain status/confidence,

@@ -17,7 +17,9 @@ import sys
 import tempfile
 import uuid
 
-MARKER = "# Managed by Arch Games 2.0"
+VERSION = "3.0.0"
+MARKER = "# Managed by Arch Games 3.0"
+LEGACY_MARKERS = ("# Managed by Arch Games 2.0",)
 
 
 def write_json(path, value):
@@ -48,7 +50,7 @@ def managed_launcher(path):
     if not path.is_file() or path.stat().st_size > 8192:
         return False
     text = path.read_text(errors="replace")
-    return MARKER in text or "arch86-games.py" in text and "exec python3 " in text
+    return MARKER in text or any(m in text for m in LEGACY_MARKERS) or "arch86-games.py" in text and "exec python3 " in text
 
 
 def installation_lock(function):
@@ -121,8 +123,9 @@ class ApplicationInstall:
             for name in ["arch86-games.py", "catalog.txt", "install_app.py", "uninstall.sh"]:
                 if (source / name).is_file():
                     shutil.copy2(source / name, stage / name)
-            if (source / "docs").is_dir():
-                shutil.copytree(source / "docs", stage / "docs")
+            for folder in ("docs", "host-tools", "tools"):
+                if (source / folder).is_dir():
+                    shutil.copytree(source / folder, stage / folder, ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "*.pyz"))
             if (source / "README.md").is_file():
                 shutil.copy2(source / "README.md", stage / "README.md")
             bundled = stage / "arch_games/catalog.txt"
@@ -133,7 +136,7 @@ class ApplicationInstall:
                 stage / ".installed.json",
                 {
                     "schema": 1,
-                    "version": "2.0.0",
+                    "version": VERSION,
                     "files": files,
                     "architecture": platform.machine(),
                     "python": platform.python_version(),
@@ -145,7 +148,7 @@ class ApplicationInstall:
                 text=True,
                 timeout=15,
             )
-            if result.returncode or result.stdout.strip() != "2.0.0":
+            if result.returncode or result.stdout.strip() != VERSION:
                 raise RuntimeError("Staged application failed integrity smoke test")
             legacy = self.home / ".local/share/arch86-games/catalog.txt"
             migrated = self.config / "catalog.txt"
@@ -245,7 +248,8 @@ def main():
         }
         optional["libarchive"] = bool(ctypes.util.find_library("archive"))
         print("Optional capabilities: " + json.dumps(optional))
-        print("Launch: arch-games | Gallery: arch-games web | Fish: fish_add_path ~/.local/bin")
+        print("Launch: arch-games | Web GUI (optional): arch-games web | Fish: fish_add_path ~/.local/bin")
+        print("Upgrading from 2.0: your data is kept; the database migrates on first run after writing a backup to data/db-backups. Check with: arch-games doctor")
 
 
 if __name__ == "__main__":

@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "arch-games"
-version = "2.0.0"
-description = "A conservative, local-first Arch Linux game library"
+version = "3.0.0"
+description = "A local-first Arch Linux game manager: library, Wine, installs, audio and optional web GUI"
 requires-python = ">=3.10"
 dependencies = []
 
@@ -18,7 +18,7 @@ arch64-games = "arch_games.cli:main"
 include = ["arch_games*"]
 
 [tool.setuptools.package-data]
-arch_games = ["catalog.txt", "remote/static/*"]
+arch_games = ["catalog.txt", "remote/static/*", "ui/web/static/*"]
 
 [tool.ruff]
 target-version = "py310"

@@ -1,3 +1,5 @@
+> **2.0 reference.** Arch Games 3.0 extends this; see WINE_3.md for the current behaviour. The text below is kept unchanged.
+
 # Wine setup and isolated prefixes
 
 Browsing never needs Wine. Review packages available for your own Arch or Arch

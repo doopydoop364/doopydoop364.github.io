@@ -43,3 +43,17 @@ class BaselineTests(unittest.TestCase):
                 importlib.import_module(entry.name)
         root = Path(__file__).parents[1]
         self.assertEqual((root / "catalog.txt").read_bytes(), (root / "arch_games/catalog.txt").read_bytes())
+
+
+class DocsInSyncTests(unittest.TestCase):
+    def test_cli_reference_is_generated_from_the_parser(self):
+        import importlib.util
+        from pathlib import Path
+
+        root = Path(__file__).parents[1]
+        spec = importlib.util.spec_from_file_location("gen_cli_reference", root / "tools" / "gen_cli_reference.py")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        text = (root / "docs" / "CLI_3.md").read_text()
+        block = text.split(module.BEGIN)[1].split(module.END)[0].strip()
+        self.assertEqual(block, module.reference().strip(), "run: python3 tools/gen_cli_reference.py --write")

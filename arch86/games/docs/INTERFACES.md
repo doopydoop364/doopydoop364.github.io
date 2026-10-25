@@ -1,3 +1,5 @@
+> **2.0 reference.** Arch Games 3.0 extends this; see ARCHITECTURE_3.md and WEB_GUI_3.md for the current behaviour. The text below is kept unchanged.
+
 # Terminal and visual interfaces
 
 `arch-games` opens eight sections: catalog, GameVault, compatible, installed,
