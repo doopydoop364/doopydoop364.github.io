@@ -19,7 +19,7 @@ see `VALIDATION.md` and the real-VM checklist in `TESTING_3.md` once written.
 - [x] P3 Executable discovery, classification, launcher registration, `launch NAME` (fixture-verified; real Undertale launch NOT verified)
 - [x] P4 One-command `install` workflow with persisted, resumable job state (fixture-verified; no real installer run)
 - [x] P5 Wine: doctor/status/logs, per-game settings, runtime abstraction, prefix backup/restore/export (fixture-verified)
-- [ ] P6 Audio doctor/devices/test
+- [x] P6 Audio doctor/devices/test
 - [ ] P7 Remote audio architecture decision + prototype (host bridge)
 - [ ] P8 Remote audio integration, auth, isolation, browser page
 - [ ] P9 TUI redesign
@@ -76,3 +76,11 @@ dirs, `wine doctor/runtimes/register-runtime/status/logs/config/apply-version`, 
 and rolls back if the restored prefix fails its health check. Tests: test_wine_tools (14).
 Limits: layout detection is evidence from file layout, not an execution probe; `apply-version` runs `winecfg -v` and is
 unverified without real Wine; missing-DLL detection is a heuristic.
+
+### Phase 6 (done; 172 tests pass)
+`audio/probe.py` (read-only probes with injectable root/runner), `audio/diagnose.py` (layers: guest-device,
+guest-audio-server, output-sink, wine-driver, session-environment; verdicts working / muted / no-audio-device /
+device-without-server / server-without-sinks / server-only), `audio/tone.py` (bounded <=10 s sine, paplay/pw-play/aplay,
+unprivileged). CLI `audio doctor [--json] | devices | test`. QEMU advice is printed only; nothing on the host is changed.
+Real check: `audio doctor` and `audio test` were run on this CachyOS development host (verdict working; the test played a
+0.3 s tone through PipeWire). Not verified: the Arch64/Arch86 guests themselves.

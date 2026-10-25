@@ -193,6 +193,14 @@ def make_parser():
     wcfg.add_argument("--clear", action="store_true")
     wapply = wsub.add_parser("apply-version", help="Run winecfg to set the saved Windows version in the prefix")
     wapply.add_argument("game")
+    audio = sub.add_parser("audio", help="Audio diagnostics and a bounded sound test")
+    usub = audio.add_subparsers(dest="operation", required=True)
+    udoctor = usub.add_parser("doctor")
+    udoctor.add_argument("--json", action="store_true")
+    usub.add_parser("devices")
+    utest = usub.add_parser("test")
+    utest.add_argument("--seconds", type=float, default=1.5)
+    utest.add_argument("--backend", choices=["auto", "pulse", "alsa"], default="auto")
     launch = sub.add_parser("launch", help="Explicitly launch a selected installed executable")
     launch.add_argument("game")
     launch.add_argument(
@@ -490,6 +498,37 @@ def wine_command(args, config, db):
         return
 
 
+def audio_command(args, config, db):
+    from .audio import diagnose as audio
+    from .audio.tone import run_test
+    from .runtime.discovery import prefix_path
+
+    if args.operation == "devices":
+        return emit(audio.devices())
+    if args.operation == "test":
+        result = run_test(seconds=args.seconds, backend=args.backend)
+        emit(result)
+        if not result["played"]:
+            raise AppError("Sound test failed; run 'audio doctor'")
+        return
+    regs = {}
+    for row in db.all("prefixes"):
+        path = prefix_path(config, db, row["key"])
+        if path:
+            regs[row["key"]] = path / "user.reg"
+    report = audio.diagnose(prefix_user_regs=regs)
+    if args.json:
+        return emit(report)
+    print("Audio verdict: " + report["verdict"])
+    virt = report["virtualization"]
+    print("Environment: " + ("virtual machine ({})".format(virt["kind"]) if virt["virtualized"] else "physical machine / not detected as VM"))
+    for item in report["layers"]:
+        print(clean("[{:4}] {}: {}".format(item["status"].upper(), item["layer"], item["detail"])))
+        if item["fix"]:
+            for line in item["fix"].splitlines():
+                print(clean("       " + line))
+
+
 def alias_command(args, config, db):
     from .identity.resolver import add_alias, remove_alias
     from .identity.service import build_resolver
@@ -746,6 +785,8 @@ def dispatch(args, config, db):
         args.key = resolve(args.key or "")
     if action == "alias":
         return alias_command(args, config, db)
+    if action == "audio":
+        return audio_command(args, config, db)
     if action == "wine":
         if args.operation in {"status", "logs", "config", "apply-version"}:
             args.game = resolve(args.game)
