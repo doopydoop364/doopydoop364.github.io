@@ -201,3 +201,22 @@ containing this entry (`git log --all --grep='Fix native archive worker startup'
 Validation for this fix: 88/88 tests pass on Python 3.14.8 and 88/88 on Python
 3.10.20, including all 77 existing tests and 11 new regression cases. Ruff lint,
 formatting, compileall, shell syntax and git diff whitespace checks pass.
+
+## Wine prefix initialization and recovery fix
+
+Reproduced delayed registry persistence with a real child-process handshake and
+confirmed that old code remained failed after health became true. Added a bounded
+prefix-specific wineserver wait and stable file verification; structured health,
+exit/status/stage diagnostics; metadata-only prefix recover; safe repeated create
+for healthy failed/creating records; and actionable launcher/terminal guidance.
+Existing prefix data, registry files, settings, logs and instance identity remain.
+No Wine process is killed or existing prefix reinitialized automatically. Old
+remove-and-recreate troubleshooting advice was replaced with recovery guidance.
+
+Validation: all 103 tests pass on Python 3.14.8 and Python 3.10.20, including 15 new
+lifecycle regressions and all 88 existing cases. Ruff, formatting, compileall,
+shell syntax and diff checks pass. Read-only Arch64 diagnosis was attempted with
+strict host-key checking but SSH authentication was denied; no remote commands
+or live configuration changes occurred. See PREFIX_RECOVERY_FIX.md for the exact
+reproduction, source references, preservation review and remaining limitations.
+Commit reference: `git log --grep='Synchronize Wine prefix initialization'`.

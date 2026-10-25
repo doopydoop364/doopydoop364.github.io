@@ -240,7 +240,8 @@ def main():
     print(json.dumps(result, indent=2))
     if not args.uninstall:
         optional = {
-            name: bool(shutil.which(name)) for name in ["wine", "wineboot", "dosbox", "glxinfo", "vulkaninfo"]
+            name: bool(shutil.which(name))
+            for name in ["wine", "wineboot", "wineserver", "dosbox", "glxinfo", "vulkaninfo"]
         }
         optional["libarchive"] = bool(ctypes.util.find_library("archive"))
         print("Optional capabilities: " + json.dumps(optional))

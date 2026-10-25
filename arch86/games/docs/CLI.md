@@ -1,6 +1,6 @@
 # Complete CLI reference
 
-Global --state-dir PATH precedes the command and isolates all state. --debug shows bounded, redacted archive-worker diagnostics. --help is available at every level. --yes bypasses the application confirmation for the requested install/removal/prefix operation; Pacman retains its own confirmation. Launch and download add/run are explicit user actions.
+Global --state-dir PATH precedes the command and isolates all state. --debug shows bounded, redacted archive-worker diagnostics. --help is available at every level. --yes bypasses the application confirmation for the requested install/removal/prefix operation; Pacman retains its own confirmation. Prefix recover revalidates existing files and updates only application metadata. Launch and download add/run are explicit user actions.
 
 ## arch-games
 
@@ -404,10 +404,10 @@ options:
 ## arch-games prefix
 
 ```text
-usage: arch-games prefix [-h] {list,create,check,backup,remove} ...
+usage: arch-games prefix [-h] {list,create,check,backup,remove,recover} ...
 
 positional arguments:
-  {list,create,check,backup,remove}
+  {list,create,check,backup,remove,recover}
 
 options:
   -h, --help            show this help message and exit
@@ -425,7 +425,9 @@ options:
 ## arch-games prefix create
 
 ```text
-usage: arch-games prefix create [-h] [--arch {win32,win64}] [--yes] game
+usage: arch-games prefix create [-h] [--arch {win32,win64}]
+                                [--timeout TIMEOUT] [--yes]
+                                game
 
 positional arguments:
   game
@@ -433,6 +435,8 @@ positional arguments:
 options:
   -h, --help            show this help message and exit
   --arch {win32,win64}
+  --timeout TIMEOUT     Initialization deadline (after version probe), default
+                        120 seconds
   --yes
 ```
 
@@ -472,6 +476,19 @@ options:
   -h, --help  show this help message and exit
   --yes
   --purge
+```
+
+## arch-games prefix recover
+
+```text
+usage: arch-games prefix recover [-h] [--timeout TIMEOUT] game
+
+positional arguments:
+  game
+
+options:
+  -h, --help         show this help message and exit
+  --timeout TIMEOUT  Wait for stable existing prefix files, default 5 seconds
 ```
 
 ## arch-games launch

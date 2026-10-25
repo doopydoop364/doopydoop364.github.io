@@ -45,3 +45,42 @@ Use an explicit advanced launch configuration if you intend to run those files.
 Software-rendered QEMU graphics are suitable for conservative experiments with
 lighter games; Wine being installed does not imply playable DirectX 3D. Vulkan is
 not assumed. DXVK/vkd3d installation and arbitrary DLL downloads are not automated.
+
+
+## Initialization synchronization and recovery
+
+New prefixes run wineboot once, then `wineserver -w` with that prefix's exact
+WINEPREFIX. The server wait is bounded at 30 seconds and the total initialization
+budget defaults to 120 seconds after the short version probe. Registry verification
+then polls for at most five seconds within the remaining budget, requiring two
+stable observations. `prefix create ID --timeout SECONDS` changes the total budget
+(1..600); no Wine process is killed or reinitialization retried automatically.
+
+`prefix check ID` reports structural health separately from the database state,
+including missing/unreadable files, registry headers and architecture mismatches.
+A pair of files merely existing does not establish a valid matching Wine registry.
+Gameplay and graphics/runtime functionality are outside this health check.
+
+If initial verification failed but initialization later finished:
+
+```sh
+arch-games prefix check gamevault:32
+arch-games prefix recover gamevault:32
+```
+
+Recovery requires stable readable Wine registry headers, matching requested
+architecture and a safe drive_c directory. It runs no Wine command and changes
+only Arch Games metadata, retaining instance ID, logs, failure details, environment,
+registry files, drive mappings, installed applications and saves. `--timeout N`
+allows up to 120 seconds waiting for existing files (default five). Repeating create
+for a failed/creating record with the same architecture performs this recovery;
+it does not overwrite the prefix. The launcher points healthy stale records to
+recover instead of presenting them as structurally incomplete.
+
+See [investigation and regression evidence](PREFIX_RECOVERY_FIX.md). Wine 11.20's
+[wineboot](https://github.com/wine-mirror/wine/blob/wine-11.20/programs/wineboot/wineboot.c)
+returns after its operation, while registry persistence is handled separately by
+[the server](https://github.com/wine-mirror/wine/blob/wine-11.20/server/registry.c).
+The server's [-w option](https://github.com/wine-mirror/wine/blob/wine-11.20/server/main.c)
+waits for the current server to terminate. These sources explain the synchronization
+choice; they do not establish the cause of an uninspected live VM failure.

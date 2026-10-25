@@ -158,9 +158,15 @@ class IntegrationTests(unittest.TestCase):
                         def wine(args, **kwargs):
                             if "--version" in args:
                                 return SimpleNamespace(returncode=0, stdout="wine-fixture")
+                            if args[0].endswith("wineserver"):
+                                return SimpleNamespace(returncode=0)
                             root = Path(kwargs["env"]["WINEPREFIX"])
-                            (root / "system.reg").write_text("#arch=" + kwargs["env"]["WINEARCH"])
-                            (root / "user.reg").touch()
+                            (root / "system.reg").write_text(
+                                "WINE REGISTRY Version 2\n#arch=" + kwargs["env"]["WINEARCH"] + "\n"
+                            )
+                            (root / "user.reg").write_text(
+                                "WINE REGISTRY Version 2\n#arch=" + kwargs["env"]["WINEARCH"] + "\n"
+                            )
                             (root / "drive_c").mkdir()
                             return SimpleNamespace(returncode=0)
 

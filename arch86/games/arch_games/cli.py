@@ -126,11 +126,20 @@ def make_parser():
     prefix = sub.add_parser("prefix", help="Isolated per-game Wine environments")
     psub = prefix.add_subparsers(dest="operation", required=True)
     psub.add_parser("list")
-    for name in ["create", "check", "backup", "remove"]:
+    for name in ["create", "check", "backup", "remove", "recover"]:
         cmd = psub.add_parser(name)
         cmd.add_argument("game")
         if name == "create":
             cmd.add_argument("--arch", choices=["win32", "win64"], default="win64")
+        if name in {"create", "recover"}:
+            cmd.add_argument(
+                "--timeout",
+                type=int,
+                default=120 if name == "create" else 5,
+                help="Initialization deadline (after version probe), default 120 seconds"
+                if name == "create"
+                else "Wait for stable existing prefix files, default 5 seconds",
+            )
         if name in {"create", "remove"}:
             cmd.add_argument("--yes", action="store_true")
         if name == "remove":
@@ -361,7 +370,15 @@ def dispatch(args, config, db):
                 "python": sys.version.split()[0],
                 "optional": {
                     name: bool(shutil.which(name))
-                    for name in ["pacman", "wine", "wineboot", "dosbox", "glxinfo", "vulkaninfo"]
+                    for name in [
+                        "pacman",
+                        "wine",
+                        "wineboot",
+                        "wineserver",
+                        "dosbox",
+                        "glxinfo",
+                        "vulkaninfo",
+                    ]
                 },
                 "libarchive": bool(ctypes.util.find_library("archive")),
                 "data_dir": str(config.data_dir),
@@ -449,6 +466,8 @@ def dispatch(args, config, db):
             return emit([row["value"] for row in db.all("prefixes")])
         if args.operation == "check":
             return emit(manager.check(args.game))
+        if args.operation == "recover":
+            return emit(manager.recover(args.game, args.timeout))
         if args.operation == "backup":
             return emit(manager.backup(args.game))
         if (
@@ -460,7 +479,7 @@ def dispatch(args, config, db):
         ):
             return
         return emit(
-            manager.create(args.game, args.arch)
+            manager.create(args.game, args.arch, timeout=args.timeout)
             if args.operation == "create"
             else manager.remove(args.game, args.purge)
         )

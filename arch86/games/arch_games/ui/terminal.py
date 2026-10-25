@@ -131,7 +131,7 @@ def menu(library, dispatch, plain=False, input_fn=input, output=print):
             prompts = {
                 4: "r run | retry ID | cancel ID | cleanup ID | Enter back: ",
                 5: "Enter to return: ",
-                6: "create ID win32|win64 | check ID | backup ID | remove ID | Enter back: ",
+                6: "create ID win32|win64 | check/recover/backup/remove ID | Enter back: ",
                 7: "connect | disconnect | set KEY VALUE | Enter back: ",
             }
             line = input_fn(prompts[selection]).strip()
@@ -168,7 +168,11 @@ def section_command(section, line):
             and not parts[1].startswith("-")
         ):
             return ["prefix", "create", parts[1], "--arch", parts[2]]
-        if len(parts) == 2 and parts[0] in {"check", "backup", "remove"} and not parts[1].startswith("-"):
+        if (
+            len(parts) == 2
+            and parts[0] in {"check", "backup", "remove", "recover"}
+            and not parts[1].startswith("-")
+        ):
             return ["prefix"] + parts
     if section == 7:
         if len(parts) == 1 and parts[0] in {"connect", "disconnect"}:

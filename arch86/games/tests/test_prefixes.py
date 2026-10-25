@@ -19,9 +19,11 @@ class PrefixTests(unittest.TestCase):
     def runner(self, args, **kwargs):
         if "--version" in args:
             return SimpleNamespace(returncode=0, stdout="wine-fixture\n")
+        if args[0].endswith("wineserver"):
+            return SimpleNamespace(returncode=0)
         path = Path(kwargs["env"]["WINEPREFIX"])
-        (path / "system.reg").write_text("#arch=" + kwargs["env"]["WINEARCH"])
-        (path / "user.reg").touch()
+        (path / "system.reg").write_text("WINE REGISTRY Version 2\n#arch=" + kwargs["env"]["WINEARCH"] + "\n")
+        (path / "user.reg").write_text("WINE REGISTRY Version 2\n#arch=" + kwargs["env"]["WINEARCH"] + "\n")
         (path / "drive_c").mkdir()
         return SimpleNamespace(returncode=0)
 

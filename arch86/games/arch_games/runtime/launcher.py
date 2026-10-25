@@ -78,8 +78,14 @@ class Launcher:
             manager = PrefixManager(self.config, self.db)
             ident = prefix or game_id
             health = manager.check(ident)
-            if not health["healthy"] or health["record"].get("state") != "ready":
-                raise AppError("Wine prefix is incomplete; run prefix check")
+            if not health["healthy"]:
+                raise AppError("Wine prefix is incomplete; run prefix check; existing files are retained")
+            if health["record"].get("state") != "ready":
+                raise AppError(
+                    "Wine prefix files are healthy but its saved state is {}; run arch-games prefix recover {}".format(
+                        health["record"].get("state", "unknown"), ident
+                    )
+                )
             if binary.bits == 64 and health["architecture"] == "win32":
                 raise AppError("PE32+ cannot run in a win32 prefix")
             prefix_env = environment(health["record"].get("environment"))

@@ -46,9 +46,16 @@ rename or rolls back incomplete staging. Previous game versions are retained und
 backups/. Uninstall without --purge retains a backup and does not reclaim its space.
 Application upgrades have their own recovery journal and app.previous directory.
 
-**Wine prefix failed:** `prefix check ID` and local logs identify a missing runtime,
-unsupported prefix architecture or incomplete registry. Remove the failed prefix
-explicitly before retrying. No DLL helper or privileged package installation runs.
+**Wine prefix failed:** run `prefix check ID` to see missing/invalid files, registry
+architecture and the saved lifecycle state. If the files are now healthy, run
+`prefix recover ID` to reverify and update only Arch Games metadata. Repeating
+`prefix create ID --arch SAME_ARCH` also recovers a healthy failed/creating record.
+Do not delete/recreate an existing prefix merely to clear a failed database state.
+New initialization waits for the prefix's wineserver and bounded stable-file
+verification. A timeout can leave background initialization to finish later; the
+prefix and log are retained. Mesa/OLE/RPC log messages alone are not a structural
+health verdict. Actual exit statuses, stages and health issues are recorded. No
+DLL helper or privileged package installation runs.
 
 **Launch failed:** first use --dry-run, inspect the executable member and selected
 prefix. `history` shows exit status and a private log. The launcher does not resolve
