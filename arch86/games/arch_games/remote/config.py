@@ -50,6 +50,13 @@ def validate_vm(name, vm):
 def load(path):
     path = Path(path)
     try:
+        info = path.lstat()
+        # capture_command in this file runs as you: nobody else may be able to edit it
+        if stat.S_ISLNK(info.st_mode) or info.st_uid != os.getuid() or info.st_mode & 0o022:
+            raise ConfigError("Bridge config must be a regular file owned by you and not group/world-writable")
+    except OSError:
+        pass
+    try:
         raw = json.loads(path.read_text())
     except (OSError, ValueError) as exc:
         raise ConfigError("Cannot read bridge config {}: {}".format(path, exc)) from None

@@ -143,6 +143,19 @@ class BackupRestoreTests(Base):
             self.manager.restore(GAME, m2["id"], confirm=True)
         self.assertEqual(outside.read_text(), "do not touch")
 
+    def test_manifest_cannot_redirect_restore_to_unregistered_folder(self):
+        m = self.manager.backup(GAME)
+        manifest_path = Path(m["location"]) / "manifest.json"
+        data = json.loads(manifest_path.read_text())
+        victim = self.home / ".ssh"
+        victim.mkdir()
+        (victim / "authorized_keys").write_text("original")
+        data["sources"][0]["path"] = str(victim)
+        manifest_path.write_text(json.dumps(data))
+        with self.assertRaises(AppError):
+            self.manager.restore(GAME, m["id"], confirm=True)
+        self.assertEqual((victim / "authorized_keys").read_text(), "original")
+
     def test_malicious_manifest_paths_rejected(self):
         m = self.manager.backup(GAME)
         manifest_path = Path(m["location"]) / "manifest.json"

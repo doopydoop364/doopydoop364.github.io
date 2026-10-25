@@ -285,7 +285,7 @@ class Api:
 
     def doctor(self, db):
         from ...diagnostics import doctor
-        return doctor.run(self.config, db, verbose=True)
+        return doctor.run(self.config, db, verbose=True, probe_graphics=False)
 
     def job(self, ident):
         job = self.jobs.get(str(ident)[:64])

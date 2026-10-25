@@ -7,9 +7,23 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
+import os
+
 from ..config import AppError, server_url
 
 KEY = "remote_audio"
+
+
+def token_file(config):
+    """Own file, so GameVault connect/disconnect (which rewrite credentials.json) never touch it."""
+    return config.config_dir / "remote-audio.token"
+
+
+def read_token(config):
+    path = token_file(config)
+    if path.is_symlink() or not path.is_file() or path.stat().st_mode & 0o077:
+        return None
+    return path.read_text().strip() or None
 
 
 class NoRedirect(HTTPRedirectHandler):
@@ -27,9 +41,13 @@ def configure(config, url, vm, token, allow_http=False):
         raise AppError("VM name required")
     if not token or len(token) < 24:
         raise AppError("Bridge token looks too short")
-    creds = config.credentials()
-    creds["remote_audio_token"] = token
-    config.save_credentials(creds)
+    path = token_file(config)
+    if path.is_symlink():
+        raise AppError("Token file must not be a symlink")
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW, 0o600)
+    with os.fdopen(fd, "w") as stream:
+        stream.write(token + "\n")
+    path.chmod(0o600)
     config.values[KEY] = {"enabled": True, "url": url, "vm": vm}
     config.save()
     return page_url(config)
@@ -38,9 +56,7 @@ def configure(config, url, vm, token, allow_http=False):
 def disable(config):
     config.values[KEY] = dict(settings(config), enabled=False)
     config.save()
-    creds = config.credentials()
-    if creds.pop("remote_audio_token", None) is not None:
-        config.save_credentials(creds)
+    token_file(config).unlink(missing_ok=True)
 
 
 def page_url(config):
@@ -55,7 +71,7 @@ def status(config, timeout=3):
     s = settings(config)
     if not s.get("enabled"):
         return {"enabled": False, "note": "Remote audio is off. Enable with 'audio remote configure'. See docs/REMOTE_AUDIO_3.md."}
-    token = config.credentials().get("remote_audio_token")
+    token = read_token(config)
     if not token:
         return {"enabled": True, "reachable": False, "error": "token missing; reconfigure"}
     request = Request(s["url"] + "/api/status", headers={"Authorization": "Bearer " + token})

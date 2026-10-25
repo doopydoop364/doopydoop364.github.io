@@ -197,6 +197,6 @@ class Provider:
     def rows_diagnostics(self, search, show_all):
         from ...diagnostics import doctor
 
-        report = doctor.run(self.config, self.db, verbose=True)
+        report = doctor.run(self.config, self.db, verbose=True, probe_graphics=False)
         return [Row(c["group"] + ":" + c["check"], "{}: {}".format(c["group"], c["check"]), c["status"].upper(), STATUS_TONE.get(c["status"], "dim"),
                     [(c["detail"], "normal")] + ([("Fix: " + c["fix"], "warn")] if c["fix"] else []), {"D": ("doctor", ["doctor", "--verbose"])}) for c in report["checks"]]

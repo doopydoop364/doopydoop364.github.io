@@ -188,7 +188,7 @@ def check_item(name, status, detail, fix=None):
     return {"check": name, "status": status, "detail": detail, "fix": fix}
 
 
-def doctor(config, db, run=subprocess.run, which=shutil.which, environ=None):
+def doctor(config, db, run=subprocess.run, which=shutil.which, environ=None, graphics=True):
     environ = os.environ if environ is None else environ
     host = architecture()
     items = []
@@ -207,10 +207,10 @@ def doctor(config, db, run=subprocess.run, which=shutil.which, environ=None):
             items.append(check_item("host-compat:" + name, "fail", "64-bit Wine build on a 32-bit system", "Use the i686 Wine package"))
     display = bool(environ.get("DISPLAY") or environ.get("WAYLAND_DISPLAY"))
     items.append(check_item("display", "ok" if display else "warn", "graphical session present" if display else "no DISPLAY/WAYLAND_DISPLAY: Windows games need X11 or Wayland", "Start i3/X or run through your VNC desktop"))
-    graphics = detect_graphics(run, environ)
-    if display:
-        renderer = graphics.get("renderer", "unknown")
-        items.append(check_item("graphics", "ok" if graphics.get("opengl") else "warn", "renderer: {}{}".format(renderer, " (software rendering)" if graphics.get("accelerated") is False else ""), "Install mesa-utils to measure OpenGL" if graphics.get("opengl") is None else None))
+    if display and graphics:  # glxinfo/vulkaninfo/lspci take ~0.5 s: skipped by quick checks
+        info = detect_graphics(run, environ)
+        renderer = info.get("renderer", "unknown")
+        items.append(check_item("graphics", "ok" if info.get("opengl") else "warn", "renderer: {}{}".format(renderer, " (software rendering)" if info.get("accelerated") is False else ""), "Install mesa-utils to measure OpenGL" if info.get("opengl") is None else None))
     prefix_issues = 0
     from .prefixes import PrefixManager
 

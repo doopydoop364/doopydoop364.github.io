@@ -28,7 +28,7 @@ see `VALIDATION.md` and the real-VM checklist in `TESTING_3.md` once written.
 - [x] P12 History, playtime, performance, benchmark (FPS only via real mechanisms, never verified on hardware)
 - [x] P13 Saves and backups
 - [x] P14 Multi-machine, favorites, tags, notes, recommendations, search (+ download priorities/pause/dedupe)
-- [ ] P15 Hardening / security review
+- [x] P15 Hardening / security review
 - [ ] P16 Integration validation
 - [ ] P17 Docs and release prep (all 14 documents in the spec)
 - [ ] P18 Requirement-by-requirement audit
@@ -132,3 +132,9 @@ Limits: registry-stored saves are not covered; no cross-machine sync (by design 
 titles, interests, own compat records, install metadata without paths; last-writer-wins by row timestamp; alias repoint needs --prefer-remote), CLI `search`, `recommend`, `interests`, `sync export|import`.
 Download management (spec part 15): priorities (`download add --priority`, `download priority`), `download pause` (keeps the partial; retry resumes), completed-archive reuse (`add` returns the existing job unless `--force`;
 behaviour change vs 2.0 — one legacy test now passes `force=True`), `download dedupe [--apply]` (hard-links identical archives, deletes nothing). Web: pause button. Tests: tests/test_library_features.py (8), tests/test_downloads.py (+5).
+
+### Phase 15 (done; 287 tests pass on Python 3.14.8 and 3.13.14)
+Security review recorded in docs/SECURITY.md ("Arch Games 3.0 security review"), 5 findings fixed. New: tests/test_failure_recovery.py (6: corrupt DB untouched, Ctrl-C during installer,
+missing Wine during prefix creation, corrupt archive, killed download resumed, failed launch status), tools/bench_startup.py. Performance: `doctor` was 689 ms vs 85 ms in 2.0 because of
+graphics probes; quick `doctor` now skips them (161 ms; `--verbose` keeps them); `--version` 68 -> 81 ms, `list --source pacman` 845 -> 876 ms (median of 5, this CachyOS host, Python 3.14.8).
+Python 3.10: no interpreter available locally; static check (`ast.parse(feature_version=(3,10))` + grep for 3.11+ APIs) is clean but 3.10 has NOT been run.

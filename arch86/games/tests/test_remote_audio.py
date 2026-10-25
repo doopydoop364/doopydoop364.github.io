@@ -387,9 +387,13 @@ class GuestSideTests(unittest.TestCase):
         url = remote.configure(self.config, "http://100.64.0.5:8787", "arch64", "x" * 40, allow_http=True)
         self.assertEqual(url, "http://100.64.0.5:8787/wrapper/arch64/")
         self.assertNotIn("x" * 40, json.dumps(self.config.values))
-        self.assertEqual(oct(self.config.secrets.stat().st_mode & 0o777), "0o600")
+        self.assertEqual(oct(remote.token_file(self.config).stat().st_mode & 0o777), "0o600")
+        self.config.save_credentials({"api_key": "gv"})  # GameVault reconnect rewrites credentials.json ...
+        self.assertEqual(remote.read_token(self.config), "x" * 40)  # ... without losing the bridge token
+        self.config.disconnect()
+        self.assertEqual(remote.read_token(self.config), "x" * 40)
         remote.disable(self.config)
-        self.assertNotIn("remote_audio_token", self.config.credentials())
+        self.assertIsNone(remote.read_token(self.config))
         self.assertFalse(remote.status(self.config)["enabled"])
 
     def test_http_requires_flag_and_short_token_refused(self):
@@ -411,7 +415,7 @@ class GuestSideTests(unittest.TestCase):
             try:
                 remote.configure(self.config, "http://127.0.0.1:%d" % port, "arch64", TOKEN, allow_http=True)
                 good = await asyncio.get_running_loop().run_in_executor(None, remote.status, self.config)
-                self.config.save_credentials(dict(self.config.credentials(), remote_audio_token="w" * 40))
+                remote.token_file(self.config).write_text("w" * 40 + "\n")
                 bad = await asyncio.get_running_loop().run_in_executor(None, remote.status, self.config)
                 return good, bad
             finally:
@@ -428,3 +432,13 @@ class GuestSideTests(unittest.TestCase):
         remote.configure(self.config, "http://127.0.0.1:9", "arch64", "x" * 40, allow_http=True)
         result = remote.status(self.config, timeout=1)
         self.assertFalse(result["reachable"])
+
+
+class ConfigPermissionTests(unittest.TestCase):
+    def test_world_writable_config_refused(self):
+        with tempfile.TemporaryDirectory() as d:
+            path, _ = cfgmod.init(d, {"arch64": "arch64_vm"})
+            cfgmod.load(path)
+            path.chmod(0o666)
+            with self.assertRaises(cfgmod.ConfigError):
+                cfgmod.load(path)

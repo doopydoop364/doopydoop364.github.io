@@ -82,7 +82,8 @@ def launcher_checks(config, db):
     return out
 
 
-def run(config, db, verbose=False, probe=None):
+def run(config, db, verbose=False, probe_graphics=None):
+    """probe_graphics defaults to `verbose`: the graphics tools cost about half a second, so quick checks skip them."""
     from ..audio.diagnose import diagnose
     from ..runtime import winetools
 
@@ -94,7 +95,7 @@ def run(config, db, verbose=False, probe=None):
     # GameVault: configuration only; contacting the server is an explicit `gamevault status`
     server = config.values.get("server_url")
     items.append(item("gamevault", "configuration", "ok" if server and config.secrets.exists() else "info", "configured (server not contacted by doctor)" if server and config.secrets.exists() else "not configured (optional)", None if server else "arch-games gamevault connect"))
-    for row in winetools.doctor(config, db)["checks"]:
+    for row in winetools.doctor(config, db, graphics=verbose if probe_graphics is None else probe_graphics)["checks"]:
         status = "warn" if row["check"] == "wine" and row["status"] == "fail" else row["status"]  # Wine is optional for Pacman games
         items.append(item("wine", row["check"], status, row["detail"], row["fix"]))
     items += launcher_checks(config, db)

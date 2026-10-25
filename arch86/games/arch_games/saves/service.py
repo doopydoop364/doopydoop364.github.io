@@ -274,12 +274,13 @@ class SaveManager:
         m, path = self.manifest(game_id, backup_id)
         if self.verify(game_id, backup_id)["damaged_files"]:
             raise AppError("The backup failed its integrity check; refusing to restore from it")
+        registered = {p["path"] for p in self.paths(game_id)}
+        unregistered = [s["path"] for s in m["sources"] if s["path"] not in registered]
+        if unregistered:
+            # A manifest alone never decides where files are written.
+            raise AppError("This backup restores into folders that are not registered for this game ({}); register them with 'saves add' first".format(", ".join(unregistered)))
         safety = None
         if any(src["exists"] for src in pre["sources"]) and (pre["overwrites"] or pre["new"]):
-            current = {p["path"] for p in self.paths(game_id)}
-            for s in m["sources"]:  # make sure the safety backup also covers locations the backup knows about
-                if Path(s["path"]).is_dir() and s["path"] not in current:
-                    self.add_path(game_id, s["path"], origin="restore")
             safety = self.backup(game_id, "pre-restore", say=say)
         copied = 0
         for s in m["sources"]:
