@@ -143,7 +143,16 @@ def make_parser():
     add.add_argument("--sha256")
     add.add_argument("--max-gb", type=int, default=32)
     add.add_argument("--offline", action="store_true")
+    add.add_argument("--priority", type=int, default=5, help="0 (first) .. 9 (last)")
+    add.add_argument("--force", action="store_true", help="Download again even if this exact archive is already stored")
     dsub.add_parser("run")
+    dpause = dsub.add_parser("pause", help="Stop and keep the partial file; 'retry' resumes")
+    dpause.add_argument("id")
+    dprio = dsub.add_parser("priority")
+    dprio.add_argument("id")
+    dprio.add_argument("level", type=int)
+    ddedupe = dsub.add_parser("dedupe", help="Find identical archives; --apply hard-links the duplicates (nothing is deleted)")
+    ddedupe.add_argument("--apply", action="store_true")
     dsub.add_parser("list")
     cancel = dsub.add_parser("cancel")
     cancel.add_argument("id")
@@ -1315,6 +1324,12 @@ def dispatch(args, config, db):
             if failed:
                 raise AppError("Some downloads failed; inspect download list and retry")
             return
+        if args.operation == "pause":
+            return emit(manager.pause(args.id))
+        if args.operation == "priority":
+            return emit(manager.set_priority(args.id, args.level))
+        if args.operation == "dedupe":
+            return emit(manager.dedupe(args.apply))
         if args.operation == "retry":
             return emit(manager.retry(args.id, args.restart))
         if args.operation == "cancel":
@@ -1323,7 +1338,7 @@ def dispatch(args, config, db):
             return
         library = Library(config, db).load("gamevault", args.offline)
         return emit(
-            manager.add(library.find(args.game, alternatives=True), args.sha256, args.max_gb * 1024**3)
+            manager.add(library.find(args.game, alternatives=True), args.sha256, args.max_gb * 1024**3, args.priority, args.force)
         )
     if action == "uninstall":
         from .runtime.installer import Installer

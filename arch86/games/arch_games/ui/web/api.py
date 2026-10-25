@@ -178,6 +178,11 @@ class Api:
 
         return DownloadManager(self.config, db).retry(str(ident)[:64], bool(restart))
 
+    def download_pause(self, db, ident):
+        from ...downloads.manager import DownloadManager
+
+        return DownloadManager(self.config, db).pause(str(ident)[:64])
+
     def download_cancel(self, db, ident, cleanup=False):
         from ...downloads.manager import DownloadManager
 

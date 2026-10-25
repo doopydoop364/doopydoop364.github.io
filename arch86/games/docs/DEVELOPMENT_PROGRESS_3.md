@@ -27,7 +27,7 @@ see `VALIDATION.md` and the real-VM checklist in `TESTING_3.md` once written.
 - [x] P11 Compatibility evidence model, machine profiles
 - [x] P12 History, playtime, performance, benchmark (FPS only via real mechanisms, never verified on hardware)
 - [x] P13 Saves and backups
-- [ ] P14 Multi-machine, favorites, tags, notes, recommendations, search
+- [x] P14 Multi-machine, favorites, tags, notes, recommendations, search (+ download priorities/pause/dedupe)
 - [ ] P15 Hardening / security review
 - [ ] P16 Integration validation
 - [ ] P17 Docs and release prep (all 14 documents in the spec)
@@ -126,3 +126,9 @@ follows symlinks (Wine links Documents to the real home), registers nothing auto
 dir + rename), 0700, size/file-count bounded; restore previews first, needs `--apply --yes`, refuses damaged backups/symlink targets, makes a `pre-restore` safety backup, never deletes. Hooks make a save backup
 before `install --reinstall`, `prefix restore --apply` and `prefix remove` (when save folders are registered; otherwise it says nothing could be protected). Tests: tests/test_saves.py (13).
 Limits: registry-stored saves are not covered; no cross-machine sync (by design in 3.0).
+
+### Phase 14 (done; 279 tests pass)
+`catalog/search.py` (indexed search, 20k-entry timing test), `recommend.py` (explainable; compatibility reported separately; blocked games never suggested), `sync.py` (file-based bundle: favorites, aliases, notes, tags,
+titles, interests, own compat records, install metadata without paths; last-writer-wins by row timestamp; alias repoint needs --prefer-remote), CLI `search`, `recommend`, `interests`, `sync export|import`.
+Download management (spec part 15): priorities (`download add --priority`, `download priority`), `download pause` (keeps the partial; retry resumes), completed-archive reuse (`add` returns the existing job unless `--force`;
+behaviour change vs 2.0 — one legacy test now passes `force=True`), `download dedupe [--apply]` (hard-links identical archives, deletes nothing). Web: pause button. Tests: tests/test_library_features.py (8), tests/test_downloads.py (+5).

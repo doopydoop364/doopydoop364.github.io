@@ -12,7 +12,7 @@ import uuid
 
 from ..config import AppError
 from ..gamevault.client import Client, entity_id
-from .verification import verify
+from .verification import sha256, verify
 
 CHUNK = 256 * 1024
 RESERVE = 64 * 1024 * 1024
@@ -65,7 +65,21 @@ class DownloadManager:
             raise AppError("Download path is a symlink")
         return path
 
-    def add(self, game, checksum=None, max_bytes=32 * 1024**3):
+    def find_completed(self, game_id, version_id=None):
+        """An already-downloaded archive for this exact game/version, if its file is still present."""
+        for row in self.db.all("downloads"):
+            job = row["value"]
+            if job.get("state") == "completed" and job.get("game_id") == game_id and job.get("version_id") == version_id:
+                try:
+                    if self.path(job).is_file():
+                        return job
+                except AppError:
+                    continue
+        return None
+
+    def add(self, game, checksum=None, max_bytes=32 * 1024**3, priority=5, force=False):
+        if not isinstance(priority, int) or not 0 <= priority <= 9:
+            raise AppError("Priority must be 0 (first) to 9 (last)")
         if game.source != "gamevault":
             raise AppError("Only authorized GameVault library games can be queued")
         if checksum and not re.fullmatch(r"[a-fA-F0-9]{64}", checksum):
@@ -74,6 +88,10 @@ class DownloadManager:
         version = game.metadata.get("selected_version") or remote
         game_id = entity_id(str(game.id).split(":", 1)[-1].split("@", 1)[0])
         version_id = version.get("id") if game.metadata.get("selected_version") else None
+        if not force:
+            existing = self.find_completed(game.id, version_id)
+            if existing:
+                return dict(existing, reused=True)  # identical archive already stored: no second copy
         ident = uuid.uuid4().hex
         size = positive_size(version.get("size"))
         if max_bytes <= 0 or size is not None and size > max_bytes:
@@ -88,6 +106,7 @@ class DownloadManager:
             "server_url": self.config.values.get("server_url"),
             "account": self.config.values.get("account"),
             "state": "queued",
+            "priority": priority,
             "received": 0,
             "expected_size": size,
             "checksum": checksum,
@@ -104,6 +123,72 @@ class DownloadManager:
     def space(self, amount):
         if self.disk_usage(self.root).free < amount + RESERVE:
             raise AppError("Insufficient free disk space (64 MiB safety reserve)")
+
+    def set_priority(self, ident, priority):
+        if not isinstance(priority, int) or not 0 <= priority <= 9:
+            raise AppError("Priority must be 0 (first) to 9 (last)")
+        with self.lock():
+            job = self.get(ident)
+            if job["state"] == "completed":
+                raise AppError("Download is already complete")
+            job["priority"] = priority
+            self.db.put("downloads", ident, job)
+        return job
+
+    def pause(self, ident):
+        """Keep the partial file and stop; `retry` resumes it (the server must support ranges, otherwise it restarts safely)."""
+        job = self.get(ident)
+        if job["state"] in {"completed", "cancelled"}:
+            raise AppError("Download is {}; nothing to pause".format(job["state"]))
+        self.db.put("download_cancel", ident, {"cleanup": False, "pause": True})
+        try:
+            with self.lock():
+                job = self.get(ident)
+                if job["state"] != "running":
+                    job["state"] = "paused"
+                    self.db.put("downloads", ident, job)
+                    self.db.delete("download_cancel", ident)
+        except AppError:
+            pass  # an active worker owns the lock and will see the flag on its next chunk
+        return self.get(ident)
+
+    def dedupe(self, apply=False):
+        """Identical completed archives (same SHA-256) stored twice. With apply, the newer copy becomes a hard link
+        to the older one: no data is lost, both entries keep working, disk space is reclaimed."""
+        groups = {}
+        for row in self.db.all("downloads"):
+            job = row["value"]
+            digest = job.get("sha256")
+            if job.get("state") == "completed" and digest:
+                try:
+                    path = self.path(job)
+                except AppError:
+                    continue
+                if path.is_file():
+                    groups.setdefault(digest, []).append((job.get("created_at", ""), path, job))
+        report = []
+        for digest, items in groups.items():
+            items.sort(key=lambda x: (x[0], str(x[1])))
+            keep = items[0][1]
+            for _, path, job in items[1:]:
+                if os.path.samefile(keep, path):
+                    continue
+                entry = {"sha256": digest, "kept": str(keep), "duplicate": str(path), "bytes": path.stat().st_size, "applied": False}
+                if apply:
+                    temp = path.with_name(path.name + ".link-" + uuid.uuid4().hex[:8])
+                    try:
+                        os.link(keep, temp)
+                        if sha256(temp) != digest:
+                            raise AppError("Link verification failed")
+                        os.replace(temp, path)
+                        entry["applied"] = True
+                    except OSError as exc:
+                        entry["error"] = "could not hard-link ({}); copies kept".format(exc.strerror)
+                    finally:
+                        if temp.exists():
+                            temp.unlink()
+                report.append(entry)
+        return report
 
     def retry(self, ident, restart=False):
         job = self.get(ident)
@@ -148,13 +233,19 @@ class DownloadManager:
                     job["state"] = "queued"
                     self.db.put("downloads", row["key"], job)
             queued = sorted(
-                self.db.all("downloads"), key=lambda row: row["value"].get("created_at", row["updated"])
+                self.db.all("downloads"),
+                key=lambda row: (row["value"].get("priority", 5), row["value"].get("created_at", row["updated"])),
             )
             for row in queued:
                 job = self.get(row["key"])
                 if job["state"] != "queued":
                     continue
                 cancel = self.db.get("download_cancel", job["id"])
+                if cancel and cancel.get("pause"):
+                    job["state"] = "paused"
+                    self.db.put("downloads", job["id"], job)
+                    self.db.delete("download_cancel", job["id"])
+                    continue
                 if cancel:
                     if cancel.get("cleanup"):
                         self.path(job, True).unlink(missing_ok=True)
@@ -272,7 +363,7 @@ class DownloadManager:
                         while True:
                             cancel = self.db.get("download_cancel", job["id"])
                             if cancel:
-                                job["state"] = "cancelled"
+                                job["state"] = "paused" if cancel.get("pause") else "cancelled"
                                 break
                             self.space(CHUNK)
                             chunk = response.read(CHUNK)
@@ -290,10 +381,12 @@ class DownloadManager:
                                 last_save = time.monotonic()
                         stream.flush()
                         os.fsync(stream.fileno())
-                    if job["state"] == "cancelled":
-                        if cancel.get("cleanup"):
+                    if job["state"] in {"cancelled", "paused"}:
+                        if cancel.get("cleanup") and job["state"] == "cancelled":
                             part.unlink(missing_ok=True)
                             job["received"] = 0
+                        if job["state"] == "paused":
+                            self.db.delete("download_cancel", job["id"])
                         self.db.put("downloads", job["id"], job)
                         return
                 verification = verify(part, expected, job["checksum"])

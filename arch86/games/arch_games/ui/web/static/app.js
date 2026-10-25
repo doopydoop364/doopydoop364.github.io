@@ -175,6 +175,7 @@
           var pct = d.expected_size ? Math.min(100, d.received * 100 / d.expected_size) : 0;
           var acts = h('td');
           if (['failed', 'paused', 'cancelled'].indexOf(d.state) >= 0) { var r = h('button', { onclick: function () { act(r, api('POST', 'downloads/retry', { id: d.id }), 'Retrying (resumes if the server allows)').then(load); } }, 'Retry'); acts.appendChild(r); }
+          if (['queued', 'running'].indexOf(d.state) >= 0) { var pz = h('button', { onclick: function () { act(pz, api('POST', 'downloads/pause', { id: d.id }), 'Pause requested (partial file kept)').then(load); } }, 'Pause'); acts.appendChild(pz); }
           if (['queued', 'running', 'paused', 'failed'].indexOf(d.state) >= 0) { var c = h('button', { class: 'danger', onclick: function () { act(c, api('POST', 'downloads/cancel', { id: d.id }), 'Cancel requested').then(load); } }, 'Cancel'); acts.appendChild(c); }
           body.appendChild(h('tr', {}, h('td', {}, h('a', { href: '#/game/' + encodeURIComponent(d.game_id) }, d.title || d.game_id), d.error ? h('div', { class: 'err' }, d.error) : null), h('td', {}, badge(d.state, d.state === 'completed' ? 'ok' : d.state === 'failed' ? 'bad' : '')),
             h('td', {}, h('div', { class: 'progress', role: 'progressbar', 'aria-valuenow': Math.round(pct) }, h('i', { style: 'width:' + pct + '%' })), h('small', { class: 'muted' }, bytes(d.received) + ' / ' + bytes(d.expected_size))), h('td', {}, d.speed ? bytes(d.speed) + '/s' : ''), acts));

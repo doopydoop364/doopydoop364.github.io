@@ -115,7 +115,7 @@ class DownloadTests(unittest.TestCase):
         self.assertEqual(manager.get(job["id"])["state"], "completed")
         self.game.metadata["remote"]["size"] = "6"
         manager = self.manager([Response(b"abcdef", Content_Length=6, ETag='"one"')])
-        job = manager.add(self.game)
+        job = manager.add(self.game, force=True)  # 3.0 reuses a completed identical archive unless forced
         manager.run(
             lambda current: manager.cancel(job["id"], cleanup=True) if current["state"] == "running" else None
         )
@@ -136,3 +136,115 @@ class DownloadTests(unittest.TestCase):
         completed = []
         manager.run(lambda job: completed.append(job["id"]) if job["state"] == "completed" else None)
         self.assertEqual(completed, [first["id"], second["id"]])
+
+
+class QueueManagementTests(unittest.TestCase):
+    """Priorities, pause/resume, duplicate-archive handling."""
+
+    def setUp(self):
+        import tempfile
+
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.config = Config(self.temp.name)
+        self.config.values.update(server_url="https://fixture.invalid", account="fixture")
+        self.db = Database(self.config.data_dir / "state.db")
+        self.addCleanup(self.db.close)
+
+    def game(self, n):
+        from arch_games.models import Game
+
+        return Game("gamevault:%d" % n, "Game %d" % n, "gamevault", metadata={"remote": {"id": n, "size": 6, "file_path": "g%d.zip" % n}})
+
+    def manager(self, responses):
+        return DownloadManager(self.config, self.db, Client(responses))
+
+    def test_priority_orders_the_queue_and_is_validated(self):
+        m = self.manager([])
+        slow = m.add(self.game(1), priority=9)
+        fast = m.add(self.game(2), priority=0)
+        mid = m.add(self.game(3))
+        order = [r["value"]["id"] for r in sorted(self.db.all("downloads"), key=lambda r: (r["value"]["priority"], r["value"]["created_at"]))]
+        self.assertEqual(order, [fast["id"], mid["id"], slow["id"]])
+        m.set_priority(slow["id"], 1)
+        self.assertEqual(m.get(slow["id"])["priority"], 1)
+        for bad in (-1, 10, "x", None):
+            with self.assertRaises(AppError):
+                m.set_priority(fast["id"], bad)
+            with self.assertRaises(AppError):
+                m.add(self.game(4), priority=bad)
+
+    def test_pause_queued_and_resume(self):
+        m = self.manager([])
+        job = m.add(self.game(1))
+        self.assertEqual(m.pause(job["id"])["state"], "paused")
+        m.run()  # paused jobs are skipped
+        self.assertEqual(m.get(job["id"])["state"], "paused")
+        self.assertEqual(m.retry(job["id"])["state"], "queued")
+        with self.assertRaises(AppError):
+            m.pause("nope")
+
+    def test_pause_during_transfer_keeps_partial_and_resume_continues(self):
+        game = self.game(1)
+        game.metadata["remote"]["size"] = 600000
+        body = b"x" * 600000
+        m = self.manager([Response(body, Content_Length=600000, ETag='"v1"')])
+        job = m.add(game)
+        m.run(lambda current: m.pause(job["id"]) if current["state"] == "running" else None)
+        paused = m.get(job["id"])
+        self.assertEqual(paused["state"], "paused")
+        part = m.path(paused, True)
+        self.assertTrue(part.exists())
+        have = part.stat().st_size
+        self.assertTrue(0 < have < 600000)
+        self.assertIsNone(self.db.get("download_cancel", job["id"]))  # flag consumed, retry is clean
+        m.retry(job["id"])
+        m.client.responses = [Response(body[have:], status=206, Content_Length=600000 - have, ETag='"v1"', Content_Range="bytes {}-599999/600000".format(have))]
+        m.run()
+        done = m.get(job["id"])
+        self.assertEqual(done["state"], "completed")
+        self.assertEqual(m.path(done).read_bytes(), body)
+        self.assertEqual(m.client.headers[-1]["Range"], "bytes={}-".format(have))
+
+    def test_completed_archive_is_reused_not_redownloaded(self):
+        m = self.manager([])
+        job = m.add(self.game(1))
+        (self.config.directory("downloads") / job["filename"]).write_bytes(b"abcdef")
+        job.update(state="completed", sha256="x")
+        self.db.put("downloads", job["id"], job)
+        again = m.add(self.game(1))
+        self.assertTrue(again["reused"])
+        self.assertEqual(again["id"], job["id"])
+        self.assertEqual(len(self.db.all("downloads")), 1)
+        forced = m.add(self.game(1), force=True)
+        self.assertNotEqual(forced["id"], job["id"])
+        (self.config.directory("downloads") / job["filename"]).unlink()  # file gone -> a new download is legitimate
+        self.assertNotIn("reused", m.add(self.game(1)))
+
+    def test_dedupe_hardlinks_identical_archives_and_deletes_nothing(self):
+        import hashlib
+
+        m = self.manager([])
+        digest = hashlib.sha256(b"same-bytes").hexdigest()
+        for n, stamp in ((1, "2026-01-01"), (2, "2026-01-02")):
+            job = m.add(self.game(n), force=True)
+            (self.config.directory("downloads") / job["filename"]).write_bytes(b"same-bytes")
+            job.update(state="completed", sha256=digest, created_at=stamp)
+            self.db.put("downloads", job["id"], job)
+        other = m.add(self.game(3))
+        (self.config.directory("downloads") / other["filename"]).write_bytes(b"different")
+        other.update(state="completed", sha256=hashlib.sha256(b"different").hexdigest())
+        self.db.put("downloads", other["id"], other)
+        preview = m.dedupe()
+        self.assertEqual(len(preview), 1)
+        self.assertFalse(preview[0]["applied"])
+        self.assertFalse(os.path.samefile(preview[0]["kept"], preview[0]["duplicate"]))
+        result = m.dedupe(apply=True)
+        self.assertTrue(result[0]["applied"])
+        self.assertTrue(os.path.samefile(result[0]["kept"], result[0]["duplicate"]))
+        self.assertEqual(Path(result[0]["duplicate"]).read_bytes(), b"same-bytes")  # both entries still readable
+        self.assertEqual(m.dedupe(), [])  # nothing left to do
+
+
+import os  # noqa: E402
+from pathlib import Path  # noqa: E402

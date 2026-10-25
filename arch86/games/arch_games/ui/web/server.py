@@ -322,6 +322,8 @@ def make_handler(app):
                     return api.download_run()
                 if p == ["downloads", "retry"]:
                     return api.download_retry(db, d.get("id"), d.get("restart"))
+                if p == ["downloads", "pause"]:
+                    return api.download_pause(db, d.get("id"))
                 if p == ["downloads", "cancel"]:
                     return api.download_cancel(db, d.get("id"), d.get("cleanup"))
                 if p == ["install", "prepare"]:
