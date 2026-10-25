@@ -32,3 +32,14 @@ class BaselineTests(unittest.TestCase):
         for cmd in [["-m", "arch_games", "--help"], ["arch86-games.py", "--version"]]:
             result = subprocess.run([sys.executable] + cmd, cwd=root, capture_output=True)
             self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_module_imports_and_catalog_copy(self):
+        import arch_games
+        import importlib
+        import pkgutil
+
+        for entry in pkgutil.walk_packages(arch_games.__path__, "arch_games."):
+            if not entry.name.endswith(".__main__"):
+                importlib.import_module(entry.name)
+        root = Path(__file__).parents[1]
+        self.assertEqual((root / "catalog.txt").read_bytes(), (root / "arch_games/catalog.txt").read_bytes())

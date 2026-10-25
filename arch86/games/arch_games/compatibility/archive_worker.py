@@ -154,7 +154,10 @@ def run(path, destination, limits):
 if __name__ == "__main__":
     try:
         result = run(sys.argv[1], sys.argv[2] or None, ArchiveLimits(**json.loads(sys.argv[3])))
-        print(json.dumps(result))
+        output = json.dumps(result)
+        if len(output) > 16 * 1024 * 1024:
+            raise AppError("Archive listing exceeds metadata output limit")
+        print(output)
     except (AppError, OSError, ValueError) as exc:
         print(json.dumps({"error": str(exc) if isinstance(exc, AppError) else "Archive operation failed"}))
         raise SystemExit(1)

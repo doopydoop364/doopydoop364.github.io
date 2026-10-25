@@ -3,7 +3,7 @@
 ZIP, TAR, TAR.GZ, 7z and RAR use the installed system libarchive in an isolated
 Python worker. No archive code is executed. Default limits: 384 MiB address space,
 30 CPU/wall seconds (plus a short parent shutdown margin), 10,000 entries,
-8 GiB per file, 32 GiB expanded total, 1000:1 expansion ratio. Fail closed on
+8 GiB per file, 32 GiB expanded total, 1000:1 expansion ratio and 16 MiB listing output. Fail closed on
 warnings/corruption/encryption, invalid UTF-8, absolute/drive/traversal paths,
 links, devices, duplicate and case-colliding names. Nested archives are listed,
 never recursively expanded. Resource limits apply to parsing, not just extraction.

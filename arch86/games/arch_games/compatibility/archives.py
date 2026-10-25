@@ -58,7 +58,20 @@ def process_archive(path, destination=None, limits=None):
             error = "Archive worker failed or exceeded resources"
         raise AppError(error)
     try:
-        return json.loads(result.stdout)
+        value = json.loads(result.stdout)
+        names = {Path(entry["name"]).name.lower() for entry in value.get("entries", [])}
+        clues = []
+        for engine, markers in [
+            ("Unity", {"unityplayer.dll", "globalgamemanagers"}),
+            ("RenPy", {"renpy"}),
+            ("RPG Maker", {"rpg_rt.exe", "game.rgss3a", "rpg_core.js"}),
+        ]:
+            if names & markers:
+                clues.append(engine + ": archive filename hint, not verified engine identification")
+        if any(name.endswith(".pck") for name in names):
+            clues.append("Godot: .pck filename hint, not verified engine identification")
+        value["engine_clues"] = clues
+        return value
     except ValueError:
         raise AppError("Invalid archive worker result") from None
 

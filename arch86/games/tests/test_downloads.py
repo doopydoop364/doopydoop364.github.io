@@ -121,3 +121,18 @@ class DownloadTests(unittest.TestCase):
         )
         self.assertEqual(manager.get(job["id"])["state"], "cancelled")
         self.assertFalse(manager.path(job, True).exists())
+
+    def test_queue_runs_in_creation_order(self):
+        from unittest.mock import patch
+
+        manager = self.manager([Response(b"abcdef", Content_Length=6), Response(b"fedcba", Content_Length=6)])
+        identifiers = iter([SimpleNamespace(hex=value) for value in ["f" * 32, "e" * 32, "0" * 32, "1" * 32]])
+        with patch("arch_games.downloads.manager.uuid.uuid4", side_effect=lambda: next(identifiers)):
+            first = manager.add(self.game)
+            second = manager.add(self.game)
+        first["created_at"], second["created_at"] = "2026-01-01", "2026-01-02"
+        self.db.put("downloads", first["id"], first)
+        self.db.put("downloads", second["id"], second)
+        completed = []
+        manager.run(lambda job: completed.append(job["id"]) if job["state"] == "completed" else None)
+        self.assertEqual(completed, [first["id"], second["id"]])

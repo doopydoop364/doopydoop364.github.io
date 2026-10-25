@@ -28,3 +28,7 @@ controls are not exposed. To view remotely, use an authenticated tunnel you mana
 
 Use `launch ID EXE --interactive` to attach terminal input/output for a native
 terminal game. This mode records exit status but does not capture game output.
+
+The Download Manager accepts run/retry/cancel/cleanup actions. The prefix section
+accepts create/check/backup/remove, with separate confirmation for changes. Settings
+can connect/disconnect GameVault or set a supported preference from the menu.

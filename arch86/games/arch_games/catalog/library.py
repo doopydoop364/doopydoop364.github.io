@@ -46,6 +46,7 @@ class Library:
         self.sync = {}
 
     def load(self, source="all", offline=False):
+        self.warnings, self.sync, self.reports = [], {}, {}
         pacman, remote = [], []
         if source in {"all", "pacman"}:
             custom = self.config.config_dir / "catalog.txt"
@@ -58,24 +59,62 @@ class Library:
             except AppError as exc:
                 self.warnings.append(str(exc))
         remote = [version for game in remote for version in expand_versions(game)]
-        installs = {row["key"]: row["value"] for row in self.db.all("installs")}
-        self.games = merge_catalogs(pacman, remote)
-        known = {g.id for g in self.games}
-        for ident, manifest in installs.items():
-            if ident not in known and manifest.get("game"):
-                self.games.append(Game(**manifest["game"]))
+        installs = self.db.mapping("installs")
+        analyses = self.db.mapping("analysis")
+        feedbacks = self.db.mapping("feedback")
+        launches = {}
+        for launch in self.db.mapping("launches").values():
+            ident = launch.get("game_id")
+            if ident not in launches or launch.get("started_at", "") > launches[ident].get("started_at", ""):
+                launches[ident] = launch
+        feedback_context = {"installs": installs, "feedback": feedbacks, "launches": launches}
+        identities = self.db.mapping("catalog_identity")
+        candidates = pacman + remote
+        known = {game.id for game in candidates}
+        candidates += [
+            Game(**manifest["game"])
+            for ident, manifest in installs.items()
+            if ident not in known and manifest.get("game")
+        ]
+        for game in candidates:
+            game.installed = game.installed or game.id in installs
+            local = analyses.get(game.id, {})
+            if (
+                game.id in installs
+                and local.get("archive_sha256")
+                and local["archive_sha256"] != installs[game.id].get("archive_sha256")
+            ):
+                local = {}
+            if local.get("executable"):
+                game.architecture = local["executable"].get("architecture", game.architecture)
+            identity = identities.get(game.id)
+            if identity:
+                game.metadata["canonical_id"] = identity["canonical"]
+                game.metadata["identity_source"] = "Explicit local user assertion"
+                game.build, game.edition = identity["build"], identity.get("edition", "")
+        self.games = merge_catalogs(candidates, deduplicate=source == "all")
         for game in self.games:
             game.installed = game.installed or game.id in installs
-            local = self.db.get("analysis", game.id, {})
+            local = analyses.get(game.id, {})
+            if (
+                game.id in installs
+                and local.get("archive_sha256")
+                and local["archive_sha256"] != installs[game.id].get("archive_sha256")
+            ):
+                local = {}
+            if local.get("executable"):
+                game.architecture = local["executable"].get("architecture", game.architecture)
             from ..compatibility.feedback import current_feedback
 
-            feedback = current_feedback(self.db, game.id)
+            feedback = current_feedback(self.db, game.id, feedback_context)
             if feedback and feedback.get("binary") and not local.get("executable"):
                 local = dict(local, executable=feedback["binary"])
             if game.id in installs and not local.get("executable"):
                 binaries = installs[game.id].get("executables", [])
                 if len(binaries) == 1:
                     local = dict(local, executable=binaries[0]["executable"])
+            if local.get("executable"):
+                game.architecture = local["executable"].get("architecture", game.architecture)
             self.reports[game.id] = analyze(
                 game, self.profile, local.get("executable"), local.get("requirements"), feedback
             ).to_dict()
@@ -86,8 +125,20 @@ class Library:
             filters["show_all"] = True
         return select(self.games, self.reports, **filters)
 
-    def find(self, ident):
+    def find(self, ident, alternatives=False):
         game = next((g for g in self.games if g.id == ident or g.package == ident), None)
+        if not game:
+            for primary in self.games:
+                alternative = next(
+                    (
+                        record
+                        for record in primary.metadata.get("alternatives", [])
+                        if record["id"] == ident or record.get("package") == ident
+                    ),
+                    None,
+                )
+                if alternative:
+                    return Game(**alternative) if alternatives else primary
         if not game:
             raise AppError("Game is not in the current catalog; use list --all or installed")
         return game

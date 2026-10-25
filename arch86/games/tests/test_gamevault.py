@@ -93,3 +93,62 @@ class GameVaultTests(unittest.TestCase):
         page = {"data": [{"id": 1, "metadata": None}], "meta": {"currentPage": 1, "totalPages": 1}}
         games, _ = self.client([page]).library()
         self.assertEqual(games[0].title, "Untitled")
+
+    def test_unused_relations_and_credentials_not_cached(self):
+        page = dict(self.page)
+        page["data"] = [
+            dict(
+                self.page["data"][0],
+                api_key="sensitive-fixture",
+                bookmarked_users=[{"api_key": "sensitive-fixture"}],
+                metadata={"title": "Fixture", "launch_parameters": "never adopt"},
+            )
+        ]
+        client = self.client([page])
+        client.library()
+        cache = json.dumps(self.db.get("library", client.cache_key))
+        self.assertNotIn("sensitive-fixture", cache)
+        self.assertNotIn("launch_parameters", cache)
+
+    def test_invalid_tokens_do_not_leak_into_errors(self):
+        client = self.client([])
+        self.config.save_credentials({"access_token": "sensitive-fixture\r\nInjected: x"})
+        with self.assertRaises(AppError) as error:
+            client.headers()
+        self.assertNotIn("sensitive-fixture", str(error.exception))
+        with self.assertRaises(AppError):
+            client.save_tokens({"access_token": "sensitive-fixture\n", "refresh_token": "valid-fixture"})
+
+    def test_credentials_are_bound_to_server_and_account(self):
+        old_client = self.client([])
+        self.config.save_credentials({"access_token": "fixture-access", "refresh_token": "fixture-refresh"})
+        self.config.values["server_url"] = "https://another.invalid"
+        other = self.client([])
+        with self.assertRaises(AuthenticationError):
+            other.headers()
+        self.config.save_credentials({"access_token": "other-access", "refresh_token": "other-refresh"})
+        with self.assertRaises(AuthenticationError):
+            old_client.headers()
+
+    def test_already_rotated_token_is_reused(self):
+        client = self.client([])
+        self.config.save_credentials({"access_token": "rotated-fixture", "refresh_token": "fresh-fixture"})
+        client.refresh("Bearer stale-fixture")
+        self.assertEqual(len(client.opener.requests), 0)
+
+    def test_interrupted_response_preserves_cache(self):
+        import http.client
+        from types import SimpleNamespace
+
+        client = self.client([self.page])
+        client.library()
+
+        class Broken(Response):
+            def read(self, *args):
+                raise http.client.IncompleteRead(b'{"data":', 100)
+
+        client.opener = SimpleNamespace(open=lambda *args, **kwargs: Broken())
+        games, state = client.library()
+        self.assertTrue(state["cached"])
+        self.assertEqual(len(games), 1)
+        self.assertIn("interrupted", state["warning"])

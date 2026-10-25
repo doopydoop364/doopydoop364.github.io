@@ -3,9 +3,13 @@ set -eu
 command -v python3 >/dev/null || { echo 'Python 3.10+ is required; install it explicitly using your system package manager.' >&2; exit 1; }
 if [ "$(id -u)" -eq 0 ]; then echo 'Run as your ordinary VM user, not root.' >&2; exit 1; fi
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-if [ -f "$SCRIPT_DIR/install_app.py" ]; then
-    exec python3 "$SCRIPT_DIR/install_app.py" "$@"
-fi
+case "$0" in
+    */install.sh|install.sh)
+        if [ -f "$SCRIPT_DIR/install_app.py" ]; then
+            exec python3 "$SCRIPT_DIR/install_app.py" "$@"
+        fi
+        ;;
+esac
 exec python3 - "$@" <<'PY'
 import argparse
 import os

@@ -1,23 +1,30 @@
 """Catalog filtering explains exclusions; deduplication needs explicit identity."""
 
-import copy
+from dataclasses import replace
 
 
-def merge_catalogs(*catalogs):
+def merge_catalogs(*catalogs, deduplicate=True):
     result, identifiers, canonical = [], set(), {}
     for catalog in catalogs:
         for original in catalog:
             if original.id in identifiers:
                 continue
             identifiers.add(original.id)
-            game = copy.deepcopy(original)
+            metadata = dict(original.metadata)
+            if "alternatives" in metadata:
+                metadata["alternatives"] = list(metadata["alternatives"])
+            game = replace(original, metadata=metadata)
             # Titles alone never establish equivalence. canonical_id is a local/user assertion.
-            identity = game.metadata.get("canonical_id")
+            identity = game.metadata.get("canonical_id") if deduplicate else None
             key = (identity, game.os, game.architecture, game.edition, game.build)
             if identity and game.os != "unknown" and game.build and key in canonical:
                 winner = canonical[key]
-                winner.metadata.setdefault("alternatives", []).append(game.to_dict())
-                winner.installed = winner.installed or game.installed
+                if game.installed and not winner.installed:
+                    game.metadata.setdefault("alternatives", []).append(winner.to_dict())
+                    result[result.index(winner)] = game
+                    canonical[key] = game
+                else:
+                    winner.metadata.setdefault("alternatives", []).append(game.to_dict())
             else:
                 result.append(game)
                 if identity and game.os != "unknown" and game.build:

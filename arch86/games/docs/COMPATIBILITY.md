@@ -43,3 +43,10 @@ Architecture, Wine, renderer, memory total, installation transaction, executable
 file identity and launch configuration bind the evidence. A new installation,
 modified executable or subsequent launch invalidates prior effective feedback.
 Historical records stay local. Results never upload automatically.
+
+To identify the same build across sources explicitly, use `catalog identify ID
+--canonical KEY --build BUILD [--edition EDITION]` for each corresponding ID. Only
+matching OS/architecture/edition/build can merge. `catalog forget ID` removes an
+assertion. Source-specific views preserve individual entries, and installed state
+never falsely marks an uninstalled Pacman package installed. Titles alone do not
+merge entries. Engine names in archive reports are labeled filename hints.

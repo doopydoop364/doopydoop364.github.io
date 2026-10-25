@@ -89,6 +89,12 @@ class Config:
         self.values = read_json(self.path)
         if not isinstance(self.values, dict):
             raise AppError("Settings must be a JSON object")
+        for key in ["allow_http", "show_all", "wine_win32", "wine_win64", "wine_wow64"]:
+            if key in self.values and self.values[key] is not None and not isinstance(self.values[key], bool):
+                raise AppError("Boolean setting has an invalid type: " + key)
+        for key in ["server_url", "account"]:
+            if key in self.values and not isinstance(self.values[key], str):
+                raise AppError("Text setting has an invalid type: " + key)
 
     def save(self):
         atomic_json(self.path, self.values)
@@ -100,6 +106,9 @@ class Config:
         return result
 
     def save_credentials(self, value):
+        value = dict(value)
+        value.setdefault("_server_url", self.values.get("server_url"))
+        value.setdefault("_account", self.values.get("account", ""))
         atomic_json(self.secrets, value)
 
     def disconnect(self):

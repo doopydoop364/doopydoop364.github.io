@@ -128,7 +128,54 @@ def menu(library, dispatch, plain=False, input_fn=input, output=print):
             dispatch(
                 [["download", "list"], ["reports"], ["prefix", "list"], ["settings", "show"]][selection - 4]
             )
-            input_fn("Enter to return: ")
+            prompts = {
+                4: "r run | retry ID | cancel ID | cleanup ID | Enter back: ",
+                5: "Enter to return: ",
+                6: "create ID win32|win64 | check ID | backup ID | remove ID | Enter back: ",
+                7: "connect | disconnect | set KEY VALUE | Enter back: ",
+            }
+            line = input_fn(prompts[selection]).strip()
+            try:
+                command = section_command(selection, line)
+                if command:
+                    dispatch(command)
+                    from ..config import read_json
+
+                    library.config.values = read_json(library.config.path)
+                    library.load(offline=command[:2] != ["gamevault", "connect"])
+            except ValueError as exc:
+                output(str(exc))
+
+
+def section_command(section, line):
+    import shlex
+
+    parts = shlex.split(line)
+    if not parts:
+        return None
+    if section == 4:
+        if parts == ["r"]:
+            return ["download", "run"]
+        if len(parts) == 2 and parts[0] in {"retry", "cancel", "cleanup"} and not parts[1].startswith("-"):
+            return ["download", "cancel" if parts[0] == "cleanup" else parts[0], parts[1]] + (
+                ["--cleanup"] if parts[0] == "cleanup" else []
+            )
+    if section == 6:
+        if (
+            len(parts) == 3
+            and parts[0] == "create"
+            and parts[2] in {"win32", "win64"}
+            and not parts[1].startswith("-")
+        ):
+            return ["prefix", "create", parts[1], "--arch", parts[2]]
+        if len(parts) == 2 and parts[0] in {"check", "backup", "remove"} and not parts[1].startswith("-"):
+            return ["prefix"] + parts
+    if section == 7:
+        if len(parts) == 1 and parts[0] in {"connect", "disconnect"}:
+            return ["gamevault"] + parts
+        if len(parts) == 3 and parts[0] == "set" and all(not p.startswith("-") for p in parts):
+            return ["settings"] + parts
+    raise ValueError("Unrecognized action; use one of the displayed commands")
 
 
 def browse(library, dispatch, filters, input_fn=input, output=print):
@@ -171,3 +218,4 @@ def browse(library, dispatch, filters, input_fn=input, output=print):
                 dispatch(["install", game.id])
             elif action == "d":
                 dispatch(["download", "add", game.id])
+            library.load(offline=True)

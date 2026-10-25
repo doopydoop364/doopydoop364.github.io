@@ -1,5 +1,5 @@
 import unittest
-from arch_games.ui.terminal import clean, fit, menu, render_sections
+from arch_games.ui.terminal import clean, fit, menu, render_sections, section_command
 
 
 class TerminalTests(unittest.TestCase):
@@ -27,3 +27,14 @@ class TerminalTests(unittest.TestCase):
         lines = []
         menu(Library(), lambda args: None, True, lambda prompt: next(inputs), lines.append)
         self.assertTrue(any("Page 1" in line for line in lines))
+
+    def test_section_actions(self):
+        self.assertEqual(section_command(4, "r"), ["download", "run"])
+        self.assertEqual(section_command(4, "cleanup abc"), ["download", "cancel", "abc", "--cleanup"])
+        self.assertEqual(
+            section_command(6, "create local:one win32"), ["prefix", "create", "local:one", "--arch", "win32"]
+        )
+        self.assertEqual(section_command(7, "connect"), ["gamevault", "connect"])
+        self.assertEqual(section_command(7, "set show_all true"), ["settings", "set", "show_all", "true"])
+        with self.assertRaises(ValueError):
+            section_command(6, "create --help win64")

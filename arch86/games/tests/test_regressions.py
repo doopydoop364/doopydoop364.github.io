@@ -80,3 +80,29 @@ class RegressionTests(unittest.TestCase):
         for value in [True, 3.5, "NaN", "-1"]:
             with self.subTest(value=value), self.assertRaises(AppError):
                 positive_size(value)
+
+    def test_bulk_catalog_state_queries_are_bounded(self):
+        from arch_games.catalog.library import Library
+        from arch_games.gamevault.client import Client
+
+        with tempfile.TemporaryDirectory() as temp:
+            config = Config(temp)
+            config.values.update(server_url="https://fixture.invalid", account="fixture")
+            db = Database(config.data_dir / "state.db")
+            try:
+                client = Client(config, db)
+                db.put(
+                    "library",
+                    client.cache_key,
+                    {
+                        "games": [{"id": n + 1, "title": "Fixture"} for n in range(2000)],
+                        "synced_at": "fixture-time",
+                    },
+                )
+                statements = []
+                db.connection.set_trace_callback(statements.append)
+                library = Library(config, db, {}).load("gamevault", offline=True)
+                self.assertEqual(len(library.games), 2000)
+                self.assertLessEqual(len(statements), 8)
+            finally:
+                db.close()

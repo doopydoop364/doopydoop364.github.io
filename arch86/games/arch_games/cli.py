@@ -6,12 +6,24 @@ import json
 import sqlite3
 from pathlib import Path
 import sys
+import warnings
 
 from . import __version__
 from .config import AppError, Config, server_url
 from .gamevault.client import Client
 from .storage.database import Database
 from .ui.terminal import clean
+
+
+def secret_prompt(prompt):
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", getpass.GetPassWarning)
+        try:
+            return getpass.getpass(prompt)
+        except getpass.GetPassWarning:
+            raise AppError(
+                "Secure password input requires a terminal; reconnect from KMSCON, SSH or a terminal emulator"
+            ) from None
 
 
 def emit(value):
@@ -142,6 +154,15 @@ def make_parser():
     save.add_argument("--notes", default="")
     save.add_argument("--launch")
     save.add_argument("--manual", action="store_true")
+    catalog = sub.add_parser("catalog", help="Explicit local catalog identity assertions")
+    csub = catalog.add_subparsers(dest="operation", required=True)
+    identify = csub.add_parser("identify")
+    identify.add_argument("game")
+    identify.add_argument("--canonical", required=True)
+    identify.add_argument("--build", required=True)
+    identify.add_argument("--edition", default="")
+    forget = csub.add_parser("forget")
+    forget.add_argument("game")
     settings = sub.add_parser("settings", help="Show or change local preferences")
     settings.add_argument("operation", choices=["show", "set"], nargs="?", default="show")
     settings.add_argument("key", nargs="?")
@@ -174,7 +195,7 @@ def gamevault_command(args, config, db):
         config.values["account"] = input("Account name (cache identity): ").strip()
         client = Client(config, db)
         if args.api_key:
-            key = getpass.getpass("API key: ")
+            key = secret_prompt("API key: ")
             if not key:
                 raise AppError("API key cannot be empty")
             previous = config.credentials()
@@ -182,10 +203,13 @@ def gamevault_command(args, config, db):
             try:
                 client.status()
             except AppError:
-                config.save_credentials(previous)
+                if previous:
+                    config.save_credentials(previous)
+                else:
+                    config.disconnect()
                 raise
         else:
-            client.login(config.values["account"], getpass.getpass("Password: "))
+            client.login(config.values["account"], secret_prompt("Password: "))
         config.save()
         print("Connected; credentials saved privately.")
         return
@@ -198,7 +222,7 @@ def gamevault_command(args, config, db):
         term = args.query.casefold() if args.operation == "search" else ""
         for game in games:
             if term in (game.title + " " + game.description).casefold():
-                print(clean(game.id + "\t" + game.title))
+                print(clean(game.id) + " | " + clean(game.title))
     elif args.operation == "details":
         game, cached = client.details(args.id, args.offline)
         emit({"game": game.to_dict(), "cached": cached})
@@ -209,7 +233,7 @@ def analyze_command(args, config, db):
     from .compatibility.archives import inspect_archive
     from .compatibility.analyzer import analyze
     from .models import Game
-    from .platform import system_profile
+    from .platform import apply_overrides, system_profile
 
     path = Path(args.path)
     if not path.is_file():
@@ -249,7 +273,9 @@ def analyze_command(args, config, db):
         db.put("analysis", args.game, value)
     emit(
         {
-            "report": analyze(game, system_profile(config.data_dir), binary, requirements).to_dict(),
+            "report": analyze(
+                game, apply_overrides(system_profile(config.data_dir), config), binary, requirements
+            ).to_dict(),
             "executable": binary,
             "archive": archive,
         }
@@ -306,6 +332,25 @@ def dispatch(args, config, db):
         )
     if action == "info":
         return emit(system_profile(config.data_dir))
+    if action == "catalog":
+        if args.operation == "forget":
+            db.delete("catalog_identity", args.game)
+            print("Local identity assertion removed")
+            return
+        if (
+            any(not value or len(value) > 256 for value in [args.game, args.canonical, args.build])
+            or len(args.edition) > 256
+        ):
+            raise AppError("Catalog identity fields must contain 1..256 characters")
+        db.put(
+            "catalog_identity",
+            args.game,
+            {"canonical": args.canonical, "build": args.build, "edition": args.edition},
+        )
+        print(
+            "Saved explicit identity assertion; only matching OS, architecture, edition and build can merge"
+        )
+        return
     if action == "settings":
         return settings_command(args, config)
     if action == "analyze":
@@ -410,7 +455,9 @@ def dispatch(args, config, db):
             print("Cancellation requested")
             return
         library = Library(config, db).load("gamevault", args.offline)
-        return emit(manager.add(library.find(args.game), args.sha256, args.max_gb * 1024**3))
+        return emit(
+            manager.add(library.find(args.game, alternatives=True), args.sha256, args.max_gb * 1024**3)
+        )
     if action == "uninstall":
         from .runtime.installer import Installer
 
@@ -433,7 +480,7 @@ def dispatch(args, config, db):
             game = Game(args.game, args.title or args.game.split(":", 1)[1], "local")
         else:
             library = Library(config, db).load(offline=True)
-            game = library.find(args.game)
+            game = library.find(args.game, alternatives=True)
         if (
             args.yes
             or input("Extract {} into a managed game directory? [y/N] ".format(clean(game.title))).lower()
@@ -490,7 +537,7 @@ def dispatch(args, config, db):
             getattr(args, "plain", False),
         )
     elif action == "install":
-        game = library.find(args.game)
+        game = library.find(args.game, alternatives=True)
         if game.source != "pacman":
             raise AppError("GameVault installation requires --archive after an explicit download")
         if game.installed:
@@ -505,7 +552,9 @@ def dispatch(args, config, db):
     elif action == "web":
         from .ui.gallery import serve
 
-        games, explanation = library.filtered(**filters(args))
+        selected = filters(args)
+        selected["show_all"] = args.all or bool(config.values.get("show_all"))
+        games, explanation = library.filtered(**selected)
         serve(library, games, explanation, config, args.port)
     else:
         raise AppError("Operation not implemented")

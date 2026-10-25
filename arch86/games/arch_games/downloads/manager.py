@@ -1,5 +1,6 @@
 """Persistent serial queue with safe, validator-aware resumable transfers."""
 
+from datetime import datetime, timezone
 import fcntl
 import http.client
 import os
@@ -79,6 +80,7 @@ class DownloadManager:
             raise AppError("Download exceeds configured size limit")
         job = {
             "id": ident,
+            "created_at": datetime.now(timezone.utc).isoformat(),
             "game_id": game.id,
             "title": game.title,
             "remote_id": game_id,
@@ -145,7 +147,10 @@ class DownloadManager:
                 if job["state"] == "running":
                     job["state"] = "queued"
                     self.db.put("downloads", row["key"], job)
-            for row in self.db.all("downloads"):
+            queued = sorted(
+                self.db.all("downloads"), key=lambda row: row["value"].get("created_at", row["updated"])
+            )
+            for row in queued:
                 job = self.get(row["key"])
                 if job["state"] != "queued":
                     continue
@@ -197,6 +202,12 @@ class DownloadManager:
                         progress(dict(job))
                     return
                 validator = job.get("validator")
+                if validator and (
+                    not isinstance(validator, str)
+                    or len(validator) > 1024
+                    or not all(32 <= ord(c) <= 126 for c in validator)
+                ):
+                    raise AppError("Invalid download validator; retry --restart")
                 if offset and not validator:
                     part.unlink()
                     offset = 0
@@ -244,6 +255,10 @@ class DownloadManager:
                     new_validator = (
                         etag if etag and not etag.startswith("W/") else response.headers.get("Last-Modified")
                     )
+                    if new_validator and (
+                        len(new_validator) > 1024 or not all(32 <= ord(c) <= 126 for c in new_validator)
+                    ):
+                        raise AppError("Server returned an invalid download validator")
                     if code == 206 and validator and new_validator and new_validator != validator:
                         raise AppError("Download validator changed; retry --restart")
                     self.space(max((expected or CHUNK) - offset, CHUNK))

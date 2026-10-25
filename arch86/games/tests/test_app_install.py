@@ -55,3 +55,25 @@ class AppInstallTests(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             self.installer.install(ROOT)
         self.assertIn("unrelated", existing.read_text())
+
+    def test_piped_bootstrap_does_not_execute_cwd_installer(self):
+        import os
+
+        if os.geteuid() == 0:
+            self.skipTest("Production bootstrap intentionally refuses root")
+        fakebin = self.home / "fakebin"
+        fakebin.mkdir()
+        fake = fakebin / "python3"
+        fake.write_text('#!/bin/sh\nprintf "%s\\n" "$1"\n')
+        fake.chmod(0o700)
+        (self.home / "install_app.py").write_text('raise RuntimeError("Never execute this")')
+        result = subprocess.run(
+            ["sh"],
+            input=(ROOT / "install.sh").read_text(),
+            cwd=self.home,
+            env={**os.environ, "PATH": str(fakebin) + ":" + os.environ["PATH"]},
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.strip(), "-")

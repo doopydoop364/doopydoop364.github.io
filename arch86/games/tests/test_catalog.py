@@ -48,3 +48,25 @@ class CatalogTests(unittest.TestCase):
         result = expand_versions(game)
         self.assertEqual([g.id for g in result], ["gamevault:1@2", "gamevault:1@3"])
         self.assertEqual([g.os for g in result], ["windows", "linux"])
+
+    def test_installed_alternative_keeps_correct_source(self):
+        first = Game("p", "Title", package="pkg", os="linux", build="1", metadata={"canonical_id": "same"})
+        second = Game(
+            "g",
+            "Title",
+            "gamevault",
+            os="linux",
+            build="1",
+            installed=True,
+            metadata={"canonical_id": "same"},
+        )
+        result = merge_catalogs([first], [second])
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0].source, "gamevault")
+        self.assertFalse(result[0].metadata["alternatives"][0]["installed"])
+        self.assertNotIn("alternatives", first.metadata)
+
+    def test_source_specific_catalog_does_not_collapse_other_sources(self):
+        first = Game("p", "Title", os="linux", build="1", metadata={"canonical_id": "same"})
+        second = Game("g", "Title", "gamevault", os="linux", build="1", metadata={"canonical_id": "same"})
+        self.assertEqual(len(merge_catalogs([first], [second], deduplicate=False)), 2)

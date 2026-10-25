@@ -28,7 +28,7 @@ files during the sequential phases and the integration pass.
   smoke, aliases in paths containing spaces, custom catalog/settings preservation,
   unrelated launcher protection and removal retaining all user data.
 
-Current suite: 65 tests, passing on x86-64 Python 3.10.20 and 3.14.8. No game was
+Current suite: 77 tests, passing on x86-64 Python 3.10.20 and 3.14.8. No game was
 executed. Native 32-bit Python, real Pacman transactions, real Wine/graphics,
 private GameVault services and hosted CI execution remain external validation
 items. See VALIDATION.md; mocks do not satisfy those acceptance checks.
@@ -37,3 +37,12 @@ The public Arch Wiki and Arch Linux 32 website returned access-control pages
 when consulted during this pass. No attempt was made to bypass them. Wine
 packaging advice therefore remains deliberately conditional on installed runtimes
 and the user's currently configured repositories.
+
+Final polish also bound credentials to server/account, serialized token refresh,
+rejected control-bearing secrets before HTTP validation, filtered unneeded server
+relations from caches, added metadata/output bounds, preserved FIFO download order,
+kept installed source identity correct when deduplicating, and recovered interrupted
+metadata bodies from the last complete snapshot. The gallery search/details were
+visually checked through a browser against a clearly labeled catalog fixture. A
+wheel was built and installed in an isolated Python 3.10 environment, including
+all aliases and bundled catalog.

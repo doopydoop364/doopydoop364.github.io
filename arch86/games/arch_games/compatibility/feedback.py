@@ -91,11 +91,11 @@ def save_feedback(db, game_id, result, profile, notes="", launch_id=None, manual
     return record
 
 
-def current_feedback(db, game_id):
-    record = db.get("feedback", game_id)
+def current_feedback(db, game_id, context=None):
+    record = context["feedback"].get(game_id) if context is not None else db.get("feedback", game_id)
     if not record:
         return None
-    install = db.get("installs", game_id, {})
+    install = context["installs"].get(game_id, {}) if context is not None else db.get("installs", game_id, {})
     if record.get("transaction") != install.get("transaction") or record.get("archive_sha256") != install.get(
         "archive_sha256"
     ):
@@ -104,7 +104,7 @@ def current_feedback(db, game_id):
         return None
     if record.get("prefix_path") and prefix_identity(record["prefix_path"]) != record.get("prefix_identity"):
         return None
-    launch = latest_launch(db, game_id)
+    launch = context["launches"].get(game_id) if context is not None else latest_launch(db, game_id)
     if launch and record.get("launch_id") != launch.get("id"):
         return None
     return record

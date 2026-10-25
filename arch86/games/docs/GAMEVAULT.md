@@ -5,7 +5,7 @@ Use a configurable base URL, including any reverse-proxy path prefix, without
 `arch-games gamevault connect --url https://games.your-tailnet.example`.
 Credentials are requested interactively with hidden password input. Login is the
 HTTP Basic endpoint specified by OpenAPI 17.0.1; access and refresh tokens are
-stored privately and rotated on expiry. No password is retained. Use
+stored privately, bound to the exact server/account, and rotated on expiry under a cross-process lock. No password is retained. Use
 `gamevault connect --api-key --url URL` for an existing server-enabled API key;
 the account name is a local cache identity. SSO-only installations can use an
 administrator-enabled existing API key; this client does not conduct OAuth browser
@@ -37,3 +37,7 @@ client, stores local image copies, and never puts tokens in image URLs.
 For live acceptance, inspect your server's /api/docs-json, compare the contract in
 GAMEVAULT_API.md, then connect/list/details/download a small authorized game. The
 client never calls indexing, upload, deletion or metadata-update endpoints.
+
+Only documented display/download fields are cached; user relations, remote launch
+parameters and unknown extra fields are discarded. Metadata is limited to 8 MiB
+per response, 32 MiB per complete library, 200 pages and 20,000 records.

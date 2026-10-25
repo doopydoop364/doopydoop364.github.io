@@ -6,12 +6,12 @@ Global --state-dir PATH precedes the command and isolates all state. --help is a
 
 ```text
 usage: arch-games [-h] [--version] [--state-dir STATE_DIR]
-                  {menu,list,doctor,info,details,reports,analyze,web,install,uninstall,installed,gamevault,download,prefix,launch,history,feedback,settings} ...
+                  {menu,list,doctor,info,details,reports,analyze,web,install,uninstall,installed,gamevault,download,prefix,launch,history,feedback,catalog,settings} ...
 
 Local-first Arch Linux game library
 
 positional arguments:
-  {menu,list,doctor,info,details,reports,analyze,web,install,uninstall,installed,gamevault,download,prefix,launch,history,feedback,settings}
+  {menu,list,doctor,info,details,reports,analyze,web,install,uninstall,installed,gamevault,download,prefix,launch,history,feedback,catalog,settings}
     menu                Keyboard terminal interface
     list                Search the combined catalog
     doctor              Application integrity and optional prerequisites
@@ -29,6 +29,7 @@ positional arguments:
     launch              Explicitly launch a selected installed executable
     history             Local launch history
     feedback            Local user compatibility results; never uploaded
+    catalog             Explicit local catalog identity assertions
     settings            Show or change local preferences
 
 options:
@@ -544,6 +545,47 @@ options:
   --notes NOTES
   --launch LAUNCH
   --manual
+```
+
+## arch-games catalog
+
+```text
+usage: arch-games catalog [-h] {identify,forget} ...
+
+positional arguments:
+  {identify,forget}
+
+options:
+  -h, --help         show this help message and exit
+```
+
+## arch-games catalog identify
+
+```text
+usage: arch-games catalog identify [-h] --canonical CANONICAL --build BUILD
+                                   [--edition EDITION]
+                                   game
+
+positional arguments:
+  game
+
+options:
+  -h, --help            show this help message and exit
+  --canonical CANONICAL
+  --build BUILD
+  --edition EDITION
+```
+
+## arch-games catalog forget
+
+```text
+usage: arch-games catalog forget [-h] game
+
+positional arguments:
+  game
+
+options:
+  -h, --help  show this help message and exit
 ```
 
 ## arch-games settings

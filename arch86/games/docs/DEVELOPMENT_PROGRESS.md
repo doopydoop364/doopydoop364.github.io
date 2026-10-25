@@ -145,3 +145,12 @@ Review: inspected new and modified source, input validation and backward compati
 Validation: full accumulated unittest suite, compileall and git diff --check passed.
 Limitations: Live VMs and private GameVault server are not available; fixture results are not hardware verification.
 Git commit: `arch-games-2-phase-16`. Next: phase 17.
+
+## Phase 17: Optimization and polish
+
+Completed 77 tests on Python 3.10.20 and 3.14.8; Ruff/format/compile/shell/whitespace checks and isolated wheel/alias/catalog installation pass. A 5,000-record fixture uses six SQLite statements instead of 10,002 and about 11 MiB peak Python allocations instead of 14 MiB; elapsed time remains comparable. Added bounded/filtered metadata, account-bound locked authentication, FIFO jobs, explicit identity deduplication preserving source ownership, engine hints, actionable menu sections and visually verified gallery search/details. No additional runtime Python dependency, production deployment or main merge.
+
+Review: inspected new and modified source, input validation and backward compatibility.
+Validation: full accumulated unittest suite, compileall and git diff --check passed.
+Limitations: Live VMs and private GameVault server are not available; fixture results are not hardware verification.
+Git commit: `arch-games-2-phase-17`. Next: final delivery and real-VM validation.

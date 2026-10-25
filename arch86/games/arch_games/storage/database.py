@@ -47,6 +47,10 @@ class Database:
         )
         return [{"key": k, "value": json.loads(v), "updated": u} for k, v, u in rows]
 
+    def mapping(self, namespace):
+        rows = self.connection.execute("SELECT key,value FROM records WHERE namespace=?", (namespace,))
+        return {key: json.loads(value) for key, value in rows}
+
     def delete(self, namespace, key):
         with self.connection:
             self.connection.execute("DELETE FROM records WHERE namespace=? AND key=?", (namespace, str(key)))
