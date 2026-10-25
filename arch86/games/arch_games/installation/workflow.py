@@ -227,7 +227,8 @@ class Workflow:
                 raise AppError("Download did not complete; see 'download list' and re-run install to resume")
         source["archive"] = str(manager.path(reuse))
         source["download_id"] = reuse["id"]
-        source["verification"] = reuse.get("verification")
+        source["verification"] = reuse.get("verification")  # "sha256-verified" | "size-only" | "unverified" (a label, not a dict)
+        source["download_sha256"] = reuse.get("sha256")
 
     def _file(self, job):
         source = job["source"]
@@ -241,11 +242,14 @@ class Workflow:
         if not path.is_file():
             raise AppError("Archive disappeared; re-run install to fetch it again")
         digest = sha256(path)
-        expected = o.expected_sha256 or (source.get("verification") or {}).get("sha256")
         if o.expected_sha256 and digest != o.expected_sha256.lower():
             raise AppError("SHA-256 does not match the expected value")
+        recorded = source.get("download_sha256")
+        if recorded and digest != recorded:
+            raise AppError("The archive changed after it was downloaded; refusing to continue (retry with a fresh download)")
         source["sha256"] = digest
-        source["verified_against"] = "expected checksum" if expected else "download size/integrity checks only (server provides no checksum)"
+        checksum_backed = bool(o.expected_sha256) or source.get("verification") == "sha256-verified"
+        source["verified_against"] = "expected checksum" if checksum_backed else "download size/integrity checks only (no checksum available from the server)"
         self.say("SHA-256 {} ({})".format(digest[:16] + "...", source["verified_against"]))
 
     def step_inspect(self, job, o):

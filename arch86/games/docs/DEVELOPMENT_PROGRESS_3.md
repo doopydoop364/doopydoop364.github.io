@@ -29,7 +29,7 @@ see `VALIDATION.md` and the real-VM checklist in `TESTING_3.md` once written.
 - [x] P13 Saves and backups
 - [x] P14 Multi-machine, favorites, tags, notes, recommendations, search (+ download priorities/pause/dedupe)
 - [x] P15 Hardening / security review
-- [ ] P16 Integration validation
+- [x] P16 Integration validation
 - [ ] P17 Docs and release prep (all 14 documents in the spec)
 - [ ] P18 Requirement-by-requirement audit
 
@@ -138,3 +138,10 @@ Security review recorded in docs/SECURITY.md ("Arch Games 3.0 security review"),
 missing Wine during prefix creation, corrupt archive, killed download resumed, failed launch status), tools/bench_startup.py. Performance: `doctor` was 689 ms vs 85 ms in 2.0 because of
 graphics probes; quick `doctor` now skips them (161 ms; `--verbose` keeps them); `--version` 68 -> 81 ms, `list --source pacman` 845 -> 876 ms (median of 5, this CachyOS host, Python 3.14.8).
 Python 3.10: no interpreter available locally; static check (`ast.parse(feature_version=(3,10))` + grep for 3.11+ APIs) is clean but 3.10 has NOT been run.
+
+### Phase 16 (done; 289 tests pass)
+tests/test_e2e_undertale.py: loopback GameVault -> `gamevault list` -> alias -> `install undertale` (one download, verification record, plan, installer NOT run) -> `--approve-installer`
+(fake wine creates a GOG layout in the real managed prefix) -> discovery -> registration -> `launch undertale` (WINEPREFIX/cwd checked) -> second `install` is a no-op (no re-download) -> compat classification
+(Likely compatible -> Verified working only after `compat set`) -> DB integrity. The E2E found a real bug (download verification label treated as a dict) - fixed.
+tools/audio_bridge_selftest.py: serves a synthetic tone so the user can check browser/network/token on their own machines. Browser audio harness automated pieces: tests/test_remote_audio.py; real-browser run
+described in REMOTE_AUDIO_3.md. Fake Wine only records calls: this is NOT a Wine or gameplay test.
