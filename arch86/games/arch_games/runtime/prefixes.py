@@ -1,12 +1,12 @@
 """Explicit isolated Wine environments. No DLL installers or package installation."""
+
 import os
-from pathlib import Path
 import shutil
 import subprocess
 import uuid
 
 from ..compatibility.graphics import command
-from ..config import AppError, atomic_json, read_json
+from ..config import AppError, atomic_json
 from ..downloads.manager import QueueLock, RESERVE
 from ..platform import architecture
 from .environment import environment
@@ -47,13 +47,22 @@ class PrefixManager:
             env.update(WINEPREFIX=str(path), WINEARCH=arch, WINEDLLOVERRIDES="mscoree,mshtml=")
             path.mkdir(mode=0o700)
             version = command([wine, "--version"], self.run).strip()
-            record = {"game_id": ident, "directory": name, "requested_architecture": arch,
-                      "wine_version": version, "state": "creating", "environment": custom or {}}
+            record = {
+                "instance_id": uuid.uuid4().hex,
+                "game_id": ident,
+                "directory": name,
+                "requested_architecture": arch,
+                "wine_version": version,
+                "state": "creating",
+                "environment": custom or {},
+            }
             self.db.put("prefixes", ident, record)
             log = self.config.directory("logs") / ("prefix-" + uuid.uuid4().hex + ".log")
             try:
                 with log.open("wb") as output:
-                    result = self.run([wineboot, "-u"], env=env, stdout=output, stderr=subprocess.STDOUT, timeout=120)
+                    result = self.run(
+                        [wineboot, "-u"], env=env, stdout=output, stderr=subprocess.STDOUT, timeout=120
+                    )
                 if result.returncode:
                     raise AppError("Wine prefix initialization failed; see local runtime log")
                 health = self.check(ident)
@@ -73,7 +82,11 @@ class PrefixManager:
 
     def check(self, ident):
         path = self.path(ident)
-        complete = path.is_dir() and all((path / f).is_file() for f in ["system.reg", "user.reg"]) and (path / "drive_c").is_dir()
+        complete = (
+            path.is_dir()
+            and all((path / f).is_file() for f in ["system.reg", "user.reg"])
+            and (path / "drive_c").is_dir()
+        )
         arch = "unknown"
         if (path / "system.reg").is_file():
             with (path / "system.reg").open("rb") as stream:
@@ -82,8 +95,14 @@ class PrefixManager:
                 arch = "win64"
             elif b"#arch=win32" in header:
                 arch = "win32"
-        return {"game_id": ident, "path": str(path), "healthy": complete, "architecture": arch,
-                "record": self.db.get("prefixes", ident), "dependencies": "No automatic runtime component installation"}
+        return {
+            "game_id": ident,
+            "path": str(path),
+            "healthy": complete,
+            "architecture": arch,
+            "record": self.db.get("prefixes", ident),
+            "dependencies": "No automatic runtime component installation",
+        }
 
     def backup(self, ident):
         with self.lock():
@@ -99,7 +118,11 @@ class PrefixManager:
                 if target.exists():
                     shutil.rmtree(target)
                 raise
-            self.db.put("events", uuid.uuid4().hex, {"operation": "prefix backup", "game_id": ident, "path": str(target)})
+            self.db.put(
+                "events",
+                uuid.uuid4().hex,
+                {"operation": "prefix backup", "game_id": ident, "path": str(target)},
+            )
             return {"backup": str(target), "note": "Stop games and Wine processes before backing up a prefix"}
 
     def remove(self, ident, purge=False):
@@ -111,5 +134,7 @@ class PrefixManager:
             self.db.delete("prefixes", ident)
             if purge and target.exists():
                 shutil.rmtree(target)
-            self.db.put("events", uuid.uuid4().hex, {"operation": "prefix removed", "game_id": ident, "purged": purge})
+            self.db.put(
+                "events", uuid.uuid4().hex, {"operation": "prefix removed", "game_id": ident, "purged": purge}
+            )
             return {"removed": ident, "backup": str(target) if not purge else None}

@@ -19,8 +19,10 @@ class TerminalTests(unittest.TestCase):
         class Library:
             profile = {}
             reports = {}
+
             def filtered(self, **kwargs):
                 return [], "No entries"
+
         inputs = iter(["1", "/query", "n", "p", "b", "q"])
         lines = []
         menu(Library(), lambda args: None, True, lambda prompt: next(inputs), lines.append)

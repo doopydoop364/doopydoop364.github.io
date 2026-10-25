@@ -1,7 +1,9 @@
 """Explicit user operations; metadata never becomes executable configuration."""
+
 import argparse
 import getpass
 import json
+import sqlite3
 from pathlib import Path
 import sys
 
@@ -50,7 +52,9 @@ def make_parser():
     analyze.add_argument("--graphics", choices=["2d", "3d", "unknown"], default="unknown")
     analyze.add_argument("--ram-mb", type=int)
     analyze.add_argument("--vulkan", action="store_true")
-    analyze.add_argument("--terminal", action="store_true", help="User assertion: game needs no graphical session")
+    analyze.add_argument(
+        "--terminal", action="store_true", help="User assertion: game needs no graphical session"
+    )
     web = sub.add_parser("web", help="Read-only localhost gallery")
     web.add_argument("--port", type=int, default=8765)
     catalog_options(web)
@@ -64,7 +68,9 @@ def make_parser():
     uninstall = sub.add_parser("uninstall", help="Remove a managed game; archives/prefixes retained")
     uninstall.add_argument("game")
     uninstall.add_argument("--yes", action="store_true")
-    uninstall.add_argument("--purge", action="store_true", help="Delete extracted files instead of retaining a backup")
+    uninstall.add_argument(
+        "--purge", action="store_true", help="Delete extracted files instead of retaining a backup"
+    )
     installed = sub.add_parser("installed", help="Show installed games")
     catalog_options(installed)
     gv = sub.add_parser("gamevault", help="Connect and browse GameVault")
@@ -116,9 +122,16 @@ def make_parser():
     launch.add_argument("--prefix")
     launch.add_argument("--arg", action="append", default=[])
     launch.add_argument("--env", action="append", default=[])
-    launch.add_argument("--command", help="Explicit JSON argument array for custom method; {exe} expands to the path")
+    launch.add_argument(
+        "--command", help="Explicit JSON argument array for custom method; {exe} expands to the path"
+    )
     launch.add_argument("--allow-external", action="store_true")
     launch.add_argument("--dry-run", action="store_true")
+    launch.add_argument(
+        "--interactive",
+        action="store_true",
+        help="Attach terminal input/output instead of capturing game output",
+    )
     sub.add_parser("history", help="Local launch history")
     feedback = sub.add_parser("feedback", help="Local user compatibility results; never uploaded")
     fsub = feedback.add_subparsers(dest="operation", required=True)
@@ -137,9 +150,17 @@ def make_parser():
 
 
 def filters(args):
-    return {"source": args.source, "search": args.search, "category": args.category,
-            "show_all": args.all, "installed": args.installed, "wine": args.wine,
-            "verified": args.verified, "compatible": args.compatible, "sort": args.sort}
+    return {
+        "source": args.source,
+        "search": args.search,
+        "category": args.category,
+        "show_all": args.all,
+        "installed": args.installed,
+        "wine": args.wine,
+        "verified": args.verified,
+        "compatible": args.compatible,
+        "sort": args.sort,
+    }
 
 
 def gamevault_command(args, config, db):
@@ -189,15 +210,20 @@ def analyze_command(args, config, db):
     from .compatibility.analyzer import analyze
     from .models import Game
     from .platform import system_profile
+
     path = Path(args.path)
     if not path.is_file():
         raise AppError("Analysis path is not a regular file")
     binary = inspect_file(path).to_dict()
     archive = None
-    if binary["format"] == "unknown":
+    if binary["format"] == "unknown" and path.name.lower().endswith(
+        (".zip", ".tar", ".tar.gz", ".tgz", ".7z", ".rar")
+    ):
         archive = inspect_archive(path)
         if args.member:
-            record = next((r for r in archive["entries"] if r["name"] == args.member and r.get("executable")), None)
+            record = next(
+                (r for r in archive["entries"] if r["name"] == args.member and r.get("executable")), None
+            )
             if not record:
                 raise AppError("Selected archive member has no recognized executable header")
             binary = record["executable"]
@@ -218,10 +244,16 @@ def analyze_command(args, config, db):
     value = {"executable": binary, "requirements": requirements}
     if args.game:
         from .downloads.verification import sha256
+
         value.update(archive_sha256=sha256(path), source_path=str(path.resolve()), member=args.member)
         db.put("analysis", args.game, value)
-    emit({"report": analyze(game, system_profile(config.data_dir), binary, requirements).to_dict(),
-          "executable": binary, "archive": archive})
+    emit(
+        {
+            "report": analyze(game, system_profile(config.data_dir), binary, requirements).to_dict(),
+            "executable": binary,
+            "archive": archive,
+        }
+    )
 
 
 def settings_command(args, config):
@@ -239,6 +271,7 @@ def settings_command(args, config):
 def dispatch(args, config, db):
     from .catalog.library import Library
     from .platform import system_profile
+
     action = args.action or "menu"
     if action == "gamevault":
         return gamevault_command(args, config, db)
@@ -246,18 +279,31 @@ def dispatch(args, config, db):
         import ctypes.util
         import shutil
         from .downloads.verification import sha256
+
         marker = Path(__file__).parents[1] / ".installed.json"
         integrity = "Source checkout; no installation manifest"
         if marker.is_file():
             manifest = json.loads(marker.read_text())
-            damaged = [name for name, digest in manifest["files"].items()
-                       if not (marker.parent / name).is_file() or sha256(marker.parent / name) != digest]
+            damaged = [
+                name
+                for name, digest in manifest["files"].items()
+                if not (marker.parent / name).is_file() or sha256(marker.parent / name) != digest
+            ]
             if damaged:
                 raise AppError("Installed files failed integrity check: " + ", ".join(damaged))
             integrity = "All installed file hashes match"
-        return emit({"integrity": integrity, "python": sys.version.split()[0],
-                     "optional": {name: bool(shutil.which(name)) for name in ["pacman", "wine", "wineboot", "dosbox", "glxinfo", "vulkaninfo"]},
-                     "libarchive": bool(ctypes.util.find_library("archive")), "data_dir": str(config.data_dir)})
+        return emit(
+            {
+                "integrity": integrity,
+                "python": sys.version.split()[0],
+                "optional": {
+                    name: bool(shutil.which(name))
+                    for name in ["pacman", "wine", "wineboot", "dosbox", "glxinfo", "vulkaninfo"]
+                },
+                "libarchive": bool(ctypes.util.find_library("archive")),
+                "data_dir": str(config.data_dir),
+            }
+        )
     if action == "info":
         return emit(system_profile(config.data_dir))
     if action == "settings":
@@ -267,14 +313,25 @@ def dispatch(args, config, db):
     if action == "feedback":
         from .compatibility.feedback import save_feedback
         from .platform import apply_overrides
+
         if args.operation == "list":
             return emit([row["value"] for row in db.all("feedback")])
-        return emit(save_feedback(db, args.game, args.result, apply_overrides(system_profile(config.data_dir), config),
-                                  args.notes, args.launch, args.manual))
+        return emit(
+            save_feedback(
+                db,
+                args.game,
+                args.result,
+                apply_overrides(system_profile(config.data_dir), config),
+                args.notes,
+                args.launch,
+                args.manual,
+            )
+        )
     if action == "history":
         return emit([row["value"] for row in db.all("launches")])
     if action == "launch":
         from .runtime.launcher import Launcher
+
         custom_env = {}
         for value in args.env:
             if "=" not in value:
@@ -282,17 +339,29 @@ def dispatch(args, config, db):
             key, val = value.split("=", 1)
             custom_env[key] = val
         launcher = Launcher(config, db)
-        plan = launcher.plan(args.game, args.executable, args.method, args.prefix, args.arg,
-                             custom_env, json.loads(args.command) if args.command else None, args.allow_external)
+        plan = launcher.plan(
+            args.game,
+            args.executable,
+            args.method,
+            args.prefix,
+            args.arg,
+            custom_env,
+            json.loads(args.command) if args.command else None,
+            args.allow_external,
+        )
         if args.dry_run:
             return emit({k: v for k, v in plan.items() if k != "env"} | {"custom_environment": custom_env})
+        plan["interactive"] = args.interactive
         record = launcher.launch(plan)
         emit(record)
         if record["exit_code"]:
-            raise AppError("Game exited with status {}; see history and launch log".format(record["exit_code"]))
+            raise AppError(
+                "Game exited with status {}; see history and launch log".format(record["exit_code"])
+            )
         return
     if action == "prefix":
         from .runtime.prefixes import PrefixManager
+
         manager = PrefixManager(config, db)
         if args.operation == "list":
             return emit([row["value"] for row in db.all("prefixes")])
@@ -300,16 +369,36 @@ def dispatch(args, config, db):
             return emit(manager.check(args.game))
         if args.operation == "backup":
             return emit(manager.backup(args.game))
-        if not args.yes and input("{} isolated Wine prefix for {}? [y/N] ".format(args.operation.title(), clean(args.game))).lower() != "y":
+        if (
+            not args.yes
+            and input(
+                "{} isolated Wine prefix for {}? [y/N] ".format(args.operation.title(), clean(args.game))
+            ).lower()
+            != "y"
+        ):
             return
-        return emit(manager.create(args.game, args.arch) if args.operation == "create" else manager.remove(args.game, args.purge))
+        return emit(
+            manager.create(args.game, args.arch)
+            if args.operation == "create"
+            else manager.remove(args.game, args.purge)
+        )
     if action == "download":
         from .downloads.manager import DownloadManager
+
         manager = DownloadManager(config, db)
         if args.operation == "list":
             return emit([row["value"] for row in db.all("downloads")])
         if args.operation == "run":
-            manager.run(lambda job: print(clean("{}: {} / {} bytes ({})".format(job["id"], job["received"], job["expected_size"], job["state"])), flush=True))
+            manager.run(
+                lambda job: print(
+                    clean(
+                        "{}: {} / {} bytes ({})".format(
+                            job["id"], job["received"], job["expected_size"], job["state"]
+                        )
+                    ),
+                    flush=True,
+                )
+            )
             failed = [r for r in db.all("downloads") if r["value"]["state"] == "failed"]
             if failed:
                 raise AppError("Some downloads failed; inspect download list and retry")
@@ -324,41 +413,82 @@ def dispatch(args, config, db):
         return emit(manager.add(library.find(args.game), args.sha256, args.max_gb * 1024**3))
     if action == "uninstall":
         from .runtime.installer import Installer
-        if args.yes or input("Remove managed game {}{}? [y/N] ".format(clean(args.game), " permanently" if args.purge else " to backups")).lower() == "y":
+
+        if (
+            args.yes
+            or input(
+                "Remove managed game {}{}? [y/N] ".format(
+                    clean(args.game), " permanently" if args.purge else " to backups"
+                )
+            ).lower()
+            == "y"
+        ):
             return emit(Installer(config, db).uninstall(args.game, args.purge))
         return
     if action == "install" and args.archive:
         from .runtime.installer import Installer
         from .models import Game
+
         if args.game.startswith("local:"):
             game = Game(args.game, args.title or args.game.split(":", 1)[1], "local")
         else:
             library = Library(config, db).load(offline=True)
             game = library.find(args.game)
-        if args.yes or input("Extract {} into a managed game directory? [y/N] ".format(clean(game.title))).lower() == "y":
+        if (
+            args.yes
+            or input("Extract {} into a managed game directory? [y/N] ".format(clean(game.title))).lower()
+            == "y"
+        ):
             manifest = Installer(config, db).install(game, args.archive, args.reinstall, args.timeout, print)
             emit(manifest)
         return
     library = Library(config, db).load(getattr(args, "source", "all"), getattr(args, "offline", False))
+    if library.sync:
+        print("GameVault synchronization: " + json.dumps(library.sync), file=sys.stderr)
     for warning in library.warnings:
         print("Notice: " + clean(warning), file=sys.stderr)
     if action in {"list", "reports", "installed"}:
         selected = filters(args)
-        selected["show_all"] = args.all or action in {"reports", "installed"} or bool(config.values.get("show_all"))
+        selected["show_all"] = (
+            args.all or action in {"reports", "installed"} or bool(config.values.get("show_all"))
+        )
         selected["installed"] = args.installed or action == "installed"
         games, explanation = library.filtered(**selected)
         print(clean(explanation), file=sys.stderr)
         if args.json or action == "reports":
-            return emit({"games": [g.to_dict() for g in games], "reports": {g.id: library.reports[g.id] for g in games}, "sync": library.sync})
+            return emit(
+                {
+                    "games": [g.to_dict() for g in games],
+                    "reports": {g.id: library.reports[g.id] for g in games},
+                    "sync": library.sync,
+                }
+            )
         for game in games:
-            print(clean("{} | {} | {} | {}".format(game.package or game.id, game.title,
-                                                  "installed" if game.installed else "available", library.reports[game.id]["status"])))
+            print(
+                clean(
+                    "{} | {} | {} | {}".format(
+                        game.package or game.id,
+                        game.title,
+                        "installed"
+                        if game.installed
+                        else "available"
+                        if game.source == "pacman"
+                        else "not installed",
+                        library.reports[game.id]["status"],
+                    )
+                )
+            )
     elif action == "details":
         game = library.find(args.game)
         emit({"game": game.to_dict(), "compatibility": library.reports[game.id], "sync": library.sync})
     elif action == "menu":
         from .ui.terminal import menu
-        menu(library, lambda argv: main((["--state-dir", args.state_dir] if args.state_dir else []) + argv), getattr(args, "plain", False))
+
+        menu(
+            library,
+            lambda argv: main((["--state-dir", args.state_dir] if args.state_dir else []) + argv),
+            getattr(args, "plain", False),
+        )
     elif action == "install":
         game = library.find(args.game)
         if game.source != "pacman":
@@ -368,11 +498,13 @@ def dispatch(args, config, db):
             return
         if args.yes or input("Install {} using Pacman? [y/N] ".format(clean(game.package))).lower() == "y":
             import subprocess
+
             result = subprocess.run(["sudo", "pacman", "-S", "--needed", "--", game.package])
             if result.returncode:
                 raise AppError("Pacman installation failed")
     elif action == "web":
         from .ui.gallery import serve
+
         games, explanation = library.filtered(**filters(args))
         serve(library, games, explanation, config, args.port)
     else:
@@ -392,6 +524,12 @@ def main(argv=None):
         return 0
     except (AppError, OSError, ValueError) as exc:
         print("Error: " + clean(str(exc)), file=sys.stderr)
+        return 1
+    except sqlite3.Error:
+        print(
+            "Error: Local state database is unavailable or damaged; restore a private backup before continuing.",
+            file=sys.stderr,
+        )
         return 1
     except (KeyboardInterrupt, EOFError):
         print("\nCancelled.", file=sys.stderr)

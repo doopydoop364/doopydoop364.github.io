@@ -18,7 +18,11 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(len(merge_catalogs([first], [second])), 2)
 
     def test_filters_and_explanation(self):
-        games = [Game("p", "Pacman"), Game("g", "Unknown", "gamevault"), Game("v", "Verified", "gamevault", installed=True)]
+        games = [
+            Game("p", "Pacman"),
+            Game("g", "Unknown", "gamevault"),
+            Game("v", "Verified", "gamevault", installed=True),
+        ]
         reports = {"v": {"status": "Verified Working", "runtime": "Wine"}}
         result, explanation = select(games, reports)
         self.assertEqual({g.id for g in result}, {"p", "v"})
@@ -28,9 +32,19 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(len(select(games, reports, show_all=True)[0]), 3)
 
     def test_versions_remain_distinct(self):
-        game = Game("gamevault:1", "Game", "gamevault", metadata={"remote": {"versions": [
-            {"id": 2, "type": "WINDOWS_PORTABLE", "version": "1"},
-            {"id": 3, "type": "LINUX_PORTABLE", "version": "1"}]}})
+        game = Game(
+            "gamevault:1",
+            "Game",
+            "gamevault",
+            metadata={
+                "remote": {
+                    "versions": [
+                        {"id": 2, "type": "WINDOWS_PORTABLE", "version": "1"},
+                        {"id": 3, "type": "LINUX_PORTABLE", "version": "1"},
+                    ]
+                }
+            },
+        )
         result = expand_versions(game)
         self.assertEqual([g.id for g in result], ["gamevault:1@2", "gamevault:1@3"])
         self.assertEqual([g.os for g in result], ["windows", "linux"])

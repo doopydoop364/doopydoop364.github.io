@@ -1,11 +1,20 @@
 """Standard-library keyboard UI with a deterministic ASCII/plain fallback."""
+
 import os
 import shutil
 import sys
 import unicodedata
 
-SECTIONS = ["Browse Game Catalog", "My GameVault Library", "Compatible Games", "Installed Games",
-            "Download Manager", "Compatibility Reports", "Wine Prefix Manager", "Settings"]
+SECTIONS = [
+    "Browse Game Catalog",
+    "My GameVault Library",
+    "Compatible Games",
+    "Installed Games",
+    "Download Manager",
+    "Compatibility Reports",
+    "Wine Prefix Manager",
+    "Settings",
+]
 
 
 def clean(value):
@@ -18,7 +27,9 @@ def fit(value, width, ascii_only=False):
         text = text.encode("ascii", "replace").decode()
     output, used = [], 0
     for char in text:
-        size = 0 if unicodedata.combining(char) else 2 if unicodedata.east_asian_width(char) in {"W", "F"} else 1
+        size = (
+            0 if unicodedata.combining(char) else 2 if unicodedata.east_asian_width(char) in {"W", "F"} else 1
+        )
         if used + size > max(width, 0):
             break
         output.append(char)
@@ -34,7 +45,7 @@ def render_sections(profile, width=80, height=24, selected=0, ascii_only=False):
     for index, name in enumerate(SECTIONS):
         lines.append(("> " if index == selected else "  ") + str(index + 1) + ". " + name)
     lines += ["", "Arrows/j/k: navigate | Enter: open | q: quit"]
-    return [fit(line, width, ascii_only) for line in lines[:max(height, 1)]]
+    return [fit(line, width, ascii_only) for line in lines[: max(height, 1)]]
 
 
 def choose_curses(profile):
@@ -48,8 +59,11 @@ def choose_curses(profile):
             lines = render_sections(profile, max(width - 1, 1), max(height - 1, 1), selected)
             # Tiny consoles keep the selected item and key help visible.
             if height < 14:
-                lines = [fit("ARCH GAMES 2.0", width - 1), fit(SECTIONS[selected], width - 1),
-                         fit("j/k Enter q", width - 1)][:max(height - 1, 1)]
+                lines = [
+                    fit("ARCH GAMES 2.0", width - 1),
+                    fit(SECTIONS[selected], width - 1),
+                    fit("j/k Enter q", width - 1),
+                ][: max(height - 1, 1)]
             for y, line in enumerate(lines):
                 try:
                     screen.addstr(y, 0, line)
@@ -67,15 +81,19 @@ def choose_curses(profile):
                 return key - ord("1")
             elif key in {10, 13, curses.KEY_ENTER}:
                 return selected
+
     return curses.wrapper(draw)
 
 
 def menu(library, dispatch, plain=False, input_fn=input, output=print):
-    use_curses = not plain and sys.stdin.isatty() and sys.stdout.isatty() and os.environ.get("TERM", "dumb") != "dumb"
+    use_curses = (
+        not plain and sys.stdin.isatty() and sys.stdout.isatty() and os.environ.get("TERM", "dumb") != "dumb"
+    )
     while True:
         if use_curses:
             try:
                 import curses
+
                 selection = choose_curses(library.profile)
             except (ImportError, OSError):
                 use_curses = False
@@ -99,10 +117,17 @@ def menu(library, dispatch, plain=False, input_fn=input, output=print):
         if selection is None:
             return
         if selection < 4:
-            filters = [{}, {"source": "gamevault", "show_all": True}, {"compatible": True}, {"installed": True, "show_all": True}][selection]
+            filters = [
+                {},
+                {"source": "gamevault", "show_all": True},
+                {"compatible": True},
+                {"installed": True, "show_all": True},
+            ][selection]
             browse(library, dispatch, filters, input_fn, output)
         else:
-            dispatch([["download", "list"], ["reports"], ["prefix", "list"], ["settings", "show"]][selection - 4])
+            dispatch(
+                [["download", "list"], ["reports"], ["prefix", "list"], ["settings", "show"]][selection - 4]
+            )
             input_fn("Enter to return: ")
 
 
@@ -112,12 +137,19 @@ def browse(library, dispatch, filters, input_fn=input, output=print):
     while True:
         games, explanation = library.filtered(**filters)
         page = min(page, max((len(games) - 1) // per_page, 0))
-        subset = games[page * per_page:(page + 1) * per_page]
+        subset = games[page * per_page : (page + 1) * per_page]
         output(clean(explanation))
         for index, game in enumerate(subset, 1):
             status = library.reports.get(game.id, {}).get("status", "Unknown")
-            output(fit("{:2}. {} [{}]{}".format(index, game.title, status, " [installed]" if game.installed else ""),
-                       max(shutil.get_terminal_size((80, 24)).columns - 1, 10), True))
+            output(
+                fit(
+                    "{:2}. {} [{}]{}".format(
+                        index, game.title, status, " [installed]" if game.installed else ""
+                    ),
+                    max(shutil.get_terminal_size((80, 24)).columns - 1, 10),
+                    True,
+                )
+            )
         output("Page {} | n/p pages | /query | a show all | number details | b back".format(page + 1))
         choice = input_fn("> ").strip()
         if choice in {"b", "q"}:

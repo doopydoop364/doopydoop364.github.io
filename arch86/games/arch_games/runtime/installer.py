@@ -1,4 +1,5 @@
 """Recoverable per-game extraction installs; no executable runs during installation."""
+
 import hashlib
 import os
 from pathlib import Path
@@ -42,6 +43,28 @@ class Installer:
         for row in self.db.all("install_transactions"):
             op = row["value"]
             dest = child(self.root, op["destination"])
+            if op.get("kind") == "remove":
+                backup = child(self.backups, op["backup"])
+                if dest.exists() and not backup.exists():
+                    os.replace(dest, backup)
+                elif dest.exists() and backup.exists():
+                    raise AppError(
+                        "Removal recovery found conflicting files; inspect backups before continuing"
+                    )
+                self.db.delete("installs", op["game_id"])
+                if op.get("purge") and backup.exists():
+                    shutil.rmtree(backup)
+                self.db.put(
+                    "events",
+                    row["key"],
+                    {
+                        "operation": "game removed",
+                        "game_id": op["game_id"],
+                        "backup": str(backup) if not op.get("purge") else None,
+                    },
+                )
+                self.db.delete("install_transactions", row["key"])
+                continue
             stage = child(self.root, op["stage"])
             backup = child(self.backups, op["backup"])
             manifest = read_json(dest / MANIFEST) if dest.is_dir() and (dest / MANIFEST).is_file() else {}
@@ -63,7 +86,10 @@ class Installer:
             self.recover()
             previous = self.db.get("installs", game.id)
             if previous and not reinstall:
-                raise AppError("Game is already installed; use --reinstall to preserve a backup and replace it")
+                raise AppError(
+                    "Game is already installed; use --reinstall to preserve a backup and replace it"
+                )
+            source_digest = sha256(archive)
             if progress:
                 progress("Inspecting archive")
             listing = inspect_archive(archive, ArchiveLimits(seconds=min(timeout, 120)))
@@ -76,8 +102,13 @@ class Installer:
             destination = child(self.root, name)
             if destination.exists() and not previous:
                 raise AppError("Unmanaged directory already occupies the installation destination")
-            operation = {"transaction": transaction, "game_id": game.id, "destination": name,
-                         "stage": ".staging-" + transaction, "backup": "installed-" + transaction}
+            operation = {
+                "transaction": transaction,
+                "game_id": game.id,
+                "destination": name,
+                "stage": ".staging-" + transaction,
+                "backup": "installed-" + transaction,
+            }
             stage = child(self.root, operation["stage"])
             backup = child(self.backups, operation["backup"])
             stage.mkdir(mode=0o700)
@@ -86,20 +117,40 @@ class Installer:
                 if progress:
                     progress("Extracting into private staging directory; Ctrl+C cancels")
                 report = extract_archive(archive, stage, ArchiveLimits(seconds=timeout))
+                if sha256(archive) != source_digest:
+                    raise AppError("Installation archive changed during extraction")
                 binaries = [r for r in report["entries"] if r.get("executable")]
-                manifest = {"schema": 1, "game_id": game.id, "game": game.to_dict(), "directory": name,
-                            "transaction": transaction, "archive_sha256": sha256(archive),
-                            "archive_path": str(archive), "expanded_bytes": report["expanded_bytes"],
-                            "files": report["entries"], "executables": binaries,
-                            "dependencies": sorted({dll for r in binaries for dll in r["executable"].get("imports", [])}),
-                            "previous_backup": operation["backup"] if previous else None}
+                manifest = {
+                    "schema": 1,
+                    "game_id": game.id,
+                    "game": game.to_dict(),
+                    "directory": name,
+                    "transaction": transaction,
+                    "archive_sha256": source_digest,
+                    "archive_path": str(archive),
+                    "expanded_bytes": report["expanded_bytes"],
+                    "files": report["entries"],
+                    "executables": binaries,
+                    "dependencies": sorted(
+                        {dll for r in binaries for dll in r["executable"].get("imports", [])}
+                    ),
+                    "previous_backup": operation["backup"] if previous else None,
+                }
                 atomic_json(stage / MANIFEST, manifest)
                 if destination.exists():
                     os.replace(destination, backup)
                 os.replace(stage, destination)
                 self.db.put("installs", game.id, manifest)
                 self.db.delete("install_transactions", transaction)
-                self.db.put("events", transaction, {"operation": "game installed", "game_id": game.id, "backup": manifest["previous_backup"]})
+                self.db.put(
+                    "events",
+                    transaction,
+                    {
+                        "operation": "game installed",
+                        "game_id": game.id,
+                        "backup": manifest["previous_backup"],
+                    },
+                )
                 if progress:
                     progress("Installed; launch requires a separate explicit command")
                 return manifest
@@ -113,14 +164,19 @@ class Installer:
             manifest = self.db.get("installs", game_id)
             if not manifest:
                 raise AppError("Game is not managed by Arch Games")
-            dest = child(self.root, manifest["directory"])
+            child(self.root, manifest["directory"])
             backup = child(self.backups, "removed-" + uuid.uuid4().hex)
-            if dest.exists():
-                os.replace(dest, backup)
-            self.db.delete("installs", game_id)
-            self.db.put("events", uuid.uuid4().hex, {"operation": "game removed", "game_id": game_id,
-                                                    "backup": str(backup) if not purge else None})
-            if purge and backup.exists():
-                shutil.rmtree(backup)
-            return {"removed": game_id, "backup": str(backup) if not purge else None,
-                    "archives_and_prefixes": "retained"}
+            operation = {
+                "kind": "remove",
+                "game_id": game_id,
+                "destination": manifest["directory"],
+                "backup": backup.name,
+                "purge": purge,
+            }
+            self.db.put("install_transactions", backup.name, operation)
+            self.recover()
+            return {
+                "removed": game_id,
+                "backup": str(backup) if not purge else None,
+                "archives_and_prefixes": "retained",
+            }

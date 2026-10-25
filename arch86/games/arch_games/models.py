@@ -1,4 +1,5 @@
 """Shared records. Metadata is evidence, never executable configuration."""
+
 from dataclasses import asdict, dataclass, field
 
 

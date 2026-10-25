@@ -14,34 +14,62 @@ class FeedbackTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
-        self.db = Database(Path(self.temp.name) / 'state.db')
+        self.db = Database(Path(self.temp.name) / "state.db")
         self.addCleanup(self.db.close)
-        self.path = Path(self.temp.name) / 'game.exe'
+        self.path = Path(self.temp.name) / "game.exe"
         self.path.write_bytes(pe())
         self.profile = profile()
-        self.db.put('installs', 'g', {'archive_sha256': 'fixture', 'transaction': 'one'})
-        self.db.put('launches', 'l', {'id': 'l', 'game_id': 'g', 'state': 'exited', 'executable': str(self.path),
-                                     'fingerprint': fingerprint(self.profile), 'started_at': '2026-10-25'})
+        self.db.put("installs", "g", {"archive_sha256": "fixture", "transaction": "one"})
+        self.db.put(
+            "launches",
+            "l",
+            {
+                "id": "l",
+                "game_id": "g",
+                "state": "exited",
+                "executable": str(self.path),
+                "fingerprint": fingerprint(self.profile),
+                "started_at": "2026-10-25",
+            },
+        )
 
     def test_save_update_verify(self):
-        record = save_feedback(self.db, 'g', 'works', self.profile, 'User tested')
-        self.assertFalse(record['synchronized'])
-        result = analyze(Game('g', 'Game', 'gamevault', os='windows'), self.profile, record['binary'], feedback=current_feedback(self.db, 'g'))
-        self.assertEqual(result.status, 'Verified Working')
-        save_feedback(self.db, 'g', 'untested', self.profile)
-        self.assertEqual(len(self.db.all('feedback_history')), 2)
+        record = save_feedback(self.db, "g", "works", self.profile, "User tested")
+        self.assertFalse(record["synchronized"])
+        result = analyze(
+            Game("g", "Game", "gamevault", os="windows"),
+            self.profile,
+            record["binary"],
+            feedback=current_feedback(self.db, "g"),
+        )
+        self.assertEqual(result.status, "Verified Working")
+        save_feedback(self.db, "g", "untested", self.profile)
+        self.assertEqual(len(self.db.all("feedback_history")), 2)
 
     def test_install_and_binary_change_invalidate(self):
-        save_feedback(self.db, 'g', 'works', self.profile)
-        self.path.write_bytes(b'changed')
-        self.assertIsNone(current_feedback(self.db, 'g'))
-        save_feedback(self.db, 'g', 'fails', self.profile)
-        self.db.put('installs', 'g', {'archive_sha256': 'new', 'transaction': 'two'})
-        self.assertIsNone(current_feedback(self.db, 'g'))
+        save_feedback(self.db, "g", "works", self.profile)
+        self.path.write_bytes(b"changed")
+        self.assertIsNone(current_feedback(self.db, "g"))
+        save_feedback(self.db, "g", "fails", self.profile)
+        self.db.put("installs", "g", {"archive_sha256": "new", "transaction": "two"})
+        self.assertIsNone(current_feedback(self.db, "g"))
 
     def test_no_accidental_verification(self):
         with self.assertRaises(AppError):
-            save_feedback(self.db, 'unknown', 'works', self.profile)
-        self.profile['wine']['version'] = 'changed'
+            save_feedback(self.db, "unknown", "works", self.profile)
+        self.profile["wine"]["version"] = "changed"
         with self.assertRaises(AppError):
-            save_feedback(self.db, 'g', 'works', self.profile)
+            save_feedback(self.db, "g", "works", self.profile)
+
+    def test_prefix_changes_invalidate(self):
+        root = Path(self.temp.name) / "prefix"
+        root.mkdir()
+        (root / "system.reg").write_text("first")
+        (root / "user.reg").write_text("first")
+        launch = self.db.get("launches", "l")
+        launch["prefix_path"] = str(root)
+        self.db.put("launches", "l", launch)
+        save_feedback(self.db, "g", "works", self.profile)
+        self.assertIsNotNone(current_feedback(self.db, "g"))
+        (root / "system.reg").write_text("changed registry")
+        self.assertIsNone(current_feedback(self.db, "g"))

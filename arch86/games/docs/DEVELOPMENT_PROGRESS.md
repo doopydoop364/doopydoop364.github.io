@@ -136,3 +136,12 @@ Review: inspected new and modified source, input validation and backward compati
 Validation: full accumulated unittest suite, compileall and git diff --check passed.
 Limitations: Live VMs and private GameVault server are not available; fixture results are not hardware verification.
 Git commit: `arch-games-2-phase-15`. Next: phase 16.
+
+## Phase 16: Full integration testing and security review
+
+Completed cross-version Python 3.10.20/3.14.8 runs and 65-test integration/security suite, including real loopback GameVault workflow for both architecture profiles. Repaired fully received/empty download recovery, cancellation cleanup, unknown-file handling, interactive terminal launch, damaged DB errors, foreign ABI handling, prefix feedback invalidation and removal journaling. Ruff, formatting, compileall, shell syntax and whitespace checks pass. Added CI matrix; hosted CI and actual target VMs remain external.
+
+Review: inspected new and modified source, input validation and backward compatibility.
+Validation: full accumulated unittest suite, compileall and git diff --check passed.
+Limitations: Live VMs and private GameVault server are not available; fixture results are not hardware verification.
+Git commit: `arch-games-2-phase-16`. Next: phase 17.

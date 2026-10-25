@@ -1,4 +1,5 @@
 """Streaming digests; size checks are not cryptographic verification."""
+
 import hashlib
 from pathlib import Path
 from ..config import AppError
@@ -18,4 +19,11 @@ def verify(path, expected_size=None, checksum=None):
     digest = sha256(path)
     if checksum and digest.casefold() != checksum.casefold():
         raise AppError("Downloaded file checksum mismatch")
-    return {"sha256": digest, "verification": "sha256-verified" if checksum else "size-only" if expected_size is not None else "unverified"}
+    return {
+        "sha256": digest,
+        "verification": "sha256-verified"
+        if checksum
+        else "size-only"
+        if expected_size is not None
+        else "unverified",
+    }

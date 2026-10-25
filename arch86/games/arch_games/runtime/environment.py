@@ -1,11 +1,28 @@
 """Small inherited environment; runtime configuration is explicitly local."""
+
 import os
 import re
 from ..config import AppError
 
-BASE = {"HOME", "USER", "LOGNAME", "PATH", "LANG", "TERM", "DISPLAY", "WAYLAND_DISPLAY", "XAUTHORITY",
-        "XDG_RUNTIME_DIR", "XDG_SESSION_TYPE", "XDG_DATA_HOME", "XDG_CONFIG_HOME", "XDG_CACHE_HOME",
-        "DBUS_SESSION_BUS_ADDRESS", "PULSE_SERVER", "PIPEWIRE_REMOTE"}
+BASE = {
+    "HOME",
+    "USER",
+    "LOGNAME",
+    "PATH",
+    "LANG",
+    "TERM",
+    "DISPLAY",
+    "WAYLAND_DISPLAY",
+    "XAUTHORITY",
+    "XDG_RUNTIME_DIR",
+    "XDG_SESSION_TYPE",
+    "XDG_DATA_HOME",
+    "XDG_CONFIG_HOME",
+    "XDG_CACHE_HOME",
+    "DBUS_SESSION_BUS_ADDRESS",
+    "PULSE_SERVER",
+    "PIPEWIRE_REMOTE",
+}
 
 
 def environment(custom=None):

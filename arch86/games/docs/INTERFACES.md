@@ -25,3 +25,6 @@ snapshot of startup; restart after analyzing games or changing configuration.
 There are no browser actions that install packages, queue transfers or launch
 games. Cross-origin requests and unexpected Host headers are refused; administrative
 controls are not exposed. To view remotely, use an authenticated tunnel you manage.
+
+Use `launch ID EXE --interactive` to attach terminal input/output for a native
+terminal game. This mode records exit status but does not capture game output.

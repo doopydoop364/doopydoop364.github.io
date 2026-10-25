@@ -1,4 +1,5 @@
 """Untrusted archive parsing is isolated with memory/CPU/time limits."""
+
 import ctypes as C
 import ctypes.util
 import json
@@ -77,8 +78,11 @@ def run(path, destination, limits):
                 raise AppError("Archive has duplicate or case-colliding paths")
             seen.add(key)
             kind = lib.archive_entry_filetype(entry)
-            if (lib.archive_entry_symlink(entry) or lib.archive_entry_hardlink(entry)
-                    or kind not in {stat.S_IFREG, stat.S_IFDIR}):
+            if (
+                lib.archive_entry_symlink(entry)
+                or lib.archive_entry_hardlink(entry)
+                or kind not in {stat.S_IFREG, stat.S_IFDIR}
+            ):
                 raise AppError("Links and special archive files are refused")
             if lib.archive_entry_is_encrypted(entry):
                 raise AppError("Encrypted archive entries are not supported")
@@ -105,7 +109,9 @@ def run(path, destination, limits):
                     flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW
                     stream = os.fdopen(os.open(target, flags, 0o600), "wb")
                 while target or (candidate and len(header) < MAX_HEADER):
-                    amount = lib.archive_read_data(archive, buffer, min(65536, MAX_HEADER - len(header)) if not target else 65536)
+                    amount = lib.archive_read_data(
+                        archive, buffer, min(65536, MAX_HEADER - len(header)) if not target else 65536
+                    )
                     if amount < 0:
                         raise AppError("Archive data is corrupt")
                     if amount == 0:
@@ -116,7 +122,7 @@ def run(path, destination, limits):
                     if stream:
                         stream.write(buffer.raw[:amount])
                     if candidate and len(header) < MAX_HEADER:
-                        header.extend(buffer.raw[:min(amount, MAX_HEADER - len(header))])
+                        header.extend(buffer.raw[: min(amount, MAX_HEADER - len(header))])
                     if time.monotonic() - start > limits.seconds:
                         raise AppError("Archive exceeded time limit")
                 if target and actual != size:
@@ -135,9 +141,12 @@ def run(path, destination, limits):
             records.append(record)
         if not records:
             raise AppError("Archive contains no entries")
-        return {"entries": records, "expanded_bytes": expanded,
-                "source": "Local archive headers (bounded libarchive)",
-                "nested_archives": "Listed only; never recursively expanded"}
+        return {
+            "entries": records,
+            "expanded_bytes": expanded,
+            "source": "Local archive headers (bounded libarchive)",
+            "nested_archives": "Listed only; never recursively expanded",
+        }
     finally:
         lib.archive_read_free(archive)
 

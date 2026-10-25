@@ -1,4 +1,5 @@
 """Private XDG storage and atomic configuration writes."""
+
 import json
 import os
 from pathlib import Path
@@ -15,6 +16,8 @@ def private_dir(path):
     if path.is_symlink():
         raise AppError("Application directory must not be a symlink")
     path.mkdir(parents=True, exist_ok=True, mode=0o700)
+    if path.stat().st_uid != os.getuid():
+        raise AppError("Application directory must be owned by this user")
     path.chmod(0o700)
     return path
 
@@ -50,8 +53,15 @@ def read_json(path, default=None, private=False):
 
 def server_url(value, allow_http=False):
     parsed = urlsplit(value)
-    if (parsed.scheme not in {"https", "http"} or not parsed.hostname or parsed.username
-            or parsed.password or parsed.query or parsed.fragment or any(ord(c) < 33 for c in value)):
+    if (
+        parsed.scheme not in {"https", "http"}
+        or not parsed.hostname
+        or parsed.username
+        or parsed.password
+        or parsed.query
+        or parsed.fragment
+        or any(ord(c) < 33 for c in value)
+    ):
         raise AppError("Server URL must be HTTP(S), without credentials, queries or fragments")
     if parsed.scheme == "http" and not allow_http:
         raise AppError("HTTP requires --allow-http (only use on a trusted private network)")

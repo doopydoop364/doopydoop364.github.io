@@ -1,4 +1,5 @@
 """Evidence-based predictions, with hard blockers separated from uncertainty."""
+
 from dataclasses import asdict, dataclass, field
 import hashlib
 import json
@@ -25,9 +26,13 @@ class Report:
 
 
 def fingerprint(profile):
-    stable = {"os": profile.get("os"), "arch": profile.get("os_architecture"),
-              "wine": profile.get("wine"), "graphics": profile.get("graphics"),
-              "ram_total": profile.get("ram_total")}
+    stable = {
+        "os": profile.get("os"),
+        "arch": profile.get("os_architecture"),
+        "wine": profile.get("wine"),
+        "graphics": profile.get("graphics"),
+        "ram_total": profile.get("ram_total"),
+    }
     return hashlib.sha256(json.dumps(stable, sort_keys=True).encode()).hexdigest()
 
 
@@ -41,9 +46,21 @@ def analyze(game, profile, executable=None, requirements=None, feedback=None):
     graphics = profile.get("graphics", {})
     wine = profile.get("wine", {})
     report.evidence.extend(binary.get("evidence", []))
-    report.evidence.append("Configured Pacman repository availability" if game.source == "pacman" else game.metadata.get("analysis_source", "Game metadata"))
+    report.evidence.append(
+        "Configured Pacman repository availability"
+        if game.source == "pacman"
+        else game.metadata.get("analysis_source", "Game metadata")
+    )
     imports = set(binary.get("imports", []))
-    directx = "12" if "d3d12.dll" in imports else "11" if "d3d11.dll" in imports else "9" if "d3d9.dll" in imports else None
+    directx = (
+        "12"
+        if "d3d12.dll" in imports
+        else "11"
+        if "d3d11.dll" in imports
+        else "9"
+        if "d3d9.dll" in imports
+        else None
+    )
     if directx:
         report.evidence.append("PE imports Direct3D " + directx + "; runtime use is not proven")
     if "vulkan-1.dll" in imports or req.get("renderer") in {"dxvk", "vkd3d"}:
@@ -73,7 +90,12 @@ def analyze(game, profile, executable=None, requirements=None, feedback=None):
         if not wine.get("available"):
             hard.append("Wine is not installed")
             report.missing_dependencies.append("Wine")
-        elif arch == "i686" and host == "x86_64" and wine.get("win32") is not True and wine.get("wow64") is not True:
+        elif (
+            arch == "i686"
+            and host == "x86_64"
+            and wine.get("win32") is not True
+            and wine.get("wow64") is not True
+        ):
             if wine.get("win32") is False and wine.get("wow64") is False:
                 hard.append("Installed Wine cannot run PE32")
             else:
@@ -93,6 +115,8 @@ def analyze(game, profile, executable=None, requirements=None, feedback=None):
         if not any(profile.get("runtimes", {}).get(name) for name in ["dosbox", "dosbox-staging"]):
             hard.append("DOSBox is not installed")
             report.missing_dependencies.append("DOSBox")
+    elif os_name != "unknown":
+        hard.append("Executable OS/ABI is not supported: " + os_name)
     else:
         uncertain.append("Operating system/executable format unknown")
     graphical = req.get("display", game.category != "Terminal")
@@ -118,7 +142,9 @@ def analyze(game, profile, executable=None, requirements=None, feedback=None):
             uncertain.append("Vulkan capability unknown")
     ram = req.get("ram_bytes")
     if ram:
-        report.memory = "Requires {} bytes; {} bytes available".format(ram, profile.get("ram_available", "unknown"))
+        report.memory = "Requires {} bytes; {} bytes available".format(
+            ram, profile.get("ram_available", "unknown")
+        )
         if profile.get("ram_total") is not None and ram > profile["ram_total"]:
             unlikely.append("Physical memory below known minimum")
         elif profile.get("ram_available") is not None and ram > profile["ram_available"]:
@@ -145,7 +171,9 @@ def analyze(game, profile, executable=None, requirements=None, feedback=None):
         report.evidence.append("Local user feedback: " + str(result))
         if result in {"works", "issues"} and not hard:
             report.status, report.confidence = "Verified Working", "High"
-            report.uncertainties.append("User-attested result; verification does not extend to other configurations")
+            report.uncertainties.append(
+                "User-attested result; verification does not extend to other configurations"
+            )
         elif result == "slow" and not hard:
             report.status, report.confidence = "Unlikely", "High"
         elif result == "fails" and not hard:

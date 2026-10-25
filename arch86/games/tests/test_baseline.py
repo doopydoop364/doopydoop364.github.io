@@ -22,6 +22,7 @@ class BaselineTests(unittest.TestCase):
     def test_availability_includes_installed(self):
         def run(args, **kwargs):
             return SimpleNamespace(returncode=0, stdout="openttd\n" if args[-1] == "-Slq" else "nethack\n")
+
         games, error = visible(run=run)
         self.assertFalse(error)
         self.assertEqual({g.package for g in games}, {"openttd", "nethack"})

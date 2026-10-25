@@ -1,10 +1,10 @@
 # Validation matrix and acceptance checklist
 
 Automated results are detailed in DEVELOPMENT_PROGRESS.md. The development host
-is Linux x86-64 with Python 3.14. Tests emulate i686/Pentium4 and x86-64 profiles,
+is Linux x86-64; the full suite runs on Python 3.10.20 and 3.14.8. Tests emulate i686/Pentium4 and x86-64 profiles,
 generate synthetic ELF/PE/DOS headers and inspect benign ZIP/TAR/TAR.GZ/7z/RAR
 archives. Loopback HTTP tests cover the gallery, and network doubles cover
-GameVault and downloads. These results do not establish actual gameplay support.
+GameVault and downloads. A real loopback GameVault fixture exercises auth, pagination, range downloads, archive install, mocked prefixes/launch, feedback and CLI for both architecture profiles. These results do not establish actual gameplay support.
 
 | Scenario | Arch86 fixture coverage | Arch64 fixture coverage | Live VM |
 |---|---|---|---|

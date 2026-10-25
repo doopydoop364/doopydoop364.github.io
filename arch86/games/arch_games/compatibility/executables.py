@@ -1,4 +1,5 @@
 """Bounded ELF, PE and DOS header inspection. Never loads or executes a target."""
+
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 import struct
@@ -31,27 +32,50 @@ def inspect_bytes(data):
         if bits == 64 and len(data) < 64:
             return result
         arch = {3: "i686", 62: "x86_64", 40: "arm", 183: "aarch64"}.get(machine, "unknown")
-        return Executable("ELF" + str(bits), arch, bits, "linux", evidence=["ELF class and machine header; Linux ABI assumed"])
+        if (arch == "i686" and bits != 32) or (arch in {"x86_64", "aarch64"} and bits != 64):
+            return result
+        abi = {0: "linux", 3: "linux", 2: "netbsd", 6: "solaris", 9: "freebsd"}.get(data[7], "unknown")
+        return Executable(
+            "ELF" + str(bits),
+            arch,
+            bits,
+            abi,
+            evidence=[
+                "ELF class/machine and OSABI header; System V ABI treated as Linux with library caveats"
+            ],
+        )
     if not data.startswith(b"MZ") or len(data) < 28:
         return result
     if len(data) >= 64:
         offset = struct.unpack_from("<I", data, 60)[0]
         if offset:
-            if offset < 64 or offset + 26 > len(data) or data[offset:offset + 4] != b"PE\0\0":
-                return Executable(evidence=["MZ with unrecognized, truncated or out-of-limit secondary header"])
+            if offset < 64 or offset + 26 > len(data) or data[offset : offset + 4] != b"PE\0\0":
+                return Executable(
+                    evidence=["MZ with unrecognized, truncated or out-of-limit secondary header"]
+                )
             machine, sections = struct.unpack_from("<HH", data, offset + 4)
             optional_size = struct.unpack_from("<H", data, offset + 20)[0]
             optional = offset + 24
             magic = struct.unpack_from("<H", data, optional)[0]
             bits = {0x10B: 32, 0x20B: 64}.get(magic, 0)
-            if not bits or optional_size < (96 if bits == 32 else 112) or optional + optional_size > len(data):
+            if (
+                not bits
+                or optional_size < (96 if bits == 32 else 112)
+                or optional + optional_size > len(data)
+            ):
                 return result
             arch = {0x14C: "i686", 0x8664: "x86_64", 0xAA64: "aarch64"}.get(machine, "unknown")
             if (arch == "i686" and bits != 32) or (arch in {"x86_64", "aarch64"} and bits != 64):
                 return result
             imports = _pe_imports(data, optional, optional_size, sections, bits)
-            return Executable("PE32" if bits == 32 else "PE32+", arch, bits, "windows", imports,
-                              ["PE signature, optional header and COFF machine"])
+            return Executable(
+                "PE32" if bits == 32 else "PE32+",
+                arch,
+                bits,
+                "windows",
+                imports,
+                ["PE signature, optional header and COFF machine"],
+            )
     return Executable("DOS", "i686", 16, "dos", evidence=["MZ DOS header; no recognized PE secondary header"])
 
 
@@ -85,7 +109,7 @@ def _pe_imports(data, optional, size, count, bits):
     imports = []
     for i in range(128):
         pos = start + 20 * i
-        if pos + 20 > len(data) or not any(data[pos:pos + 20]):
+        if pos + 20 > len(data) or not any(data[pos : pos + 20]):
             break
         name = at(struct.unpack_from("<I", data, pos + 12)[0])
         if name is None:

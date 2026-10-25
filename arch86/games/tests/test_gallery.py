@@ -1,4 +1,3 @@
-from pathlib import Path
 import tempfile
 import threading
 from types import SimpleNamespace
@@ -15,15 +14,19 @@ class GalleryTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.config = Config(self.temp.name)
-        self.game = Game("pacman:nethack", '<script>alert("x")</script>', package="nethack", category="Terminal")
-        self.library = SimpleNamespace(profile={"os_architecture": "i686"}, reports={self.game.id: {"status": "Promising"}}, sync={})
+        self.game = Game(
+            "pacman:nethack", '<script>alert("x")</script>', package="nethack", category="Terminal"
+        )
+        self.library = SimpleNamespace(
+            profile={"os_architecture": "i686"}, reports={self.game.id: {"status": "Promising"}}, sync={}
+        )
 
     def test_output_encoding(self):
         page = render(self.library, [self.game], "filters")
-        self.assertNotIn(b'<script>alert', page)
-        self.assertIn(b'&lt;script&gt;', page)
-        self.assertIn(b'data-arch=', page)
-        self.assertIn(b'Copy install command', page)
+        self.assertNotIn(b"<script>alert", page)
+        self.assertIn(b"&lt;script&gt;", page)
+        self.assertIn(b"data-arch=", page)
+        self.assertIn(b"Copy install command", page)
 
     def test_http_readonly_and_host(self):
         server = create_server(self.library, [self.game], "filters", self.config, 0)
@@ -31,17 +34,19 @@ class GalleryTests(unittest.TestCase):
         thread.start()
         self.addCleanup(server.server_close)
         self.addCleanup(server.shutdown)
-        url = 'http://127.0.0.1:' + str(server.server_port)
+        url = "http://127.0.0.1:" + str(server.server_port)
         with urlopen(url) as response:
             self.assertEqual(response.status, 200)
-            self.assertIn("frame-ancestors 'none'", response.headers['Content-Security-Policy'])
-        for request, status in [(Request(url, method='POST'), 405),
-                                (Request(url, headers={'Host': 'evil.example'}), 403),
-                                (Request(url + '/install'), 404),
-                                (Request(url, headers={'Origin': 'https://evil.example'}), 403)]:
+            self.assertIn("frame-ancestors 'none'", response.headers["Content-Security-Policy"])
+        for request, status in [
+            (Request(url, method="POST"), 405),
+            (Request(url, headers={"Host": "evil.example"}), 403),
+            (Request(url + "/install"), 404),
+            (Request(url, headers={"Origin": "https://evil.example"}), 403),
+        ]:
             with self.assertRaises(HTTPError) as context:
                 urlopen(request)
             self.assertEqual(context.exception.code, status)
             context.exception.close()
-        with urlopen(url + '/api/status') as response:
-            self.assertIn(b'downloads', response.read())
+        with urlopen(url + "/api/status") as response:
+            self.assertIn(b"downloads", response.read())

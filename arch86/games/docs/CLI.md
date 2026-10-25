@@ -1,6 +1,6 @@
 # Complete CLI reference
 
-Global --state-dir PATH precedes the command and isolates all state. Commands execute only the requested action. --help is available at every level. --yes is the explicit confirmation shortcut for installation/removal/prefix operations. Launch and download queue/run commands are explicit user actions.
+Global --state-dir PATH precedes the command and isolates all state. --help is available at every level. --yes bypasses the application confirmation for the requested install/removal/prefix operation; Pacman retains its own confirmation. Launch and download add/run are explicit user actions.
 
 ## arch-games
 
@@ -477,6 +477,7 @@ options:
 usage: arch-games launch [-h] [--method {auto,native,wine,dosbox,custom}]
                          [--prefix PREFIX] [--arg ARG] [--env ENV]
                          [--command COMMAND] [--allow-external] [--dry-run]
+                         [--interactive]
                          game executable
 
 positional arguments:
@@ -493,6 +494,8 @@ options:
                         expands to the path
   --allow-external
   --dry-run
+  --interactive         Attach terminal input/output instead of capturing game
+                        output
 ```
 
 ## arch-games history

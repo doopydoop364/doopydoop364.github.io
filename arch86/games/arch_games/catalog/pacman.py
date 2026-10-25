@@ -1,4 +1,5 @@
 """Query configured repositories once; never refresh package databases implicitly."""
+
 from pathlib import Path
 import re
 import subprocess
@@ -15,8 +16,17 @@ def parse_catalog(text):
         if len(parts) != 5 or not PACKAGE.fullmatch(parts[1]):
             continue
         title, package, category, art, description = parts
-        games.append(Game("pacman:" + package, title, package=package, category=category,
-                          art=art, description=description, os="linux"))
+        games.append(
+            Game(
+                "pacman:" + package,
+                title,
+                package=package,
+                category=category,
+                art=art,
+                description=description,
+                os="linux",
+            )
+        )
     return games
 
 

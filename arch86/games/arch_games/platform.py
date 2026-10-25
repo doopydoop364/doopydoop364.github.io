@@ -1,4 +1,5 @@
 """Platform detection with explicit unknown states."""
+
 import platform as host_platform
 
 
@@ -20,6 +21,7 @@ def system_profile(path=None, run=None, which=None, environ=None):
     import subprocess
     from .compatibility.graphics import detect_graphics
     from .compatibility.wine import detect_wine
+
     memory = {}
     try:
         for line in Path("/proc/meminfo").read_text().splitlines():
@@ -36,14 +38,23 @@ def system_profile(path=None, run=None, which=None, environ=None):
         free = None
     runner = run or subprocess.run
     finder = which or shutil.which
-    return {"cpu_architecture": architecture(), "os_architecture": architecture(),
-            "process_bits": struct.calcsize("P") * 8, "os": host_platform.system().lower(),
-            "ram_total": memory.get("MemTotal"), "ram_available": memory.get("MemAvailable"), "disk_free": free,
-            "cpus": os.cpu_count(), "graphics": detect_graphics(runner, environ),
-            "wine": detect_wine(runner, finder),
-            "runtimes": {name: finder(name) for name in ["dosbox", "dosbox-staging", "proton", "steam"]},
-            "evidence": ["Kernel architecture (CPU execution mode); /proc/meminfo; filesystem free space"],
-            "uncertainties": ["CPU hardware may support more modes than the running kernel; no execution probe performed"]}
+    return {
+        "cpu_architecture": architecture(),
+        "os_architecture": architecture(),
+        "process_bits": struct.calcsize("P") * 8,
+        "os": host_platform.system().lower(),
+        "ram_total": memory.get("MemTotal"),
+        "ram_available": memory.get("MemAvailable"),
+        "disk_free": free,
+        "cpus": os.cpu_count(),
+        "graphics": detect_graphics(runner, environ),
+        "wine": detect_wine(runner, finder),
+        "runtimes": {name: finder(name) for name in ["dosbox", "dosbox-staging", "proton", "steam"]},
+        "evidence": ["Kernel architecture (CPU execution mode); /proc/meminfo; filesystem free space"],
+        "uncertainties": [
+            "CPU hardware may support more modes than the running kernel; no execution probe performed"
+        ],
+    }
 
 
 def apply_overrides(profile, config):

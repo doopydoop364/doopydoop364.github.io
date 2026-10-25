@@ -46,9 +46,14 @@ class GameVaultTests(unittest.TestCase):
         self.assertEqual(server_url("http://host", True), "http://host")
 
     def test_login_refresh(self):
-        client = self.client([{"access_token": "first", "refresh_token": "refresh"},
-                              HTTPError("url", 401, "bad", {}, None),
-                              {"access_token": "new", "refresh_token": "rotated"}, {}])
+        client = self.client(
+            [
+                {"access_token": "first", "refresh_token": "refresh"},
+                HTTPError("url", 401, "bad", {}, None),
+                {"access_token": "new", "refresh_token": "rotated"},
+                {},
+            ]
+        )
         client.login("fixture", "not-a-real-password")
         client.status()
         self.assertEqual(self.config.credentials()["refresh_token"], "rotated")

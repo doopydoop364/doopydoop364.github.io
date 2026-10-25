@@ -1,7 +1,10 @@
 """Read-only GameVault adapter; contracts captured from public OpenAPI 17.0.1."""
+
 import base64
 import hashlib
 import json
+import re
+from datetime import datetime, timezone
 import time
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, quote
@@ -22,7 +25,7 @@ class AuthenticationError(AppError):
 
 def entity_id(value):
     value = str(value)
-    if not value.isdecimal() or len(value) > 20:
+    if not re.fullmatch(r"[0-9]{1,20}", value):
         raise AppError("GameVault identifier must be a positive decimal ID")
     return value
 
@@ -37,11 +40,19 @@ def normalize(record):
     kind = str(record.get("type", "UNDETECTABLE"))
     os_name = "windows" if kind.startswith("WINDOWS") else "linux" if kind.startswith("LINUX") else "unknown"
     genres = meta.get("genres") or []
+    if not isinstance(genres, list):
+        raise AppError("Malformed GameVault genre metadata")
     category = str(genres[0].get("name", "Other")) if genres and isinstance(genres[0], dict) else "Other"
-    return Game("gamevault:" + ident, str(meta.get("title") or record.get("title") or "Untitled"),
-                source="gamevault", category=category, description=str(meta.get("description") or ""),
-                os=os_name, build=str(record.get("version") or ""),
-                metadata={"remote": record, "analysis_source": "Server metadata (architecture unknown)"})
+    return Game(
+        "gamevault:" + ident,
+        str(meta.get("title") or record.get("title") or "Untitled"),
+        source="gamevault",
+        category=category,
+        description=str(meta.get("description") or ""),
+        os=os_name,
+        build=str(record.get("version") or ""),
+        metadata={"remote": record, "analysis_source": "Server metadata (architecture unknown)"},
+    )
 
 
 class Client:
@@ -74,17 +85,24 @@ class Client:
             except HTTPError as exc:
                 code = exc.code
                 exc.close()
-                if code == 401 and authenticated and refresh and self.config.credentials().get("refresh_token"):
+                if (
+                    code == 401
+                    and authenticated
+                    and refresh
+                    and self.config.credentials().get("refresh_token")
+                ):
                     self.refresh()
                     return self.open(path, headers, method, authenticated, refresh=False)
                 if code in {401, 403, 406}:
-                    raise AuthenticationError("Authentication failed or expired; run gamevault connect") from None
+                    raise AuthenticationError(
+                        "Authentication failed or expired; run gamevault connect"
+                    ) from None
                 if code < 500 or attempt == self.retries or method != "GET":
                     raise AppError("GameVault request failed (HTTP {})".format(code)) from None
             except (URLError, OSError, TimeoutError):
                 if attempt == self.retries or method != "GET":
                     raise AppError("GameVault is unreachable or timed out") from None
-            time.sleep(min(0.2 * 2 ** attempt, 1))
+            time.sleep(min(0.2 * 2**attempt, 1))
         raise AppError("GameVault request failed")
 
     def request(self, path, **kwargs):
@@ -98,7 +116,9 @@ class Client:
             raise AppError("Malformed GameVault JSON response") from None
 
     def save_tokens(self, value):
-        if not isinstance(value, dict) or not all(isinstance(value.get(k), str) and value[k] for k in ["access_token", "refresh_token"]):
+        if not isinstance(value, dict) or not all(
+            isinstance(value.get(k), str) and value[k] for k in ["access_token", "refresh_token"]
+        ):
             raise AppError("Malformed GameVault token response")
         self.config.save_credentials({k: value[k] for k in ["access_token", "refresh_token"]})
 
@@ -106,13 +126,19 @@ class Client:
         if ":" in username:
             raise AppError("Basic authentication username cannot contain a colon")
         token = base64.b64encode((username + ":" + password).encode()).decode("ascii")
-        result = self.request("/api/auth/basic/login", headers={"Authorization": "Basic " + token}, authenticated=False)
+        result = self.request(
+            "/api/auth/basic/login", headers={"Authorization": "Basic " + token}, authenticated=False
+        )
         self.save_tokens(result)
 
     def refresh(self):
         token = self.config.credentials().get("refresh_token", "")
-        result = self.request("/api/auth/refresh", method="POST", authenticated=False,
-                              headers={"Authorization": "Bearer " + token})
+        result = self.request(
+            "/api/auth/refresh",
+            method="POST",
+            authenticated=False,
+            headers={"Authorization": "Bearer " + token},
+        )
         self.save_tokens(result)
 
     def status(self):
@@ -125,8 +151,14 @@ class Client:
             try:
                 records, seen = [], set()
                 for page in range(1, 201):
-                    value = self.request("/api/games?" + urlencode({"page": page, "limit": 100, "sortBy": "id:ASC"}))
-                    if not isinstance(value, dict) or not isinstance(value.get("data"), list) or not isinstance(value.get("meta"), dict):
+                    value = self.request(
+                        "/api/games?" + urlencode({"page": page, "limit": 100, "sortBy": "id:ASC"})
+                    )
+                    if (
+                        not isinstance(value, dict)
+                        or not isinstance(value.get("data"), list)
+                        or not isinstance(value.get("meta"), dict)
+                    ):
                         raise AppError("Malformed GameVault pagination")
                     meta = value["meta"]
                     total = meta.get("totalPages")
@@ -142,7 +174,6 @@ class Client:
                         break
                 else:
                     raise AppError("GameVault library exceeds page limit")
-                from datetime import datetime, timezone
                 cached = {"games": records, "synced_at": datetime.now(timezone.utc).isoformat()}
                 self.db.put("library", self.cache_key, cached)
                 return [normalize(r) for r in records], {"cached": False, "synced_at": cached["synced_at"]}
@@ -151,7 +182,11 @@ class Client:
             except AppError as exc:
                 if not cached:
                     raise
-                return [normalize(r) for r in cached["games"]], {"cached": True, "synced_at": cached["synced_at"], "warning": str(exc)}
+                return [normalize(r) for r in cached["games"]], {
+                    "cached": True,
+                    "synced_at": cached["synced_at"],
+                    "warning": str(exc),
+                }
         if not cached:
             raise AppError("No cached GameVault library for this account")
         return [normalize(r) for r in cached["games"]], {"cached": True, "synced_at": cached["synced_at"]}
@@ -162,6 +197,7 @@ class Client:
         if not offline:
             try:
                 game = normalize(self.request("/api/games/" + quote(ident)))
+                game.metadata["last_synced_at"] = datetime.now(timezone.utc).isoformat()
                 self.db.put("details", key, game.to_dict())
                 return game, False
             except AuthenticationError:
@@ -171,10 +207,11 @@ class Client:
         cached = self.db.get("details", key)
         if cached:
             return Game(**cached), True
-        games, _ = self.library(offline=True)
+        games, state = self.library(offline=True)
         game = next((g for g in games if g.id == "gamevault:" + ident), None)
         if not game:
             raise AppError("Game details unavailable and no cached record exists")
+        game.metadata["last_synced_at"] = state["synced_at"]
         return game, True
 
     def download_path(self, game_id, version_id=None):

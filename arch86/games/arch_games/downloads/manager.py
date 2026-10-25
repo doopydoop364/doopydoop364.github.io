@@ -1,4 +1,5 @@
 """Persistent serial queue with safe, validator-aware resumable transfers."""
+
 import fcntl
 import http.client
 import os
@@ -25,6 +26,13 @@ def filename(value):
 def positive_size(value):
     if value is None or value == "":
         return None
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, (str, int))
+        or isinstance(value, str)
+        and not value.isdecimal()
+    ):
+        raise AppError("Invalid download size metadata")
     try:
         number = int(value)
     except (ValueError, TypeError, OverflowError):
@@ -69,12 +77,24 @@ class DownloadManager:
         size = positive_size(version.get("size"))
         if max_bytes <= 0 or size is not None and size > max_bytes:
             raise AppError("Download exceeds configured size limit")
-        job = {"id": ident, "game_id": game.id, "title": game.title, "remote_id": game_id,
-               "version_id": version_id, "server_url": self.config.values.get("server_url"),
-               "account": self.config.values.get("account"), "state": "queued", "received": 0,
-               "expected_size": size, "checksum": checksum, "max_bytes": max_bytes,
-               "filename": ident + "-" + filename(version.get("file_path") or game.title + ".archive"),
-               "validator": None, "error": None, "game": game.to_dict()}
+        job = {
+            "id": ident,
+            "game_id": game.id,
+            "title": game.title,
+            "remote_id": game_id,
+            "version_id": version_id,
+            "server_url": self.config.values.get("server_url"),
+            "account": self.config.values.get("account"),
+            "state": "queued",
+            "received": 0,
+            "expected_size": size,
+            "checksum": checksum,
+            "max_bytes": max_bytes,
+            "filename": ident + "-" + filename(version.get("file_path") or game.title + ".archive"),
+            "validator": None,
+            "error": None,
+            "game": game.to_dict(),
+        }
         self.db.put("downloads", ident, job)
         self.db.put("events", uuid.uuid4().hex, {"operation": "download queued", "id": ident})
         return job
@@ -105,7 +125,10 @@ class DownloadManager:
             with self.lock():
                 if cleanup:
                     self.path(job, True).unlink(missing_ok=True)
-                job.update(state="cancelled", received=self.path(job, True).stat().st_size if self.path(job, True).exists() else 0)
+                job.update(
+                    state="cancelled",
+                    received=self.path(job, True).stat().st_size if self.path(job, True).exists() else 0,
+                )
                 self.db.put("downloads", ident, job)
         except AppError:
             # Active worker observes the separate cancellation flag on the next chunk.
@@ -126,7 +149,11 @@ class DownloadManager:
                 job = self.get(row["key"])
                 if job["state"] != "queued":
                     continue
-                if self.db.get("download_cancel", job["id"]):
+                cancel = self.db.get("download_cancel", job["id"])
+                if cancel:
+                    if cancel.get("cleanup"):
+                        self.path(job, True).unlink(missing_ok=True)
+                        job["received"] = 0
                     job["state"] = "cancelled"
                     self.db.put("downloads", job["id"], job)
                     continue
@@ -137,12 +164,18 @@ class DownloadManager:
                     self.db.put("downloads", job["id"], job)
                     raise
                 except (AppError, OSError, http.client.HTTPException) as exc:
-                    job.update(state="failed", error=str(exc) if isinstance(exc, AppError) else "Transfer interrupted; retry to resume")
+                    job.update(
+                        state="failed",
+                        error=str(exc)
+                        if isinstance(exc, AppError)
+                        else "Transfer interrupted; retry to resume",
+                    )
                     self.db.put("downloads", job["id"], job)
 
     def transfer(self, job, progress=None):
-        if (job["server_url"] != self.config.values.get("server_url") or
-                job.get("account") != self.config.values.get("account")):
+        if job["server_url"] != self.config.values.get("server_url") or job.get(
+            "account"
+        ) != self.config.values.get("account"):
             raise AppError("Download belongs to a different server/account; reconnect before resuming")
         client = self.client or Client(self.config, self.db)
         part, target = self.path(job, True), self.path(job)
@@ -155,6 +188,14 @@ class DownloadManager:
         for attempt in range(3):
             try:
                 offset = part.stat().st_size if part.exists() else 0
+                if part.exists() and job["expected_size"] is not None and offset == job["expected_size"]:
+                    verification = verify(part, job["expected_size"], job["checksum"])
+                    os.replace(part, target)
+                    job.update(verification, state="completed", received=offset, error=None)
+                    self.db.put("downloads", job["id"], job)
+                    if progress:
+                        progress(dict(job))
+                    return
                 validator = job.get("validator")
                 if offset and not validator:
                     part.unlink()
@@ -164,17 +205,27 @@ class DownloadManager:
                 if expected is not None and offset > expected:
                     raise AppError("Partial file exceeds expected size; retry --restart")
                 self.space(max((expected or CHUNK) - offset, CHUNK))
-                with client.open(client.download_path(job["remote_id"], job["version_id"]), headers=headers) as response:
+                with client.open(
+                    client.download_path(job["remote_id"], job["version_id"]), headers=headers
+                ) as response:
                     code = response.status
                     if response.headers.get("Content-Encoding", "identity").lower() != "identity":
                         raise AppError("Encoded downloads cannot be safely resumed")
                     length = positive_size(response.headers.get("Content-Length"))
                     if code == 206:
-                        match = re.fullmatch(r"bytes (\d+)-(\d+)/(\d+)", response.headers.get("Content-Range", ""))
+                        match = re.fullmatch(
+                            r"bytes (\d+)-(\d+)/(\d+)", response.headers.get("Content-Range", "")
+                        )
                         if not match:
                             raise AppError("Invalid resumed Content-Range")
                         start, end, total = map(int, match.groups())
-                        if start != offset or end < start or end >= total or length is not None and length != end - start + 1:
+                        if (
+                            start != offset
+                            or end < start
+                            or end >= total
+                            or length is not None
+                            and length != end - start + 1
+                        ):
                             raise AppError("Server returned a mismatched download range")
                         if expected is not None and total != expected:
                             raise AppError("Game changed on server; queue its new version")
@@ -190,11 +241,15 @@ class DownloadManager:
                     if expected is not None and expected > job["max_bytes"]:
                         raise AppError("Download exceeds configured byte limit")
                     etag = response.headers.get("ETag")
-                    new_validator = etag if etag and not etag.startswith("W/") else response.headers.get("Last-Modified")
+                    new_validator = (
+                        etag if etag and not etag.startswith("W/") else response.headers.get("Last-Modified")
+                    )
                     if code == 206 and validator and new_validator and new_validator != validator:
                         raise AppError("Download validator changed; retry --restart")
                     self.space(max((expected or CHUNK) - offset, CHUNK))
-                    job.update(state="running", received=offset, validator=new_validator, expected_size=expected)
+                    job.update(
+                        state="running", received=offset, validator=new_validator, expected_size=expected
+                    )
                     self.db.put("downloads", job["id"], job)
                     flags = os.O_WRONLY | os.O_CREAT | os.O_NOFOLLOW | (os.O_APPEND if offset else os.O_TRUNC)
                     last_save = 0
@@ -230,7 +285,11 @@ class DownloadManager:
                 os.replace(part, target)
                 job.update(verification, state="completed", error=None)
                 self.db.put("downloads", job["id"], job)
-                self.db.put("events", uuid.uuid4().hex, {"operation": "download completed", "id": job["id"], "verification": job["verification"]})
+                self.db.put(
+                    "events",
+                    uuid.uuid4().hex,
+                    {"operation": "download completed", "id": job["id"], "verification": job["verification"]},
+                )
                 if progress:
                     progress(dict(job))
                 return

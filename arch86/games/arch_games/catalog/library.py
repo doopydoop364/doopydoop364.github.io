@@ -1,4 +1,5 @@
 """Compose repository availability, remote metadata and local evidence."""
+
 from dataclasses import replace
 from .pacman import load_catalog, visible
 from .filters import merge_catalogs, select
@@ -18,10 +19,19 @@ def expand_versions(game):
         if not isinstance(version, dict) or not str(version.get("id", "")).isdecimal():
             continue
         kind = str(version.get("type", ""))
-        os_name = "windows" if kind.startswith("WINDOWS") else "linux" if kind.startswith("LINUX") else "unknown"
+        os_name = (
+            "windows" if kind.startswith("WINDOWS") else "linux" if kind.startswith("LINUX") else "unknown"
+        )
         meta = dict(game.metadata, selected_version=version)
-        result.append(replace(game, id=game.id + "@" + str(version["id"]),
-                              build=str(version.get("version") or version["id"]), os=os_name, metadata=meta))
+        result.append(
+            replace(
+                game,
+                id=game.id + "@" + str(version["id"]),
+                build=str(version.get("version") or version["id"]),
+                os=os_name,
+                metadata=meta,
+            )
+        )
     return result or [game]
 
 
@@ -30,6 +40,7 @@ class Library:
         self.config, self.db = config, db
         self.profile = profile if profile is not None else system_profile(config.data_dir)
         from ..platform import apply_overrides
+
         apply_overrides(self.profile, config)
         self.games, self.reports, self.warnings = [], {}, []
         self.sync = {}
@@ -57,6 +68,7 @@ class Library:
             game.installed = game.installed or game.id in installs
             local = self.db.get("analysis", game.id, {})
             from ..compatibility.feedback import current_feedback
+
             feedback = current_feedback(self.db, game.id)
             if feedback and feedback.get("binary") and not local.get("executable"):
                 local = dict(local, executable=feedback["binary"])
@@ -64,8 +76,9 @@ class Library:
                 binaries = installs[game.id].get("executables", [])
                 if len(binaries) == 1:
                     local = dict(local, executable=binaries[0]["executable"])
-            self.reports[game.id] = analyze(game, self.profile, local.get("executable"),
-                                           local.get("requirements"), feedback).to_dict()
+            self.reports[game.id] = analyze(
+                game, self.profile, local.get("executable"), local.get("requirements"), feedback
+            ).to_dict()
         return self
 
     def filtered(self, **filters):
