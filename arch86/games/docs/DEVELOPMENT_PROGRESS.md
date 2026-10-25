@@ -127,3 +127,12 @@ Review: inspected new and modified source, input validation and backward compati
 Validation: full accumulated unittest suite, compileall and git diff --check passed.
 Limitations: Live VMs and private GameVault server are not available; fixture results are not hardware verification.
 Git commit: `arch-games-2-phase-14`. Next: phase 15.
+
+## Phase 15: Comprehensive documentation
+
+Added README and full generated CLI reference plus installation, GameVault, Wine/WoW64, terminal/gallery, compatibility methodology, security, troubleshooting, developer and real-VM validation guides. Documents all statuses and measured versus mocked results, retained backups, optional dependencies and external limitations. Fifty-six tests remain passing; examples reviewed against the parser.
+
+Review: inspected new and modified source, input validation and backward compatibility.
+Validation: full accumulated unittest suite, compileall and git diff --check passed.
+Limitations: Live VMs and private GameVault server are not available; fixture results are not hardware verification.
+Git commit: `arch-games-2-phase-15`. Next: phase 16.
