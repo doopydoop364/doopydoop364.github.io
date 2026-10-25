@@ -7,7 +7,9 @@ from ...config import AppError
 from ...identity.resolver import normalize
 from .model import GAME_SECTIONS, Row
 
-TONE = {"Verified Working": "ok", "Promising": "ok", "Experimental": "warn", "Unlikely": "warn", "Unsupported": "bad", "Unknown": "dim"}
+TONE = {"Verified working": "ok", "Working with issues": "warn", "Likely compatible": "ok", "Requires configuration": "warn",
+        "Likely incompatible": "bad", "Unsupported": "bad", "Unknown": "dim",
+        "Verified Working": "ok", "Promising": "ok", "Experimental": "warn", "Unlikely": "warn"}
 STATUS_TONE = {"ok": "ok", "info": "dim", "warn": "warn", "fail": "bad"}
 
 
@@ -84,15 +86,18 @@ class Provider:
         from ...core.gameview import describe
 
         d = describe(self.config, self.db, g, report, aliases, favorite)
-        status = d["compatibility"]["status"]
+        status = d["compatibility"]["classification"]
         installed = d["installed"]
         detail = [("Source: {}   ID: {}".format(g.source, g.id), "normal")]
         if aliases:
             detail.append(("Aliases: " + ", ".join(aliases), "dim"))
         detail.append(("State: " + ("installed" if installed else "not installed"), "ok" if installed else "dim"))
         detail.append(("Compatibility: {}".format(status), TONE.get(status, "dim")))
+        detail += [("  = " + str(x), "normal") for x in d["compatibility"]["reasons"][:2]]
         detail += [("  + " + str(x), "dim") for x in d["compatibility"]["evidence"][:3]]
         detail += [("  ? " + str(x), "warn") for x in d["compatibility"]["uncertainties"][:2]]
+        uc = (d["compatibility"]["facts"] or {}).get("user_confirmed") or {}
+        detail.append(("Confirmed here: gameplay {}, audio {}, launch {}".format(uc.get("gameplay", "unverified"), uc.get("audio", "unknown"), uc.get("launch", "never")), "dim"))
         detail.append(("Architecture: {}   OS: {}".format(g.architecture, g.os), "normal"))
         if d["prefix"]:
             detail.append(("Wine prefix: {} ({})".format(d["prefix"]["detected_architecture"] or d["prefix"]["requested_architecture"], d["prefix"]["state"]), "normal"))
@@ -152,14 +157,15 @@ class Provider:
         rows = []
         for g in self.lib().games:
             rep = self.lib().reports.get(g.id, {})
-            if rep.get("status", "Unknown") == "Unknown" and not show_all:
+            if rep.get("classification", "Unknown") == "Unknown" and not show_all:
                 continue
             if key and key not in normalize(g.title):
                 continue
-            detail = [("Status: " + rep.get("status", "Unknown"), TONE.get(rep.get("status"), "dim"))]
+            cls = rep.get("classification", "Unknown")
+            detail = [("Classification: " + cls, TONE.get(cls, "dim"))] + [("  = " + r, "normal") for r in rep.get("classification_reasons", [])]
             detail += [("  + " + str(e), "dim") for e in (rep.get("evidence") or [])[:6]]
             detail += [("  ? " + str(u), "warn") for u in (rep.get("uncertainties") or [])[:4]]
-            rows.append(Row(g.id, g.title, rep.get("status", "Unknown"), TONE.get(rep.get("status"), "dim"), detail, {"c": ("full report", ["details", g.id])}))
+            rows.append(Row(g.id, g.title, cls, TONE.get(cls, "dim"), detail, {"c": ("full report", ["compat", "show", g.id])}))
         return rows
 
     def rows_wine(self, search, show_all):

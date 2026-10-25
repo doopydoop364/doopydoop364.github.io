@@ -218,6 +218,26 @@ def make_parser():
     utest = usub.add_parser("test")
     utest.add_argument("--seconds", type=float, default=1.5)
     utest.add_argument("--backend", choices=["auto", "pulse", "alsa"], default="auto")
+    machine = sub.add_parser("machine", help="This machine's identity for compatibility records")
+    msub = machine.add_subparsers(dest="operation", required=True)
+    msub.add_parser("show")
+    msub.add_parser("name").add_argument("name")
+    compat = sub.add_parser("compat", help="Per-machine compatibility records (local; never uploaded)")
+    csub2 = compat.add_subparsers(dest="operation", required=True)
+    cshow = csub2.add_parser("show")
+    cshow.add_argument("game")
+    clist = csub2.add_parser("list")
+    clist.add_argument("--machine", default="this", help="'this', 'all' or a machine id")
+    cset = csub2.add_parser("set", help="Record what you observed on this machine")
+    cset.add_argument("game")
+    cset.add_argument("--gameplay", choices=["unverified", "works", "issues", "slow", "fails"])
+    cset.add_argument("--audio", choices=["unknown", "works", "issues", "none"])
+    cset.add_argument("--issue", help="Add a known issue note")
+    cset.add_argument("--notes")
+    cexp = csub2.add_parser("export")
+    cexp.add_argument("--output", help="File to write (default: stdout)")
+    cimp = csub2.add_parser("import")
+    cimp.add_argument("file")
     favorite = sub.add_parser("favorite", help="Mark favorite games")
     fsub2 = favorite.add_subparsers(dest="operation", required=True)
     fsub2.add_parser("list")
@@ -823,6 +843,42 @@ def dispatch(args, config, db):
             args.game = resolve(args.game)
     if action == "settings" and args.operation == "game":
         args.key = resolve(args.key or "")
+    if action == "machine":
+        from .compatibility import intelligence
+
+        if args.operation == "name":
+            intelligence.set_machine_name(config, args.name)
+        return emit(intelligence.machine_identity(config))
+    if action == "compat":
+        from .compatibility import intelligence
+
+        machine_id = intelligence.machine_identity(config)["id"]
+        if args.operation == "list":
+            return emit(intelligence.all_records(db, machine_id if args.machine == "this" else args.machine))
+        if args.operation == "export":
+            data = intelligence.export(db, config)
+            if args.output:
+                from .config import atomic_json
+
+                atomic_json(args.output, data)
+                print("Exported {} records (private file; contains no credentials)".format(len(data["records"])))
+                return
+            return emit(data)
+        if args.operation == "import":
+            from .config import read_json
+
+            return emit(intelligence.import_records(db, config, read_json(args.file)))
+        game_id = resolve(args.game)
+        if args.operation == "set":
+            fields = {k: v for k, v in (("gameplay_status", args.gameplay), ("audio_status", args.audio)) if v}
+            return emit(intelligence.update(db, config, game_id, issue=args.issue, notes=args.notes, **fields))
+        from .catalog.library import Library
+
+        library = Library(config, db).load(offline=True)
+        game = library.find(game_id)
+        return emit({"game": game_id, "machine": intelligence.machine_identity(config), "classification": library.reports[game_id]["classification"],
+                     "reasons": library.reports[game_id]["classification_reasons"], "legacy_status": library.reports[game_id]["status"],
+                     "facts": library.reports[game_id]["facts"], "record": intelligence.get(db, machine_id, game_id)})
     if action == "favorite":
         if args.operation == "list":
             return emit(sorted(db.mapping("favorites")))
@@ -919,17 +975,16 @@ def dispatch(args, config, db):
 
         if args.operation == "list":
             return emit([row["value"] for row in db.all("feedback")])
-        return emit(
-            save_feedback(
-                db,
-                args.game,
-                args.result,
-                apply_overrides(system_profile(config.data_dir), config),
-                args.notes,
-                args.launch,
-                args.manual,
-            )
+        from .compatibility import intelligence
+
+        profile = apply_overrides(system_profile(config.data_dir), config)
+        saved = save_feedback(db, args.game, args.result, profile, args.notes, args.launch, args.manual)
+        intelligence.update(
+            db, config, args.game, profile=profile,
+            gameplay_status={"works": "works", "issues": "issues", "slow": "slow", "fails": "fails", "untested": "unverified"}[args.result],
+            notes=args.notes or None,
         )
+        return emit(saved)
     if action == "history":
         return emit([row["value"] for row in db.all("launches")])
     if action == "launch":

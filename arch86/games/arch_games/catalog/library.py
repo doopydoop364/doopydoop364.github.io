@@ -9,6 +9,9 @@ from ..config import AppError
 from ..gamevault.client import Client
 from ..models import Game
 from ..platform import system_profile
+from ..compatibility import intelligence
+from ..compatibility.executables import inspect_file
+from pathlib import Path
 
 
 def expand_versions(game):
@@ -132,6 +135,13 @@ class Library:
                 game.metadata["identity_source"] = "Explicit local user assertion"
                 game.build, game.edition = identity["build"], identity.get("edition", "")
         self.games = merge_catalogs(candidates, deduplicate=source == "all")
+        machine = intelligence.machine_identity(self.config)
+        compat = self.db.mapping(intelligence.NAMESPACE)  # one query for every record, not one per game
+        by_game = {}
+        for rec in compat.values():
+            if rec["machine"]["id"] != machine["id"]:
+                by_game.setdefault(rec["game_id"], []).append(rec)
+        launchers = self.db.mapping("launchers")
         for game in self.games:
             game.installed = game.installed or game.id in installs
             local = analyses.get(game.id, {})
@@ -145,6 +155,12 @@ class Library:
 
             feedback = current_feedback(self.db, game.id, feedback_context)
             binary, installer = evidence_binary(local, installs.get(game.id, {}), feedback)
+            launcher = launchers.get(game.id)
+            if launcher and Path(launcher["executable"]).is_file():
+                # The executable the user confirmed as the launcher is the best evidence of the game's own architecture.
+                measured = inspect_file(launcher["executable"]).to_dict()
+                if measured.get("os") in {"windows", "linux", "dos"} and measured.get("role") != "installer":
+                    binary = measured
             if feedback and is_installer(feedback.get("binary"), feedback.get("executable")):
                 feedback = None
             if binary:
@@ -152,9 +168,16 @@ class Library:
             elif installer:
                 game.architecture = "unknown"
                 game.metadata["analysis_source"] = "Installer header only; game architecture unmeasured"
-            self.reports[game.id] = analyze(
-                game, self.profile, binary or installer, local.get("requirements"), feedback
-            ).to_dict()
+            report = analyze(game, self.profile, binary or installer, local.get("requirements"), feedback).to_dict()
+            record = compat.get(intelligence.key(machine["id"], game.id))
+            others = by_game.get(game.id, [])
+            report["classification"], report["classification_reasons"] = intelligence.classify(
+                report, record, installed_without_launcher=game.installed and game.id not in launchers,
+                measured=bool(binary and binary is not installer),
+            )
+            report["facts"] = intelligence.facts(game, report, binary if binary and binary is not installer else None, installer, self.profile, record, others)
+            report["machine"] = machine["name"]
+            self.reports[game.id] = report
         return self
 
     def filtered(self, **filters):

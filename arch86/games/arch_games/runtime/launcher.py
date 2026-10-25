@@ -190,13 +190,14 @@ class Launcher:
         record["runtime_fingerprint"] = hashlib.sha256(
             json.dumps(runtime, sort_keys=True).encode()
         ).hexdigest()
+        profile = apply_overrides(system_profile(self.config.data_dir), self.config)
         record.update(
             id=ident,
             purpose=plan.get("purpose", "game"),
             started_at=datetime.now(timezone.utc).isoformat(),
             state="running",
             log=str(path),
-            fingerprint=fingerprint(apply_overrides(system_profile(self.config.data_dir), self.config)),
+            fingerprint=fingerprint(profile),
         )
         self.db.put("launches", ident, record)
         process = None
@@ -236,6 +237,12 @@ class Launcher:
         finally:
             record["finished_at"] = datetime.now(timezone.utc).isoformat()
             self.db.put("launches", ident, record)
+            if record.get("purpose", "game") == "game":
+                from ..compatibility import intelligence
+
+                status = {"exited": "exited_ok" if record.get("exit_code") == 0 else "exited_error", "stopped_after_test": "started", "failed": "failed", "cancelled": "started"}.get(record["state"])
+                if status:
+                    intelligence.update(self.db, self.config, record["game_id"], platform_name=plan.get("method"), profile=profile, launch_status=status)
         return record
 
     @staticmethod

@@ -2,7 +2,7 @@
   'use strict';
   var csrf = null, view = document.getElementById('view'), timers = [];
   var NAV = [['library', 'Library'], ['downloads', 'Downloads'], ['installs', 'Installs'], ['audio', 'Audio'], ['wine', 'Wine'], ['diagnostics', 'Diagnostics']];
-  var TONE = { 'Verified Working': 'ok', 'Promising': 'ok', 'Experimental': 'warn', 'Unlikely': 'warn', 'Unsupported': 'bad' };
+  var TONE = { 'Verified working': 'ok', 'Working with issues': 'warn', 'Likely compatible': 'ok', 'Requires configuration': 'warn', 'Likely incompatible': 'bad', 'Unsupported': 'bad' };
 
   // DOM helper: text is only ever set via DOM text nodes (titles come from a remote server).
   function h(tag, attrs) {
@@ -66,7 +66,7 @@
     var q = h('input', { type: 'search', placeholder: 'Search name, alias, tag, source…', 'aria-label': 'Search' });
     function sel(name, opts) { var s = h('select', { 'aria-label': name }); opts.forEach(function (o) { s.appendChild(h('option', { value: o[0] }, o[1])); }); s.addEventListener('change', function () { f[name] = s.value; load(); }); return s; }
     var source = sel('source', [['all', 'All sources'], ['pacman', 'Pacman'], ['gamevault', 'GameVault'], ['local', 'Local']]);
-    var status = sel('status', [['', 'Any compatibility'], ['Verified Working', 'Verified Working'], ['Promising', 'Promising'], ['Experimental', 'Experimental'], ['Unlikely', 'Unlikely'], ['Unsupported', 'Unsupported'], ['Unknown', 'Unknown']]);
+    var status = sel('status', [['', 'Any compatibility'], ['Verified working', 'Verified working'], ['Working with issues', 'Working with issues'], ['Likely compatible', 'Likely compatible'], ['Requires configuration', 'Requires configuration'], ['Likely incompatible', 'Likely incompatible'], ['Unsupported', 'Unsupported'], ['Unknown', 'Unknown']]);
     var sort = sel('sort', [['title', 'Sort: title'], ['status', 'Sort: compatibility'], ['source', 'Sort: source'], ['category', 'Sort: category']]);
     var inst = h('input', { type: 'checkbox', 'aria-label': 'Installed only' }), favs = h('input', { type: 'checkbox', 'aria-label': 'Favorites only' });
     inst.addEventListener('change', function () { f.installed = inst.checked ? '1' : ''; load(); }); favs.addEventListener('change', function () { f.favorites = favs.checked ? '1' : ''; load(); });
@@ -113,11 +113,13 @@
         buttons.appendChild(fav);
         var comp = g.compatibility;
         view.appendChild(h('p', {}, h('a', { href: '#/library' }, '← Library')));
-        view.appendChild(h('div', { class: 'hero' }, cover(g, true), h('div', {}, h('h1', {}, g.title), h('div', {}, badge(comp.status, TONE[comp.status]), g.installed ? badge('installed', 'ok') : badge('not installed'), badge(g.source), badge(g.os)), h('p', { class: 'muted' }, g.description ? g.description.slice(0, 400) : ''), buttons)));
+        view.appendChild(h('div', { class: 'hero' }, cover(g, true), h('div', {}, h('h1', {}, g.title), h('div', {}, badge(comp.classification, TONE[comp.classification]), g.installed ? badge('installed', 'ok') : badge('not installed'), badge(g.source), badge(g.os)), h('p', { class: 'muted' }, g.description ? g.description.slice(0, 400) : ''), buttons)));
         view.appendChild(h('div', { class: 'panel' }, kv([['ID', g.id], ['Aliases', g.aliases.join(', ')], ['Architecture', g.architecture], ['Wine prefix', g.prefix ? (g.prefix.detected_architecture || g.prefix.requested_architecture) + ' (' + g.prefix.state + ')' : null],
           ['Executable', g.launcher ? g.launcher.executable + (g.launcher.exists ? '' : '  — MISSING') : 'not registered (run: arch-games discover ' + g.id + ')'], ['Last launch', g.last_launch ? g.last_launch.started_at + ' · ' + g.last_launch.state + (g.last_launch.exit_code ? ' · exit ' + g.last_launch.exit_code : '') : null],
           ['Storage', g.storage ? bytes(g.storage.bytes) + (g.storage.partial ? '+' : '') : null], ['Tags', g.tags.join(', ')]])));
-        view.appendChild(h('h2', {}, 'Compatibility evidence'));
+        view.appendChild(h('h2', {}, 'Compatibility: ' + comp.classification));
+        if (comp.reasons.length) view.appendChild(h('div', { class: 'panel' }, h('ul', { class: 'plain' }, comp.reasons.map(function (e) { return h('li', {}, e); }))));
+        view.appendChild(h('h2', {}, 'Evidence'));
         view.appendChild(h('div', { class: 'panel' }, h('ul', { class: 'plain' }, comp.evidence.map(function (e) { return h('li', {}, e); })), comp.uncertainties.length ? h('p', { class: 'muted' }, 'Uncertain:') : null, h('ul', { class: 'plain' }, comp.uncertainties.map(function (e) { return h('li', { class: 'muted' }, e); }))));
         if (g.job) view.appendChild(planPanel(g, render));
         view.appendChild(wineForm(g));

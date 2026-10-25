@@ -152,6 +152,10 @@ class Workflow:
         except AppError as exc:
             job.update(status="failed", error=str(exc))
             self.save(job)
+            if self.done(job, "extract") or job.get("steps", {}).get("approve"):
+                from ..compatibility import intelligence
+
+                intelligence.update(self.db, self.config, game_id, title=title, installation_status="failed")
             raise
         return self.report(job)
 
@@ -481,6 +485,9 @@ class Workflow:
         job["next"] = ["Supervised launch ran for up to {}s and was stopped; this does not verify gameplay.".format(o.test_seconds)]
 
     def step_finish(self, job, o):
+        from ..compatibility import intelligence
+
+        intelligence.update(self.db, self.config, job["game_id"], title=job["title"], installation_status="installed")
         job["metadata"] = {"finished_at": now(), "method": job["plan"]["method"], "source_sha256": job["source"].get("sha256")}
         job.setdefault("next", [])
         job["next"] = job["next"] + ["arch-games launch " + job["game_id"], "arch-games feedback set {} works|issues|fails".format(job["game_id"])]

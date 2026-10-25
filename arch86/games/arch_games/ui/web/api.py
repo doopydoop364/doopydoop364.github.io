@@ -73,9 +73,9 @@ class Api:
                 continue
             if query.get("favorites") == "1" and not d["favorite"]:
                 continue
-            if query.get("status") and d["compatibility"]["status"] != query["status"]:
+            if query.get("status") and d["compatibility"]["classification"] != query["status"]:
                 continue
-            out.append({k: d[k] for k in ("id", "title", "source", "category", "installed", "favorite", "cover", "os", "architecture")} | {"status": d["compatibility"]["status"]})
+            out.append({k: d[k] for k in ("id", "title", "source", "category", "installed", "favorite", "cover", "os", "architecture")} | {"status": d["compatibility"]["classification"]})
         out.sort(key=lambda r: (not r["favorite"],) if query.get("favorites_first") == "1" else ())
         return {"games": out[:2000], "total": len(out), "note": explanation}
 

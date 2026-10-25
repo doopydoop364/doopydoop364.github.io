@@ -103,6 +103,6 @@ class RegressionTests(unittest.TestCase):
                 db.connection.set_trace_callback(statements.append)
                 library = Library(config, db, {}).load("gamevault", offline=True)
                 self.assertEqual(len(library.games), 2000)
-                self.assertLessEqual(len(statements), 8)
+                self.assertLessEqual(len(statements), 12)  # constant, independent of the 2000 games
             finally:
                 db.close()

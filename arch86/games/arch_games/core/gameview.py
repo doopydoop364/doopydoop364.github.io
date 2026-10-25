@@ -48,7 +48,10 @@ def describe(config, db, game, report, aliases=(), favorite=False, with_storage=
         "aliases": list(aliases),
         "cover": ((game.metadata.get("remote") or {}).get("metadata") or {}).get("cover", {}).get("id"),
         "compatibility": {
-            "status": report.get("status", "Unknown"),
+            "status": report.get("status", "Unknown"),  # legacy 2.0 label, kept for scripts
+            "classification": report.get("classification", "Unknown"),
+            "reasons": list(report.get("classification_reasons") or []),
+            "facts": report.get("facts"),
             "evidence": list(report.get("evidence") or []),
             "uncertainties": list(report.get("uncertainties") or []),
             "runtime": report.get("runtime"),
