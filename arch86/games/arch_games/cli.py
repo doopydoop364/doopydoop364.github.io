@@ -63,6 +63,7 @@ def make_parser():
     uninstall = sub.add_parser("uninstall", help="Remove a managed game; archives/prefixes retained")
     uninstall.add_argument("game")
     uninstall.add_argument("--yes", action="store_true")
+    uninstall.add_argument("--purge", action="store_true", help="Delete extracted files instead of retaining a backup")
     installed = sub.add_parser("installed", help="Show installed games")
     catalog_options(installed)
     gv = sub.add_parser("gamevault", help="Connect and browse GameVault")
@@ -233,6 +234,23 @@ def dispatch(args, config, db):
             return
         library = Library(config, db).load("gamevault", args.offline)
         return emit(manager.add(library.find(args.game), args.sha256, args.max_gb * 1024**3))
+    if action == "uninstall":
+        from .runtime.installer import Installer
+        if args.yes or input("Remove managed game {}{}? [y/N] ".format(clean(args.game), " permanently" if args.purge else " to backups")).lower() == "y":
+            return emit(Installer(config, db).uninstall(args.game, args.purge))
+        return
+    if action == "install" and args.archive:
+        from .runtime.installer import Installer
+        from .models import Game
+        if args.game.startswith("local:"):
+            game = Game(args.game, args.title or args.game.split(":", 1)[1], "local")
+        else:
+            library = Library(config, db).load(offline=True)
+            game = library.find(args.game)
+        if args.yes or input("Extract {} into a managed game directory? [y/N] ".format(clean(game.title))).lower() == "y":
+            manifest = Installer(config, db).install(game, args.archive, args.reinstall, args.timeout, print)
+            emit(manifest)
+        return
     library = Library(config, db).load(getattr(args, "source", "all"), getattr(args, "offline", False))
     for warning in library.warnings:
         print("Notice: " + clean(warning), file=sys.stderr)

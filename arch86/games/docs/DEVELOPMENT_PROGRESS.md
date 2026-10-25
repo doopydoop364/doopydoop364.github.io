@@ -82,3 +82,12 @@ Review: inspected new and modified source, input validation and backward compati
 Validation: full accumulated unittest suite, compileall and git diff --check passed.
 Limitations: Live VMs and private GameVault server are not available; fixture results are not hardware verification.
 Git commit: `arch-games-2-phase-09`. Next: phase 10.
+
+## Phase 10: Game installation system
+
+Added space-checked staged archive extraction, per-game manifests and dependency/executable inventories, transaction-journal recovery, explicit reinstall with retained previous files and recoverable uninstall (optional explicit purge). Archives and Wine state are retained. Forty-two tests pass including failed extraction and interrupted commit recovery.
+
+Review: inspected new and modified source, input validation and backward compatibility.
+Validation: full accumulated unittest suite, compileall and git diff --check passed.
+Limitations: Live VMs and private GameVault server are not available; fixture results are not hardware verification.
+Git commit: `arch-games-2-phase-10`. Next: phase 11.
