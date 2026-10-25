@@ -39,6 +39,16 @@ def expand_versions(game):
     return result or [game]
 
 
+def alias_family(mapping, ids):
+    """Let a versioned library ID (gamevault:32@34) see records kept under the bare ID, as 2.0 allowed."""
+    for ident in ids:
+        if "@" in ident and ident not in mapping:
+            root = ident.split("@", 1)[0]
+            if root in mapping:
+                mapping[ident] = mapping[root]
+    return mapping
+
+
 def evidence_binary(local, manifest, feedback=None):
     """Keep installer architecture out of game predictions, including older records."""
     installer = (local.get("installer_analysis") or {}).get("executable")
@@ -145,7 +155,7 @@ class Library:
         for rec in compat.values():
             if rec["machine"]["id"] != machine["id"]:
                 by_game.setdefault(rec["game_id"], []).append(rec)
-        launchers = self.db.mapping("launchers")
+        launchers = alias_family(self.db.mapping("launchers"), {g.id for g in self.games})
         for game in self.games:
             game.installed = game.installed or game.id in installs
             local = analyses.get(game.id, {})
@@ -173,7 +183,9 @@ class Library:
                 game.architecture = "unknown"
                 game.metadata["analysis_source"] = "Installer header only; game architecture unmeasured"
             report = analyze(game, self.profile, binary or installer, local.get("requirements"), feedback).to_dict()
-            record = compat.get(intelligence.key(machine["id"], game.id))
+            record = compat.get(intelligence.key(machine["id"], game.id)) or (
+                compat.get(intelligence.key(machine["id"], game.id.split("@", 1)[0])) if "@" in game.id else None
+            )
             others = by_game.get(game.id, [])
             report["classification"], report["classification_reasons"] = intelligence.classify(
                 report, record, installed_without_launcher=game.installed and game.id not in launchers,

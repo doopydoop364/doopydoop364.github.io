@@ -442,3 +442,37 @@ class ConfigPermissionTests(unittest.TestCase):
             path.chmod(0o666)
             with self.assertRaises(cfgmod.ConfigError):
                 cfgmod.load(path)
+
+
+class HostCliTests(unittest.TestCase):
+    """The host-side commands that only print instructions must actually run (one of them once crashed on a format string)."""
+
+    def run_main(self, config, *argv):
+        import io
+        from contextlib import redirect_stdout
+        from arch_games.remote.__main__ import main
+
+        out = io.StringIO()
+        with redirect_stdout(out):
+            main(["--config", str(config), *argv])
+        return out.getvalue()
+
+    def test_print_only_commands(self):
+        with tempfile.TemporaryDirectory() as d:
+            path, token_path = cfgmod.init(d, {"arch64": "arch64_vm", "arch86": "arch86_vm"})
+            persist = self.run_main(path, "sink", "persist", "arch64")
+            self.assertIn("sink_name=arch64_vm", persist)
+            self.assertIn("pipewire-pulse.conf.d/arch-games-arch64.conf", persist)
+            qemu = self.run_main(path, "qemu", "arch86")
+            self.assertIn("out.name=arch86_vm", qemu)
+            self.assertIn("hda-output", qemu)  # output-only: no guest microphone path
+            self.assertIn("arch64_vm.monitor", self.run_main(path, "sink", "listen-locally", "arch64"))
+            self.assertGreaterEqual(len(token_path.read_text().strip()), 40)
+
+    def test_unknown_vm_and_missing_config(self):
+        with tempfile.TemporaryDirectory() as d:
+            path, _ = cfgmod.init(d, {"arch64": "arch64_vm"})
+            with self.assertRaises(SystemExit):
+                self.run_main(path, "qemu", "nonexistent")
+            with self.assertRaises(SystemExit):
+                self.run_main(Path(d) / "missing.json", "qemu", "arch64")

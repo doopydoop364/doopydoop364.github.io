@@ -68,10 +68,13 @@ def collect_candidates(games, db):
     for ident, manifest in db.mapping("installs").items():
         game = manifest.get("game") or {}
         add(ident, game.get("title"), game.get("source", "local"))
+    versioned = {ident.split("@", 1)[0] for ident in seen if "@" in ident}
     for ident, record in db.mapping("launchers").items():
-        add(ident, record.get("title"), "local")
+        if ident not in versioned:  # a versioned library entry already represents this game
+            add(ident, record.get("title"), "local")
     for ident in db.mapping("prefixes"):
-        add(ident, None, ident.split(":", 1)[0])
+        if ident not in versioned:
+            add(ident, None, ident.split(":", 1)[0])
     return result
 
 

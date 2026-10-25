@@ -9,7 +9,7 @@ from importlib import resources
 from urllib.parse import urlsplit
 
 from . import ws
-from .config import LOOPBACK, ConfigError, read_token
+from .config import read_token
 from .stream import FRAME_MS, Listener, StreamError, VMStream
 
 MAX_REQUEST = 16 * 1024

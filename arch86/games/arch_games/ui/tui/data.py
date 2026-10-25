@@ -1,11 +1,9 @@
 """Builds TUI rows from the shared services (library, launchers, downloads, wine, audio, diagnostics)."""
 
-from pathlib import Path
 
 from ...catalog.library import Library
-from ...config import AppError
 from ...identity.resolver import normalize
-from .model import GAME_SECTIONS, Row
+from .model import Row
 
 TONE = {"Verified working": "ok", "Working with issues": "warn", "Likely compatible": "ok", "Requires configuration": "warn",
         "Likely incompatible": "bad", "Unsupported": "bad", "Unknown": "dim",
@@ -76,9 +74,11 @@ class Provider:
             aliases.setdefault(row["value"]["game_id"], []).append(row["key"])
         rows = []
         for g in games:
-            if key and not (key in normalize(g.title) or key in g.id.casefold() or any(key in a for a in aliases.get(g.id, []))):
+            if key and not (key in normalize(g.title) or key in g.id.casefold() or any(key in a for a in aliases.get(g.id, []) + aliases.get(g.id.split("@", 1)[0], []))):
                 continue
-            rows.append(self.game_row(g, library.reports.get(g.id, {}), g.id in favorites, aliases.get(g.id, [])))
+            root = g.id.split("@", 1)[0]  # bare and versioned IDs are one game
+            rows.append(self.game_row(g, library.reports.get(g.id, {}), g.id in favorites or root in favorites,
+                                      aliases.get(g.id, []) + (aliases.get(root, []) if root != g.id else [])))
         rows.sort(key=lambda r: (not r.favorite, r.label.casefold()))
         return rows
 

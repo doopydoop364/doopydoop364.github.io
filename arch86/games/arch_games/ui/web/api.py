@@ -8,6 +8,7 @@ import time
 from ...catalog.library import Library
 from ...config import AppError
 from ...core.gameview import describe
+from ...core.ids import local_id
 from ...storage.database import Database
 
 GAME_ID = re.compile(r"^[a-z0-9_-]{1,24}:[A-Za-z0-9._@-]{1,100}$")
@@ -91,31 +92,36 @@ class Api:
         return out
 
     def game(self, db, gid):
-        gid = game_id(gid)
+        gid = game_id(gid)  # described under whichever ID it was asked for; describe() looks under the bare ID too
         lib = self.library(db)
         game = next((g for g in lib.games if g.id == gid), None)
         if game is None:
             from ...models import Game
 
-            known = db.get("launchers", gid) or db.get("prefixes", gid) or db.get("installs", gid)
+            from ...core.ids import family_get
+
+            known = family_get(db, "launchers", gid) or family_get(db, "prefixes", gid) or family_get(db, "installs", gid)
             if not known:
                 raise AppError("Unknown game")
-            game = Game(gid, (db.get("launchers", gid) or {}).get("title", gid), gid.split(":")[0])
-        aliases = [r["value"]["alias"] for r in db.all("aliases") if r["value"]["game_id"] == gid]
-        d = describe(self.config, db, game, lib.reports.get(gid, {}), aliases, db.get("favorites", gid) is not None)
+            game = Game(gid, (family_get(db, "launchers", gid) or {}).get("title", gid), gid.split(":")[0])
+        from ...core.ids import base
+
+        aliases = [r["value"]["alias"] for r in db.all("aliases") if r["value"]["game_id"] in {gid, base(gid)}]
+        favorite = db.get("favorites", gid) is not None or db.get("favorites", base(gid)) is not None
+        d = describe(self.config, db, game, lib.reports.get(gid, {}), aliases, favorite)
         d["job"] = self.install_job(db, gid)
         return d
 
     def set_favorite(self, db, gid, value):
         from ...core import personal
 
-        gid = game_id(gid)
+        gid = local_id(db, game_id(gid))
         return {"id": gid, "favorite": personal.set_favorite(db, gid, value)}
 
     def set_notes(self, db, gid, text, tags):
         from ...core import personal
 
-        gid = game_id(gid)
+        gid = local_id(db, game_id(gid))
         try:
             personal.set_notes(db, gid, text)
             personal.set_tags(db, gid, tags)
@@ -240,9 +246,9 @@ class Api:
     def launch(self, gid):
         from ...runtime.launcher import Launcher
 
-        gid = game_id(gid)
         db = self.db()
         try:
+            gid = local_id(db, game_id(gid))
             plan = Launcher(self.config, db).plan_registered(gid)
         finally:
             db.close()
@@ -262,11 +268,11 @@ class Api:
 
     def wine_status(self, db, gid):
         from ...runtime import winetools
-        return winetools.status(self.config, db, game_id(gid))
+        return winetools.status(self.config, db, local_id(db, game_id(gid)))
 
     def wine_config(self, db, gid, body):
         from ...runtime import winetools
-        gid = game_id(gid)
+        gid = local_id(db, game_id(gid))
         allowed = {k: body[k] for k in ("runtime", "windows_version", "dll_overrides", "env", "virtual_desktop", "debug") if k in body}
         return winetools.save_settings(db, gid, allowed)
 

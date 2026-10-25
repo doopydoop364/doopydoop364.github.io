@@ -24,8 +24,19 @@ def choose(error, interactive):
     return error.candidates[int(answer) - 1]
 
 
-def resolve_game_id(config, db, text, interactive=True, library=None, quiet=False):
-    """Return the canonical game ID for text; announce non-exact matches on stderr."""
+def resolve_game_id(config, db, text, interactive=True, library=None, quiet=False, local=True):
+    """Return the canonical game ID for text; announce non-exact matches on stderr.
+
+    local=True (state commands) maps a versioned catalog ID onto the ID this machine already records state under
+    (bare vs @version); local=False keeps the catalog ID for download/install planning."""
+    from ..core.ids import local_id
+
+    def finish(ident):
+        mapped = local_id(db, ident) if local else ident
+        if mapped != ident and not quiet:
+            print("Using the local state recorded under {}".format(mapped), file=sys.stderr)
+        return mapped
+
     if db.get("launchers", text) is not None or db.get("prefixes", text) is not None:
         return text
     resolver, _ = build_resolver(config, db, library=library)
@@ -35,4 +46,4 @@ def resolve_game_id(config, db, text, interactive=True, library=None, quiet=Fals
         found, how = choose(exc, interactive), "selected"
     if how not in {"id", "package"} and not quiet:
         print("Resolved '{}' -> {} [{}] ({} match)".format(text, found["title"], found["id"], how), file=sys.stderr)
-    return found["id"]
+    return finish(found["id"])

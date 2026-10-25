@@ -4,7 +4,6 @@ The bridge itself runs on the VM host (see arch_games/remote). Remote audio is d
 
 import json
 from urllib.error import HTTPError, URLError
-from urllib.parse import urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 import os

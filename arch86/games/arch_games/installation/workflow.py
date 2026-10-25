@@ -111,7 +111,9 @@ class Workflow:
         return {"cancelled": game_id, "extracted_files": moved, "prefix": "retained", "downloads": "retained"}
 
     # -- entry point ----------------------------------------------------------------------------------
-    def run(self, game_id, title, options):
+    def run(self, game_id, title, options, catalog_id=None):
+        """game_id: where this machine's state is recorded; catalog_id: the GameVault ID (with @version) used to find and download."""
+        self.catalog_id = catalog_id or game_id
         store = LauncherStore(self.config, self.db)
         existing = store.get(game_id)
         if existing and Path(existing["executable"]).is_file() and not options.reinstall:
@@ -121,6 +123,16 @@ class Workflow:
                 "launcher": existing["executable"],
                 "next": ["arch-games launch " + game_id, "arch-games install {} --reinstall   (keeps a backup)".format(game_id)],
             }
+        if not options.reinstall and not options.archive and not options.directory and not self.job(game_id) and (self.db.get("prefixes", game_id) or self.db.get("installs", game_id)):
+            found = discover(self.config, self.db, game_id, title)
+            if found:
+                return {
+                    "status": "installed_unregistered",
+                    "game_id": game_id,
+                    "candidates": [{"path": c["path"], "score": c["score"]} for c in found[:5]],
+                    "next": ["The game is already installed here but no launcher is registered: arch-games discover {} --register 1".format(game_id),
+                             "To install again anyway: arch-games install {} --reinstall (a save backup is taken first)".format(game_id)],
+                }
         job = self.job(game_id)
         if job and job.get("status") in {"done", "cancelled"}:
             job = None
@@ -187,7 +199,7 @@ class Workflow:
                 raise AppError("Archive or installer is not a regular file")
             job["source"] = {"type": "file", "path": str(path)}
         elif gid.startswith("gamevault:"):
-            job["source"] = {"type": "gamevault"}
+            job["source"] = {"type": "gamevault", "catalog_id": getattr(self, "catalog_id", gid)}
         else:
             raise AppError("Provide --archive FILE or --directory DIR for {} (no catalog download source)".format(gid))
         self.say("Source: {}".format(job["source"]["type"]))
@@ -200,9 +212,10 @@ class Workflow:
             return
         manager = self.downloads
         reuse = None
+        catalog_id = source.get("catalog_id") or job["game_id"]
         for row in self.db.all("downloads"):
             value = row["value"]
-            if value.get("game_id") == job["game_id"] and value["state"] == "completed":
+            if value.get("game_id") in {catalog_id, job["game_id"]} and value["state"] == "completed":
                 try:
                     if manager.path(value).is_file():
                         reuse = value
@@ -212,17 +225,17 @@ class Workflow:
         if reuse:
             self.say("Already downloaded; reusing the existing archive (no new download).")
         else:
-            pending = next((r["value"] for r in self.db.all("downloads") if r["value"].get("game_id") == job["game_id"] and r["value"]["state"] in {"queued", "paused", "failed", "running"}), None)
+            pending = next((r["value"] for r in self.db.all("downloads") if r["value"].get("game_id") == catalog_id and r["value"]["state"] in {"queued", "paused", "failed", "running"}), None)
             if pending:
                 if pending["state"] in {"paused", "failed"}:
                     manager.retry(pending["id"])
             else:
                 if self.library_find is None:
                     raise AppError("GameVault library is unavailable; connect with 'gamevault connect'")
-                game = self.library_find(job["game_id"])
+                game = self.library_find(catalog_id)
                 manager.add(game, o.expected_sha256)
             manager.run(lambda j: self.say("download {}: {}/{} bytes".format(j["state"], j["received"], j["expected_size"])))
-            reuse = next((r["value"] for r in self.db.all("downloads") if r["value"].get("game_id") == job["game_id"] and r["value"]["state"] == "completed"), None)
+            reuse = next((r["value"] for r in self.db.all("downloads") if r["value"].get("game_id") == catalog_id and r["value"]["state"] == "completed"), None)
             if not reuse:
                 raise AppError("Download did not complete; see 'download list' and re-run install to resume")
         source["archive"] = str(manager.path(reuse))

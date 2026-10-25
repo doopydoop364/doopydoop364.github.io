@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import pty
 import select
+import sys
 import tempfile
 import time
 import unittest
@@ -11,7 +12,7 @@ import unittest
 from arch_games.config import Config
 from arch_games.models import Game
 from arch_games.storage.database import Database
-from arch_games.ui.tui.model import SECTIONS, Action, Model, Row
+from arch_games.ui.tui.model import SECTIONS, Model, Row
 from arch_games.ui.tui.render import Caps, render
 
 
@@ -125,10 +126,10 @@ class RenderTests(unittest.TestCase):
         m.handle_key("j")
         out = text(render(m, 120, 30, Caps(True, True)))
         self.assertIn("ARCH GAMES 3.0", out[0])
-        self.assertTrue(any("Source: test" in l for l in out))
+        self.assertTrue(any("Source: test" in line for line in out))
         self.assertIn("l launch", out[-1])
         self.assertIn("q quit", out[-1])
-        self.assertTrue(any("[Library]" in l for l in out))
+        self.assertTrue(any("[Library]" in line for line in out))
 
     def test_small_terminal_message(self):
         out = text(render(Model(FakeProvider()), 10, 4))
@@ -173,7 +174,9 @@ class ProviderIntegrationTests(unittest.TestCase):
 @unittest.skipUnless(os.name == "posix", "needs a pty")
 class PtyTests(unittest.TestCase):
     def run_session(self, keys, env_extra=None, size=(24, 100)):
-        import fcntl, struct, termios
+        import fcntl
+        import struct
+        import termios
 
         with tempfile.TemporaryDirectory() as d:
             pid, fd = pty.fork()
@@ -182,7 +185,7 @@ class PtyTests(unittest.TestCase):
                 env.pop("DISPLAY", None)
                 env.pop("WAYLAND_DISPLAY", None)
                 root = str(Path(__file__).resolve().parents[1])
-                os.execvpe("python3", ["python3", "-m", "arch_games", "--state-dir", d, "menu", "--offline"], {**env, "PYTHONPATH": root})
+                os.execvpe(sys.executable, [sys.executable, "-m", "arch_games", "--state-dir", d, "menu", "--offline"], {**env, "PYTHONPATH": root})
             fcntl.ioctl(fd, termios.TIOCSWINSZ, struct.pack("HHHH", size[0], size[1], 0, 0))
             output = b""
 

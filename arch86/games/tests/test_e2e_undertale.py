@@ -116,7 +116,7 @@ class E2E(unittest.TestCase):
         return code, out.getvalue(), err.getvalue()
 
     def wine_runs(self):
-        return [json.loads(l) for l in self.wine_log.read_text().splitlines()] if self.wine_log.exists() else []
+        return [json.loads(line) for line in self.wine_log.read_text().splitlines()] if self.wine_log.exists() else []
 
     def downloads(self):
         return [p for p in self.requests if p.startswith("/api/game/32/versions/34")]

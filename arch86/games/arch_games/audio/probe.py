@@ -81,7 +81,7 @@ def alsa_cards(probe):
 
 def alsa_playback(probe):
     ok, out = probe.exec(["aplay", "-l"])
-    devices = [l.strip() for l in out.splitlines() if l.startswith("card ")]
+    devices = [line.strip() for line in out.splitlines() if line.startswith("card ")]
     return {"tool": ok is not None, "devices": devices}
 
 

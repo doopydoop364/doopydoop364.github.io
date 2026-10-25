@@ -2,8 +2,6 @@
 
 import argparse
 import asyncio
-import json
-from pathlib import Path
 import shutil
 import subprocess
 import sys
@@ -95,7 +93,7 @@ def cmd_sink(args):
                 print("Removed module", line.split("\t")[0])
     elif args.action == "persist":
         print("# Save as ~/.config/pipewire/pipewire-pulse.conf.d/arch-games-{}.conf then: systemctl --user restart pipewire-pulse".format(args.vm))
-        print('pulse.cmd = [ { cmd = "load-module" args = "module-null-sink sink_name={} sink_properties=device.description=ArchGames-{}" flags = [ ] } ]'.format(vm["sink"], args.vm))
+        print('pulse.cmd = [ { cmd = "load-module" args = "module-null-sink sink_name=%s sink_properties=device.description=ArchGames-%s" flags = [ ] } ]' % (vm["sink"], args.vm))
     elif args.action == "listen-locally":
         print("Optional: also hear this VM on the host speakers (the null sink otherwise keeps it silent):")
         print("pactl load-module module-loopback source={} sink=@DEFAULT_SINK@ latency_msec=40".format(vm["source"]))

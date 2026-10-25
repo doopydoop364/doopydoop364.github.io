@@ -1,12 +1,9 @@
 from contextlib import redirect_stderr, redirect_stdout
 import io
 import json
-import os
 from pathlib import Path
-import stat
 import tempfile
 import unittest
-from unittest.mock import patch
 
 from arch_games.cli import main
 from arch_games.config import AppError, Config
@@ -16,7 +13,6 @@ from arch_games.runtime.launcher import Launcher
 from arch_games.runtime.prefixes import PrefixManager
 from arch_games.storage.database import Database
 from test_discovery_launch import GAME, build_undertale
-from test_detection import pe
 
 
 def fake_wine_tree(root, layout):

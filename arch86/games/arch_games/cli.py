@@ -504,10 +504,12 @@ def install_command(args, config, db):
         choose=choose if interactive(args) else None,
         library_find=library_find,
     )
+    from .core.ids import local_id as _local
+
     if args.status:
-        return emit(flow.job(args.game) or {"status": "no job"})
+        return emit(flow.job(_local(db, args.game)) or flow.job(args.game) or {"status": "no job"})
     if args.abort:
-        return emit(flow.abort(args.game))
+        return emit(flow.abort(_local(db, args.game)))
     options = Options(
         archive=args.archive,
         directory=args.directory,
@@ -524,7 +526,12 @@ def install_command(args, config, db):
         prefix_arch=args.prefix_arch,
         expected_sha256=args.sha256,
     )
-    report = flow.run(args.game, catalog_title(config, db, args.game), options)
+    from .core.ids import local_id
+
+    state_id = local_id(db, args.game)
+    if state_id != args.game:
+        print("Using the local state recorded under {}".format(state_id), file=sys.stderr)
+    report = flow.run(state_id, catalog_title(config, db, args.game), options, catalog_id=args.game)
     emit(report)
     if report["status"] in {"awaiting_approval", "awaiting_selection", "plan_only"}:
         print("Installation paused: {}. {}".format(report["status"], " ".join(report["next"])), file=sys.stderr)
@@ -912,9 +919,9 @@ def dispatch(args, config, db):
     from .identity.service import resolve_game_id
     import re
 
-    def resolve(text):
+    def resolve(text, local=True):
         try:
-            return resolve_game_id(config, db, text, interactive=interactive(args))
+            return resolve_game_id(config, db, text, interactive=interactive(args), local=local)
         except AppError:
             if re.fullmatch(r"[a-z0-9_-]+:[^\s]+", text):  # unknown but well-formed canonical ID (e.g. new local game)
                 return text
@@ -922,7 +929,8 @@ def dispatch(args, config, db):
 
     if action in {"details", "install", "uninstall", "launch", "prefix", "feedback", "catalog", "download", "discover", "launcher", "info", "repair", "performance", "benchmark", "saves"} and getattr(args, "game", None):
         if not (action == "launcher" and args.operation == "list"):
-            args.game = resolve(args.game)
+            # Catalog operations keep the versioned ID; everything about this machine uses the ID its state is recorded under.
+            args.game = resolve(args.game, local=action not in {"details", "download", "install"})
     if action == "settings" and args.operation == "game":
         args.key = resolve(args.key or "")
     if action == "search":
@@ -1214,7 +1222,7 @@ def dispatch(args, config, db):
             if args.method != "auto" or args.prefix or args.command or args.allow_external:
                 raise AppError("--method/--prefix/--command/--allow-external need an explicit executable")
             if not LauncherStore(config, db).get(args.game):
-                from .runtime.discovery import confidence, discover
+                from .runtime.discovery import discover
 
                 print("No launcher registered for {}; searching installed files...".format(clean(args.game)), file=sys.stderr)
                 candidates = discover(config, db, args.game, game_title(config, db, args.game))

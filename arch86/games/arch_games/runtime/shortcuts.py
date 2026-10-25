@@ -96,9 +96,9 @@ def desktop_entries_for_prefix(prefix, applications_dir=None):
                 text = Path(base, name).read_text(errors="replace")[:8192]
             except OSError:
                 continue
-            exec_line = next((l for l in text.splitlines() if l.startswith("Exec=")), "")
+            exec_line = next((line for line in text.splitlines() if line.startswith("Exec=")), "")
             if str(prefix) not in exec_line:
                 continue
             m = re.search(r'/Unix\s+"?([^"\n]+?\.lnk)"?(?:\s|$)', exec_line.replace("\\\\", "\\"))
-            result.append({"desktop": str(Path(base, name)), "name": next((l[5:] for l in text.splitlines() if l.startswith("Name=")), name), "lnk": m.group(1) if m else None})
+            result.append({"desktop": str(Path(base, name)), "name": next((line[5:] for line in text.splitlines() if line.startswith("Name=")), name), "lnk": m.group(1) if m else None})
     return result

@@ -156,4 +156,4 @@ class VMStream:
     def status(self):
         return {"state": self.state, "listeners": len(self.listeners), "error": self.error, "starts": self.starts,
                 "source": self.vm["source"], "rate": self.vm["rate"], "channels": self.vm["channels"],
-                "dropped_frames": sum(l.dropped for l in self.listeners), "capturing": self.process is not None}
+                "dropped_frames": sum(listener.dropped for listener in self.listeners), "capturing": self.process is not None}

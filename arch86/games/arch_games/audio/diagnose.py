@@ -1,7 +1,5 @@
 """Layered audio diagnosis with explicit, separate verdicts (device / server / wine / environment / vm)."""
 
-from pathlib import Path
-
 from .probe import Probe, alsa_cards, alsa_playback, server_info, virtualization, wine_driver
 
 QEMU_ADVICE = [

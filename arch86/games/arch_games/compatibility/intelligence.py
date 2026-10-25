@@ -8,7 +8,6 @@ by itself produces 'Verified working'.
 from datetime import datetime, timezone
 import hashlib
 from pathlib import Path
-import platform
 import uuid
 
 from ..config import AppError

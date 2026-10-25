@@ -45,11 +45,12 @@ class Runner:
         return subprocess.CompletedProcess(argv, rc, out, err)
 
 
-PACTL_OK = lambda argv: (
-    (0, "Server Name: PulseAudio (on PipeWire 1.4.2)\nDefault Sink: alsa_output.hda\n", "") if argv[1] == "info"
-    else (0, "52\talsa_output.hda\tPipeWire\ts16le 2ch 44100Hz\tRUNNING\n", "") if argv[1] == "list"
-    else (0, "Mute: no\n", "")
-)
+def PACTL_OK(argv):
+    if argv[1] == "info":
+        return (0, "Server Name: PulseAudio (on PipeWire 1.4.2)\nDefault Sink: alsa_output.hda\n", "")
+    if argv[1] == "list":
+        return (0, "52\talsa_output.hda\tPipeWire\ts16le 2ch 44100Hz\tRUNNING\n", "")
+    return (0, "Mute: no\n", "")
 
 
 class DiagnoseTests(unittest.TestCase):
@@ -61,7 +62,7 @@ class DiagnoseTests(unittest.TestCase):
         return Probe(root=root, run=runner, which=runner.which, environ=env if env is not None else {"XDG_RUNTIME_DIR": "/run/user/1000"})
 
     def layers(self, report):
-        return {l["layer"]: l for l in report["layers"]}
+        return {layer["layer"]: layer for layer in report["layers"]}
 
     def test_working_audio_matches_arch64_setup(self):
         root = make_root(self.tmp.name, HDA)

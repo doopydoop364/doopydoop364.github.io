@@ -41,7 +41,9 @@ class SearchTests(Base):
         self.db.put("tags", "local:2", {"tags": ["Toby Fox"]})
         self.db.put("favorites", "local:3", {})
         index = SearchIndex(self.library(), self.db)
-        ids = lambda **k: [r["game"].id for r in index.search(source="local", **k)]
+        def ids(**k):
+            return [r["game"].id for r in index.search(source="local", **k)]
+
         self.assertEqual(ids(query="undertale"), ["local:1"])
         self.assertEqual(ids(query="ut"), ["local:1"])  # alias
         self.assertEqual(ids(query="toby fox"), ["local:2"])  # tag
@@ -80,7 +82,7 @@ class SearchTests(Base):
 
 class RecommendTests(Base):
     def test_explainable_and_separates_compatibility(self):
-        fav = self.add_game("local:1", "Sword Quest", "RPG", description="a fantasy adventure")
+        self.add_game("local:1", "Sword Quest", "RPG", description="a fantasy adventure")
         self.add_game("local:2", "Dragon Tale", "RPG", description="fantasy")
         self.add_game("local:3", "Speed Run", "Racing")
         self.add_game("local:4", "Space Pirates", "Shooter", description="space combat")

@@ -5,15 +5,13 @@ from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 import tempfile
 import unittest
-import zipfile
 
 from arch_games.cli import main
 from arch_games.config import AppError, Config
 from arch_games.installation.workflow import Options, Workflow
-from arch_games.runtime.launcher import Launcher
 from arch_games.storage.database import Database
 from test_detection import pe
-from test_install_workflow import Base as InstallBase, FakeProcess, GAME, StubPrefixes
+from test_install_workflow import Base as InstallBase, GAME, StubPrefixes
 from test_downloads import Client, Response
 
 

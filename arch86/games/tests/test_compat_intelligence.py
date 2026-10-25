@@ -6,9 +6,7 @@ import unittest
 from arch_games.catalog.library import Library
 from arch_games.compatibility import intelligence as ci
 from arch_games.config import AppError, Config
-from arch_games.models import Game
 from arch_games.storage.database import Database
-from test_detection import pe
 from test_discovery_launch import GAME, build_undertale
 
 
@@ -56,7 +54,9 @@ class ClassifyTests(unittest.TestCase):
         return {"status": status, "evidence": list(evidence), "uncertainties": list(uncertainties)}
 
     def test_matrix(self):
-        rec = lambda **k: dict({"gameplay_status": "unverified", "launch_status": "never", "audio_status": "unknown"}, **k)
+        def rec(**k):
+            return dict({"gameplay_status": "unverified", "launch_status": "never", "audio_status": "unknown"}, **k)
+
         cases = [
             (self.report("Promising"), None, "Likely compatible"),
             (self.report("Promising"), rec(gameplay_status="works"), "Verified working"),

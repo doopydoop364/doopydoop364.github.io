@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 
 from ..config import AppError
+from .ids import base, family_get
 
 
 def dir_size(path, limit=20000):
@@ -21,12 +22,13 @@ def dir_size(path, limit=20000):
 
 
 def describe(config, db, game, report, aliases=(), favorite=False, with_storage=True):
-    launcher = db.get("launchers", game.id)
-    prefix = db.get("prefixes", game.id)
-    manifest = db.get("installs", game.id)
-    job = db.get("install_jobs", game.id)
+    launcher = family_get(db, "launchers", game.id)
+    prefix = family_get(db, "prefixes", game.id)
+    manifest = family_get(db, "installs", game.id)
+    job = family_get(db, "install_jobs", game.id)
     installed = bool(game.installed or launcher or prefix)
-    launches = [v for v in db.mapping("launches").values() if v.get("game_id") == game.id and v.get("purpose", "game") == "game"]
+    ids = {game.id, base(game.id)}
+    launches = [v for v in db.mapping("launches").values() if v.get("game_id") in ids and v.get("purpose", "game") == "game"]
     last = max(launches, key=lambda v: v.get("started_at", ""), default=None)
     storage = None
     if with_storage and manifest:
@@ -57,11 +59,11 @@ def describe(config, db, game, report, aliases=(), favorite=False, with_storage=
             "runtime": report.get("runtime"),
         },
         "prefix": {k: prefix.get(k) for k in ("state", "requested_architecture", "detected_architecture")} if prefix else None,
-        "wine_settings": db.get("game_settings", game.id) or None,
+        "wine_settings": family_get(db, "game_settings", game.id) or None,
         "launcher": ({"executable": launcher["executable"], "exists": Path(launcher["executable"]).is_file(), "runner": launcher["runner"], "confirmed": launcher.get("confirmed", False)} if launcher else None),
         "last_launch": ({k: last.get(k) for k in ("started_at", "state", "exit_code")} if last else None),
         "install_job": ({"status": job.get("status"), "step": job.get("step"), "error": job.get("error")} if job and job.get("status") not in {"done", "cancelled"} else None),
         "storage": storage,
-        "notes": (db.get("notes", game.id) or {}).get("text"),
-        "tags": (db.get("tags", game.id) or {}).get("tags", []),
+        "notes": (family_get(db, "notes", game.id) or {}).get("text"),
+        "tags": (family_get(db, "tags", game.id) or {}).get("tags", []),
     }

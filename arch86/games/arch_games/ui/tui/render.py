@@ -79,7 +79,7 @@ def render(model, width, height, caps=None, title="ARCH GAMES 3.0", status=""):
         left_w = width * 5 // 11
         left = list_lines(model, left_w, body_h, caps)
         right = preview_lines(model, width - left_w - 1, body_h, caps)
-        body = [l + [(caps.vline, "dim")] + r for l, r in zip(left, right)]
+        body = [lft + [(caps.vline, "dim")] + rgt for lft, rgt in zip(left, right)]
     else:
         body = list_lines(model, width, body_h, caps)
     lines += body[:max(body_h, 0)]

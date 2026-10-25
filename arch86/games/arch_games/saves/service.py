@@ -3,7 +3,6 @@ without a preview, an explicit confirmation and an automatic safety backup of wh
 
 from datetime import datetime, timezone
 import hashlib
-import json
 import os
 from pathlib import Path
 import re

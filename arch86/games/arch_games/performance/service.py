@@ -44,7 +44,10 @@ def aggregate(rows):
     metrics = [r["metrics"] for r in rows if r.get("metrics") and r["metrics"].get("samples")]
     if not metrics:
         return None
-    avg = lambda key: round(sum(m[key] for m in metrics if m.get(key) is not None) / max(1, sum(1 for m in metrics if m.get(key) is not None)), 1)
+    def avg(key):
+        values = [m[key] for m in metrics if m.get(key) is not None]
+        return round(sum(values) / max(1, len(values)), 1)
+
     return {"runs": len(metrics), "cpu_percent_avg": avg("cpu_percent_avg"), "rss_mib_peak": round(max(m["rss_bytes_peak"] or 0 for m in metrics) / 2**20, 1)}
 
 

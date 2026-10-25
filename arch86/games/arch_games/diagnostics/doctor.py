@@ -7,7 +7,6 @@ from pathlib import Path
 import shutil
 import sys
 
-from ..config import AppError
 from ..downloads.verification import sha256
 from ..storage.migrations import CURRENT_VERSION, schema_version
 

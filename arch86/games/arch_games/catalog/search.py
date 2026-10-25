@@ -1,5 +1,6 @@
 """Fast library search over names, aliases, tags, source, platform, installed state and compatibility."""
 
+from ..core.ids import base
 from ..identity.resolver import normalize
 
 
@@ -15,15 +16,18 @@ class SearchIndex:
         launchers = set(db.mapping("launchers"))
         prefixes = set(db.mapping("prefixes"))
         favorites = set(db.mapping("favorites"))
+        fam = lambda ident, group: ident in group or base(ident) in group  # noqa: E731  (bare and versioned IDs are one game)
         self.rows = []
         for g in library.games:
             report = library.reports.get(g.id, {})
             title = normalize(g.title)
+            g_aliases = aliases.get(g.id, []) + (aliases.get(base(g.id), []) if "@" in g.id else [])
+            g_tags = tags.get(g.id) or tags.get(base(g.id)) or []
             self.rows.append({
-                "game": g, "title": title, "aliases": aliases.get(g.id, []), "tags": tags.get(g.id, []),
-                "source": g.source, "platform": g.os, "installed": bool(g.installed or g.id in launchers or g.id in prefixes),
-                "classification": report.get("classification", "Unknown"), "favorite": g.id in favorites,
-                "blob": " ".join([title, g.id.casefold(), normalize(g.category), *aliases.get(g.id, []), *tags.get(g.id, [])]),
+                "game": g, "title": title, "aliases": g_aliases, "tags": g_tags,
+                "source": g.source, "platform": g.os, "installed": bool(g.installed or fam(g.id, launchers) or fam(g.id, prefixes)),
+                "classification": report.get("classification", "Unknown"), "favorite": fam(g.id, favorites),
+                "blob": " ".join([title, g.id.casefold(), normalize(g.category), *g_aliases, *g_tags]),
             })
 
     def search(self, query="", source=None, platform=None, installed=None, compat=None, tag=None, favorite=None, limit=50):

@@ -5,7 +5,6 @@ import json
 import os
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib import resources
-from pathlib import Path
 import re
 import secrets
 import socket
@@ -282,7 +281,6 @@ def make_handler(app):
             self.send(200, result)
 
         def dispatch(self, api, db, method, p, q, d):
-            key = (method, p[0] if p else "")
             n = len(p)
             if method == "GET":
                 if p == ["library"]:
