@@ -108,6 +108,17 @@ def make_parser():
             cmd.add_argument("--yes", action="store_true")
         if name == "remove":
             cmd.add_argument("--purge", action="store_true")
+    launch = sub.add_parser("launch", help="Explicitly launch a selected installed executable")
+    launch.add_argument("game")
+    launch.add_argument("executable")
+    launch.add_argument("--method", choices=["auto", "native", "wine", "dosbox", "custom"], default="auto")
+    launch.add_argument("--prefix")
+    launch.add_argument("--arg", action="append", default=[])
+    launch.add_argument("--env", action="append", default=[])
+    launch.add_argument("--command", help="Explicit JSON argument array for custom method; {exe} expands to the path")
+    launch.add_argument("--allow-external", action="store_true")
+    launch.add_argument("--dry-run", action="store_true")
+    sub.add_parser("history", help="Local launch history")
     settings = sub.add_parser("settings", help="Show or change local preferences")
     settings.add_argument("operation", choices=["show", "set"], nargs="?", default="show")
     settings.add_argument("key", nargs="?")
@@ -227,6 +238,26 @@ def dispatch(args, config, db):
         return settings_command(args, config)
     if action == "analyze":
         return analyze_command(args, config, db)
+    if action == "history":
+        return emit([row["value"] for row in db.all("launches")])
+    if action == "launch":
+        from .runtime.launcher import Launcher
+        custom_env = {}
+        for value in args.env:
+            if "=" not in value:
+                raise AppError("Environment values must be KEY=VALUE")
+            key, val = value.split("=", 1)
+            custom_env[key] = val
+        launcher = Launcher(config, db)
+        plan = launcher.plan(args.game, args.executable, args.method, args.prefix, args.arg,
+                             custom_env, json.loads(args.command) if args.command else None, args.allow_external)
+        if args.dry_run:
+            return emit({k: v for k, v in plan.items() if k != "env"} | {"custom_environment": custom_env})
+        record = launcher.launch(plan)
+        emit(record)
+        if record["exit_code"]:
+            raise AppError("Game exited with status {}; see history and launch log".format(record["exit_code"]))
+        return
     if action == "prefix":
         from .runtime.prefixes import PrefixManager
         manager = PrefixManager(config, db)
