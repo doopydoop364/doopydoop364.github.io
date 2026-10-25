@@ -52,10 +52,17 @@ def make_parser():
     sub = parser.add_subparsers(dest="action")
     menu = sub.add_parser("menu", help="Keyboard terminal interface")
     menu.add_argument("--plain", action="store_true")
+    menu.add_argument("--ascii", action="store_true", help="ASCII-only drawing (also set by TERM=linux)")
     catalog_options(menu)
     listing = sub.add_parser("list", help="Search the combined catalog")
     catalog_options(listing)
-    sub.add_parser("doctor", help="Application integrity and optional prerequisites")
+    doctor = sub.add_parser("doctor", help="Application, data, Wine, audio and storage diagnostics")
+    doctor.add_argument("--verbose", action="store_true")
+    doctor.add_argument("--json", action="store_true")
+    repair = sub.add_parser("repair", help="Plan (default / --dry-run) or apply safe repairs for one game")
+    repair.add_argument("game")
+    repair.add_argument("--dry-run", action="store_true", help="Show the plan (this is also the default)")
+    repair.add_argument("--apply", action="store_true", help="Run the safe automatic steps only")
     info = sub.add_parser("info", help="Measured system profile, or everything known about one game")
     info.add_argument("game", nargs="?")
     details = sub.add_parser("details", help="Game details and compatibility report")
@@ -209,6 +216,11 @@ def make_parser():
     utest = usub.add_parser("test")
     utest.add_argument("--seconds", type=float, default=1.5)
     utest.add_argument("--backend", choices=["auto", "pulse", "alsa"], default="auto")
+    favorite = sub.add_parser("favorite", help="Mark favorite games")
+    fsub2 = favorite.add_subparsers(dest="operation", required=True)
+    fsub2.add_parser("list")
+    for name in ["add", "remove", "toggle"]:
+        fsub2.add_parser(name).add_argument("game")
     launch = sub.add_parser("launch", help="Explicitly launch a selected installed executable")
     launch.add_argument("game")
     launch.add_argument(
@@ -804,11 +816,23 @@ def dispatch(args, config, db):
                 return text
             raise
 
-    if action in {"details", "install", "uninstall", "launch", "prefix", "feedback", "catalog", "download", "discover", "launcher", "info"} and getattr(args, "game", None):
+    if action in {"details", "install", "uninstall", "launch", "prefix", "feedback", "catalog", "download", "discover", "launcher", "info", "repair"} and getattr(args, "game", None):
         if not (action == "launcher" and args.operation == "list"):
             args.game = resolve(args.game)
     if action == "settings" and args.operation == "game":
         args.key = resolve(args.key or "")
+    if action == "favorite":
+        if args.operation == "list":
+            return emit(sorted(db.mapping("favorites")))
+        game_id = resolve(args.game)
+        on = db.get("favorites", game_id) is not None
+        if args.operation == "remove" or (args.operation == "toggle" and on):
+            db.delete("favorites", game_id)
+            print("Removed from favorites: " + game_id)
+        else:
+            db.put("favorites", game_id, {"added": __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat()})
+            print("Added to favorites: " + game_id)
+        return
     if action == "alias":
         return alias_command(args, config, db)
     if action == "audio":
@@ -824,42 +848,28 @@ def dispatch(args, config, db):
     if action == "gamevault":
         return gamevault_command(args, config, db)
     if action == "doctor":
-        import ctypes.util
-        import shutil
-        from .downloads.verification import sha256
+        from .diagnostics import doctor
 
-        marker = Path(__file__).parents[1] / ".installed.json"
-        integrity = "Source checkout; no installation manifest"
-        if marker.is_file():
-            manifest = json.loads(marker.read_text())
-            damaged = [
-                name
-                for name, digest in manifest["files"].items()
-                if not (marker.parent / name).is_file() or sha256(marker.parent / name) != digest
-            ]
-            if damaged:
-                raise AppError("Installed files failed integrity check: " + ", ".join(damaged))
-            integrity = "All installed file hashes match"
-        return emit(
-            {
-                "integrity": integrity,
-                "python": sys.version.split()[0],
-                "optional": {
-                    name: bool(shutil.which(name))
-                    for name in [
-                        "pacman",
-                        "wine",
-                        "wineboot",
-                        "wineserver",
-                        "dosbox",
-                        "glxinfo",
-                        "vulkaninfo",
-                    ]
-                },
-                "libarchive": bool(ctypes.util.find_library("archive")),
-                "data_dir": str(config.data_dir),
-            }
-        )
+        report = doctor.run(config, db, verbose=args.verbose)
+        if args.json:
+            return emit(report)
+        for c in report["checks"]:
+            print(clean("[{:4}] {}/{}: {}".format(c["status"].upper(), c["group"], c["check"], c["detail"])))
+            if c["fix"]:
+                print(clean("       fix: " + c["fix"]))
+        print("Summary: {} ({} checks{})".format(json.dumps(report["summary"]), report["all_checks"], "" if args.verbose else "; --verbose shows all"))
+        if report["summary"]["fail"]:
+            raise AppError("{} check(s) failed".format(report["summary"]["fail"]))
+        return
+    if action == "repair":
+        from .diagnostics import repair
+
+        if args.apply:
+            return emit(repair.apply(config, db, args.game))
+        steps = repair.plan(config, db, args.game)
+        if not steps:
+            print("Nothing to repair for " + args.game)
+        return emit({"dry_run": True, "steps": steps, "note": "Nothing was changed. Automatic steps run with --apply; others are commands for you to review."}) if steps else None
     if action == "info":
         return emit(game_info(config, db, args.game) if args.game else system_profile(config.data_dir))
     if action == "catalog":
@@ -1090,6 +1100,20 @@ def dispatch(args, config, db):
         emit({"game": game.to_dict(), "compatibility": library.reports[game.id], "sync": library.sync})
     elif action == "menu":
         from .ui.terminal import menu
+
+        if not getattr(args, "plain", False):
+            from .ui.tui.app import Unsupported, run as run_tui
+
+            try:
+                return run_tui(
+                    config,
+                    db,
+                    lambda argv: main((["--state-dir", args.state_dir] if args.state_dir else []) + argv),
+                    ascii_only=getattr(args, "ascii", False),
+                    library=library,
+                )
+            except Unsupported:
+                pass  # no interactive terminal: plain keyboard menu below
 
         menu(
             library,

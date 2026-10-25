@@ -22,7 +22,7 @@ see `VALIDATION.md` and the real-VM checklist in `TESTING_3.md` once written.
 - [x] P6 Audio doctor/devices/test
 - [x] P7 Remote audio architecture decision + prototype (host bridge)
 - [~] P8 Remote audio integration, auth, isolation, browser page (automated + synthetic real-browser verified; real VM/Safari/Tailscale NOT)
-- [ ] P9 TUI redesign
+- [x] P9 TUI redesign (curses; pty-tested)
 - [ ] P10 Optional web GUI + API
 - [ ] P11 Compatibility evidence model, machine profiles
 - [ ] P12 History, playtime, performance, benchmark
@@ -92,3 +92,11 @@ bridge: WebSocket + raw PCM + Web Audio, per-VM null-sink monitor capture, token
 Tests: tests/test_remote_audio.py (26). Real browser run: see REMOTE_AUDIO_3.md "What has and has not been verified".
 Incident: that browser test and `audio test` made audible tones on the dev host without warning the user; do not repeat without asking.
 Remaining for P8: web GUI embedding of the audio dashboard (P10), install.sh must ship `remote/static` (P17).
+
+### Phase 9 (done; 211 tests pass)
+`ui/tui/{model,render,data,app}.py`: pure state machine + pure renderer + provider over the shared services + curses runner.
+Sections Library/Installed/GameVault/Downloads/Compatibility/Wine/Audio/Settings/Diagnostics; search, preview pane (>=96 cols), detail view,
+help overlay, per-row action keys that run the same CLI code path; ASCII fallback (TERM=linux, non-UTF-8, `menu --ascii`), NO_COLOR, small-terminal
+degradation, plain menu fallback when no tty. Also added: `diagnostics/doctor.py` (shared by `doctor`, TUI, web), `diagnostics/repair.py`
+(`repair GAME [--dry-run|--apply]`), `favorite add|remove|toggle|list`. Tests: tests/test_tui.py (13), including real curses sessions over a pty with no
+DISPLAY. Not verified: KMSCON itself, colour rendering by eye on a real console.
