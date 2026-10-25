@@ -73,3 +73,12 @@ Review: inspected new and modified source, input validation and backward compati
 Validation: full accumulated unittest suite, compileall and git diff --check passed.
 Limitations: Live VMs and private GameVault server are not available; fixture results are not hardware verification.
 Git commit: `arch-games-2-phase-08`. Next: phase 9.
+
+## Phase 9: Download manager
+
+Implemented persistent authorized download queue, explicit run/retry/cancel/cleanup, streaming progress, locks and crash recovery. Resume validates Range/Content-Range and ETag or Last-Modified; unvalidated partials restart. Includes space/size/byte limits, SHA-256 when supplied, safe filenames and honest verification labels. Thirty-nine tests pass.
+
+Review: inspected new and modified source, input validation and backward compatibility.
+Validation: full accumulated unittest suite, compileall and git diff --check passed.
+Limitations: Live VMs and private GameVault server are not available; fixture results are not hardware verification.
+Git commit: `arch-games-2-phase-09`. Next: phase 10.

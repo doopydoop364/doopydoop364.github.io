@@ -80,6 +80,21 @@ def make_parser():
             cmd.add_argument("query")
         if name == "details":
             cmd.add_argument("id")
+    download = sub.add_parser("download", help="Persistent authorized GameVault download queue")
+    dsub = download.add_subparsers(dest="operation", required=True)
+    add = dsub.add_parser("add")
+    add.add_argument("game")
+    add.add_argument("--sha256")
+    add.add_argument("--max-gb", type=int, default=32)
+    add.add_argument("--offline", action="store_true")
+    dsub.add_parser("run")
+    dsub.add_parser("list")
+    cancel = dsub.add_parser("cancel")
+    cancel.add_argument("id")
+    cancel.add_argument("--cleanup", action="store_true")
+    retry = dsub.add_parser("retry")
+    retry.add_argument("id")
+    retry.add_argument("--restart", action="store_true")
     settings = sub.add_parser("settings", help="Show or change local preferences")
     settings.add_argument("operation", choices=["show", "set"], nargs="?", default="show")
     settings.add_argument("key", nargs="?")
@@ -199,6 +214,25 @@ def dispatch(args, config, db):
         return settings_command(args, config)
     if action == "analyze":
         return analyze_command(args, config, db)
+    if action == "download":
+        from .downloads.manager import DownloadManager
+        manager = DownloadManager(config, db)
+        if args.operation == "list":
+            return emit([row["value"] for row in db.all("downloads")])
+        if args.operation == "run":
+            manager.run(lambda job: print(clean("{}: {} / {} bytes ({})".format(job["id"], job["received"], job["expected_size"], job["state"])), flush=True))
+            failed = [r for r in db.all("downloads") if r["value"]["state"] == "failed"]
+            if failed:
+                raise AppError("Some downloads failed; inspect download list and retry")
+            return
+        if args.operation == "retry":
+            return emit(manager.retry(args.id, args.restart))
+        if args.operation == "cancel":
+            manager.cancel(args.id, args.cleanup)
+            print("Cancellation requested")
+            return
+        library = Library(config, db).load("gamevault", args.offline)
+        return emit(manager.add(library.find(args.game), args.sha256, args.max_gb * 1024**3))
     library = Library(config, db).load(getattr(args, "source", "all"), getattr(args, "offline", False))
     for warning in library.warnings:
         print("Notice: " + clean(warning), file=sys.stderr)
