@@ -31,6 +31,7 @@ see `VALIDATION.md` and the real-VM checklist in `TESTING_3.md` once written.
 - [x] P15 Hardening / security review
 - [x] P16 Integration validation
 - [x] P17 Docs and release prep (all 14 documents in the spec)
+- [ ] P19 (proposed, NOT started) Opt-in metadata cascade for non-GameVault games: ranked per-field providers (pacman -Si/-Qi, Steam storefront, Flathub, PCGamingWiki, Wikipedia/Wikidata), match once with confirmation, cross-referenced IDs, per-field source/time/confidence, user overrides always win, cached covers, `metadata fetch/show GAME`, labels in TUI/web. Relayed by another Claude session as user-approved; approval was not confirmed in this session, so nothing is built yet.
 - [x] P18 Requirement-by-requirement audit (see below; open items listed honestly)
 
 ## Phase log
