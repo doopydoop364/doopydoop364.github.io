@@ -198,6 +198,14 @@ def make_parser():
     udoctor = usub.add_parser("doctor")
     udoctor.add_argument("--json", action="store_true")
     usub.add_parser("devices")
+    uremote = usub.add_parser("remote", help="Optional browser audio via the host bridge (off by default)")
+    rsub = uremote.add_subparsers(dest="remote_op", required=True)
+    rconf = rsub.add_parser("configure")
+    rconf.add_argument("--url", required=True)
+    rconf.add_argument("--vm", required=True)
+    rconf.add_argument("--allow-http", action="store_true", help="Needed for http:// (use only inside Tailscale/LAN)")
+    for name in ["status", "disable", "instructions", "url"]:
+        rsub.add_parser(name)
     utest = usub.add_parser("test")
     utest.add_argument("--seconds", type=float, default=1.5)
     utest.add_argument("--backend", choices=["auto", "pulse", "alsa"], default="auto")
@@ -503,6 +511,24 @@ def audio_command(args, config, db):
     from .audio.tone import run_test
     from .runtime.discovery import prefix_path
 
+    if args.operation == "remote":
+        from .audio import remote
+
+        if args.remote_op == "configure":
+            token = secret_prompt("Bridge token: ")
+            print(remote.configure(config, args.url, args.vm, token, args.allow_http))
+            return
+        if args.remote_op == "disable":
+            remote.disable(config)
+            print("Remote audio disabled; token removed")
+            return
+        if args.remote_op == "instructions":
+            print(remote.instructions(remote.settings(config).get("vm", "arch64")))
+            return
+        if args.remote_op == "url":
+            print(remote.page_url(config) or "Remote audio is not configured")
+            return
+        return emit(remote.status(config))
     if args.operation == "devices":
         return emit(audio.devices())
     if args.operation == "test":

@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>__VM__ audio</title><link rel="stylesheet" href="/static/player.css"></head>
+<body>
+<div class="bar" id="audio-bar" data-vm="__VM__">
+  <h1>__VM__ audio</h1>
+  <button id="connect">Enable audio</button>
+  <button id="disconnect" class="secondary" disabled>Disconnect</button>
+  <button id="mute" class="secondary" disabled aria-pressed="false">Mute</button>
+  <label>Volume <input id="volume" type="range" min="0" max="100" value="80" aria-label="Volume"></label>
+  <span class="status" id="status" role="status" data-level="warn">Not connected</span>
+  <span class="status" id="latency"></span>
+</div>
+<div class="err" id="error" role="alert"></div>
+<main><p class="status">Audio streams from the host's dedicated sink for this VM only. Click “Enable audio”; browsers require a click before playing sound. The access token is read from the page address (<code>#token=…</code>) and is never sent in a URL.</p>
+<label class="status" id="tokenrow" hidden>Token <input id="token" type="password" autocomplete="off"></label></main>
+<script src="/static/player.js"></script>
+</body></html>

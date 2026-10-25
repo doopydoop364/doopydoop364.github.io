@@ -18,7 +18,7 @@ arch64-games = "arch_games.cli:main"
 include = ["arch_games*"]
 
 [tool.setuptools.package-data]
-arch_games = ["catalog.txt"]
+arch_games = ["catalog.txt", "remote/static/*"]
 
 [tool.ruff]
 target-version = "py310"

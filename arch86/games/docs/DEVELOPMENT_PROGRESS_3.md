@@ -20,8 +20,8 @@ see `VALIDATION.md` and the real-VM checklist in `TESTING_3.md` once written.
 - [x] P4 One-command `install` workflow with persisted, resumable job state (fixture-verified; no real installer run)
 - [x] P5 Wine: doctor/status/logs, per-game settings, runtime abstraction, prefix backup/restore/export (fixture-verified)
 - [x] P6 Audio doctor/devices/test
-- [ ] P7 Remote audio architecture decision + prototype (host bridge)
-- [ ] P8 Remote audio integration, auth, isolation, browser page
+- [x] P7 Remote audio architecture decision + prototype (host bridge)
+- [~] P8 Remote audio integration, auth, isolation, browser page (automated + synthetic real-browser verified; real VM/Safari/Tailscale NOT)
 - [ ] P9 TUI redesign
 - [ ] P10 Optional web GUI + API
 - [ ] P11 Compatibility evidence model, machine profiles
@@ -84,3 +84,11 @@ device-without-server / server-without-sinks / server-only), `audio/tone.py` (bo
 unprivileged). CLI `audio doctor [--json] | devices | test`. QEMU advice is printed only; nothing on the host is changed.
 Real check: `audio doctor` and `audio test` were run on this CachyOS development host (verdict working; the test played a
 0.3 s tone through PipeWire). Not verified: the Arch64/Arch86 guests themselves.
+
+### Phases 7-8 (done except real-machine checks; 198 tests pass)
+`arch_games/remote/` (ws.py, config.py, stream.py, server.py, __main__.py, static/player.{html,js,css}, wrapper.html) is the host
+bridge: WebSocket + raw PCM + Web Audio, per-VM null-sink monitor capture, token + origin + throttling. `host-tools/audio-bridge/`
+(README, make-pyz.sh). Guest side: `audio/remote.py` + `audio remote configure|status|url|instructions|disable`. Docs: REMOTE_AUDIO_3.md, AUDIO_3.md.
+Tests: tests/test_remote_audio.py (26). Real browser run: see REMOTE_AUDIO_3.md "What has and has not been verified".
+Incident: that browser test and `audio test` made audible tones on the dev host without warning the user; do not repeat without asking.
+Remaining for P8: web GUI embedding of the audio dashboard (P10), install.sh must ship `remote/static` (P17).

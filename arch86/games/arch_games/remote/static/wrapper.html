@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>__VM__ display + audio</title><link rel="stylesheet" href="/static/player.css"></head>
+<body>
+<div class="bar" id="audio-bar" data-vm="__VM__">
+  <h1>__VM__</h1>
+  <button id="connect">Enable audio</button>
+  <button id="disconnect" class="secondary" disabled>Disconnect</button>
+  <button id="mute" class="secondary" disabled aria-pressed="false">Mute</button>
+  <label>Volume <input id="volume" type="range" min="0" max="100" value="80" aria-label="Volume"></label>
+  <span class="status" id="status" role="status" data-level="warn">Not connected</span>
+  <span class="status" id="latency"></span>
+  <label class="status" id="tokenrow" hidden>Token <input id="token" type="password" autocomplete="off"></label>
+</div>
+<div class="err" id="error" role="alert"></div>
+<iframe id="display" title="VM display (noVNC)" allow="autoplay; clipboard-read; clipboard-write"></iframe>
+<script>window.NOVNC_URL=__NOVNC__;var f=document.getElementById('display');if(window.NOVNC_URL){f.src=window.NOVNC_URL}else{document.getElementById('error').textContent='No novnc_url is configured on the bridge; only audio is available.';f.hidden=true}</script>
+<script src="/static/player.js"></script>
+</body></html>
