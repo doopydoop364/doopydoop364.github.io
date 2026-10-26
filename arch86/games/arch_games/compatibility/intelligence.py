@@ -98,7 +98,7 @@ def blank(game_id, title, machine, platform_name="unknown"):
     }
 
 
-def update(db, config, game_id, title=None, platform_name=None, profile=None, issue=None, notes=None, **fields):
+def update(db, config, game_id, title=None, platform_name=None, profile=None, issue=None, notes=None, launch_profile=None, **fields):
     """Merge statuses into this machine's record; each changed status gets its own evidence timestamp."""
     machine = machine_identity(config)
     record = get(db, machine["id"], game_id) or blank(game_id, title or game_id, machine)
@@ -117,6 +117,12 @@ def update(db, config, game_id, title=None, platform_name=None, profile=None, is
         graphics = profile.get("graphics") or {}
         record["runtime"] = {"wine_version": wine.get("version") or None, "wine_path": wine.get("path") or None}
         record["graphics"] = {"renderer": graphics.get("renderer"), "accelerated": graphics.get("accelerated")}
+    if launch_profile is not None:
+        # The launch configuration that produced this launch is evidence too (e.g. "works only with SDL_AUDIODRIVER=alsa").
+        record["launch_profile"] = {"profile": launch_profile.get("profile"), "runner": launch_profile.get("runner"),
+                                    "arguments": list(launch_profile.get("arguments") or [])[:64],
+                                    "environment": dict(launch_profile.get("environment") or {}), "package": launch_profile.get("package"),
+                                    "at": now()}
     if issue:
         if len(issue) > 500:
             raise AppError("Issue text is limited to 500 characters")
@@ -136,8 +142,17 @@ def all_records(db, machine_id=None):
     return [r for r in rows if machine_id in (None, "all") or r["machine"]["id"] == machine_id]
 
 
+def shareable(record):
+    """Export copy: launch-profile environment values stay on this machine (only variable names are shared)."""
+    record = dict(record)
+    snapshot = record.get("launch_profile")
+    if snapshot:
+        record["launch_profile"] = dict(snapshot, environment=sorted((snapshot.get("environment") or {}).keys()))
+    return record
+
+
 def export(db, config):
-    return {"schema": 1, "exported_at": now(), "machine": machine_identity(config), "records": all_records(db)}
+    return {"schema": 1, "exported_at": now(), "machine": machine_identity(config), "records": [shareable(r) for r in all_records(db)]}
 
 
 def import_records(db, config, data):

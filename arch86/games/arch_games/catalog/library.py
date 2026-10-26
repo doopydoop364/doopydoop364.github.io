@@ -87,6 +87,7 @@ class Library:
         apply_overrides(self.profile, config)
         self.games, self.reports, self.warnings = [], {}, []
         self.sync = {}
+        self.package_versions = {}
 
     def load(self, source="all", offline=False):
         self.warnings, self.sync, self.reports = [], {}, {}
@@ -101,6 +102,15 @@ class Library:
                 remote, self.sync = Client(self.config, self.db).library(offline)
             except AppError as exc:
                 self.warnings.append(str(exc))
+        if source in {"all", "pacman"}:
+            from ..runtime.pacman import PacmanService
+            from .pacman import default_run
+
+            # The local package database is authoritative for native games, whoever installed them and whenever.
+            self.package_versions = PacmanService(run=default_run()).installed_versions() if pacman else {}
+        for game in pacman:
+            if game.installed:
+                game.metadata["package_version"] = self.package_versions.get(game.package)
         remote = [version for game in remote for version in expand_versions(game)]
         installs = self.db.mapping("installs")
         analyses = self.db.mapping("analysis")

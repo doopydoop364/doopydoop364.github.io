@@ -13,14 +13,17 @@ from ..compatibility.executables import inspect_file
 from ..config import AppError
 from ..downloads.verification import sha256
 from ..platform import apply_overrides, system_profile
+from . import native, profiles
 from .environment import environment
 from .installer import child
+from .pacman import PacmanService
 from .prefixes import PrefixManager
 
 
 class Launcher:
-    def __init__(self, config, db, which=shutil.which, popen=subprocess.Popen):
+    def __init__(self, config, db, which=shutil.which, popen=subprocess.Popen, pacman=None):
         self.config, self.db, self.which, self.popen = config, db, which, popen
+        self.pacman = pacman or PacmanService()
 
     def plan(
         self,
@@ -34,7 +37,9 @@ class Launcher:
         allow_external=False,
         extra_roots=(),
         cwd=None,
+        allow_paths=(),
     ):
+        """allow_paths: exact executables the caller has already verified (e.g. Pacman-owned) that may live outside managed roots."""
         if os.geteuid() == 0:
             raise AppError("Refusing to run game programs or installers as root; use your ordinary user")
         manifest = self.db.get("installs", game_id)
@@ -48,7 +53,7 @@ class Launcher:
             raw_path = root / raw_path
         path = raw_path.resolve()
         roots = ([root] if root else []) + [Path(r) for r in extra_roots]
-        if not allow_external and not any(path.is_relative_to(r) for r in roots):
+        if not allow_external and str(path) not in allow_paths and not any(path.is_relative_to(r) for r in roots):
             raise AppError(
                 "Executable must be inside this managed game directory; --allow-external is an explicit override"
             )
@@ -56,12 +61,13 @@ class Launcher:
             raise AppError("Game executable is missing or is not a regular file")
         binary = inspect_file(path)
         selected = method
+        script = binary.os == "unknown" and str(path) in allow_paths and native.shebang(path) is not None  # verified wrapper script
         if method == "auto":
             selected = {"linux": "native", "windows": "wine", "dos": "dosbox"}.get(binary.os, "unknown")
         if selected == "unknown":
             raise AppError("Unrecognized executable; select an explicit custom command if intentional")
         env = environment(custom_env)
-        if binary.architecture not in {"i686", "x86_64"} and selected != "custom":
+        if binary.architecture not in {"i686", "x86_64"} and selected != "custom" and not script:
             raise AppError("Executable architecture is unsupported by the selected method")
         from ..platform import architecture
 
@@ -71,8 +77,8 @@ class Launcher:
         if not all(isinstance(arg, str) and "\0" not in arg for arg in args):
             raise AppError("Invalid game argument")
         if selected == "native":
-            if binary.os != "linux" or not os.access(path, os.X_OK):
-                raise AppError("Native launch requires an executable ELF file")
+            if (binary.os != "linux" and not script) or not os.access(path, os.X_OK):
+                raise AppError("Native launch requires an executable ELF file or a verified wrapper script")
             argv = [str(path)] + args
         elif selected == "wine":
             if binary.os != "windows":
@@ -119,7 +125,15 @@ class Launcher:
             argv[0] = str(Path(runner).resolve())
         else:
             raise AppError("Unknown launch method")
+        runtime_label = {"native": "native Linux (no Wine)", "wine": "Wine", "dosbox": "DOSBox", "custom": "custom command"}.get(selected, selected)
+        warnings = []
+        if selected == "native" and not (env.get("DISPLAY") or env.get("WAYLAND_DISPLAY")):
+            warnings.append("No X11/Wayland session is visible to this process; graphical games will fail to open a window.")
         plan = {
+            "runtime": runtime_label,
+            "arguments": args,
+            "custom_environment": dict(custom_env or {}),
+            "warnings": warnings,
             "argv": argv,
             "cwd": str(Path(cwd).resolve() if cwd else path.parent),
             "env": env,
@@ -138,8 +152,11 @@ class Launcher:
             winetools.apply_to_plan(settings, plan, known)
         return plan
 
-    def plan_registered(self, game_id, extra_arguments=(), extra_env=None):
-        """Plan from the persisted, user-confirmed launcher; never guesses an executable."""
+    def plan_registered(self, game_id, extra_arguments=(), extra_env=None, profile=None):
+        """Plan from the persisted, user-confirmed launcher and one of its launch profiles; never guesses an executable.
+
+        Native Pacman launchers are re-verified first (package installed, executable still owned by it) so a removed or upgraded
+        package yields an actionable message instead of a failed launch."""
         from .launchers import LauncherStore
 
         store = LauncherStore(self.config, self.db)
@@ -148,24 +165,31 @@ class Launcher:
             raise AppError("No launcher is registered for this game")
         if not record.get("confirmed"):
             raise AppError("The registered launcher was never confirmed; run 'launcher register' again")
-        path = Path(record["executable"])
-        if not path.is_file():
-            raise AppError("Registered executable no longer exists: {}; run 'discover' and register again".format(path))
-        env = dict(record.get("environment") or {})
+        cfg = profiles.get(record, profile)
+        path = Path(cfg["executable"])
+        env = dict(cfg["environment"])
         env.update(extra_env or {})
-        plan = self.plan(
-            game_id,
-            str(path),
-            record["runner"],
-            record.get("prefix"),
-            list(record.get("arguments") or []) + list(extra_arguments),
-            env,
-            None,
-            False,
-            extra_roots=store.allowed_roots(game_id, record),
-            cwd=record.get("working_directory"),
-        )
+        arguments = list(cfg["arguments"]) + list(extra_arguments)
+        if record.get("kind") == "native-package":
+            state, detail = native.verify_launcher(self.pacman, record)
+            if state != native.READY:
+                raise AppError("{}: {}. Run: arch-games launcher rediscover {}".format(native.LABELS[state], detail, game_id))
+            plan = self.plan(
+                game_id, str(path), "native", None, arguments, env, None, False,
+                cwd=cfg["working_directory"] or str(Path.home()),
+                allow_paths=(str(path), str(path.resolve())),
+            )
+            plan["package"] = {"name": record["package"], "version": record.get("package_version")}
+        else:
+            if not path.is_file():
+                raise AppError("Registered executable no longer exists: {}; run 'discover' and register again".format(path))
+            plan = self.plan(
+                game_id, str(path), cfg["runner"] or record["runner"], record.get("prefix"), arguments, env, None, False,
+                extra_roots=store.allowed_roots(game_id, record), cwd=cfg["working_directory"],
+            )
         plan["registered"] = True
+        plan["profile"] = cfg["profile"]
+        plan["command_preview"] = profiles.command_preview(plan["executable"], arguments, plan["custom_environment"], plan["method"])
         return plan
 
     def launch(self, plan, timeout=None, monitor=None):
@@ -199,6 +223,11 @@ class Launcher:
             json.dumps(runtime, sort_keys=True).encode()
         ).hexdigest()
         profile = apply_overrides(system_profile(self.config.data_dir), self.config)
+        if plan.get("registered"):  # what this launch used, for history and compatibility evidence
+            record.update(
+                profile=plan.get("profile"), arguments=list(plan.get("arguments") or []),
+                environment_overrides=dict(plan.get("custom_environment") or {}), package=plan.get("package"),
+            )
         record.update(
             id=ident,
             purpose=plan.get("purpose", "game"),
@@ -256,7 +285,13 @@ class Launcher:
 
                 status = {"exited": "exited_ok" if record.get("exit_code") == 0 else "exited_error", "stopped_after_test": "started", "failed": "failed", "cancelled": "started"}.get(record["state"])
                 if status:
-                    intelligence.update(self.db, self.config, record["game_id"], platform_name=plan.get("method"), profile=profile, launch_status=status)
+                    snapshot = None
+                    if plan.get("registered"):
+                        snapshot = {"profile": plan.get("profile"), "runner": plan.get("method"), "arguments": list(plan.get("arguments") or []),
+                                    "environment": dict(plan.get("custom_environment") or {}), "package": plan.get("package")}
+                    stored = self.db.get("launchers", record["game_id"]) or {}
+                    intelligence.update(self.db, self.config, record["game_id"], title=stored.get("title"), platform_name=plan.get("method"),
+                                        profile=profile, launch_profile=snapshot, launch_status=status)
         return record
 
     @staticmethod

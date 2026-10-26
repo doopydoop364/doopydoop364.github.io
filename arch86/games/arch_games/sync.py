@@ -23,7 +23,7 @@ def export(db, config):
     data = {"schema": SCHEMA, "exported_at": datetime.now(timezone.utc).isoformat(), "machine": intelligence.machine_identity(config), "items": {}}
     for ns in TEXT_NAMESPACES:
         data["items"][ns] = [{"key": r["key"], "value": r["value"], "updated": r["updated"]} for r in db.all(ns)]
-    data["items"]["compat"] = [r for r in intelligence.all_records(db, intelligence.machine_identity(config)["id"])]
+    data["items"]["compat"] = [intelligence.shareable(r) for r in intelligence.all_records(db, intelligence.machine_identity(config)["id"])]
     # Installation metadata: what was installed and how, never where.
     data["items"]["installs"] = [
         {"key": r["key"], "value": {"game_id": r["key"], "title": (r["value"].get("game") or {}).get("title"), "archive_sha256": r["value"].get("archive_sha256")}, "updated": r["updated"]}

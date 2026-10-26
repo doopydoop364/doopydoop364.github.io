@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 
 from ..config import AppError
+from ..runtime import native, profiles
 from .ids import base, family_get
 
 
@@ -26,7 +27,14 @@ def describe(config, db, game, report, aliases=(), favorite=False, with_storage=
     prefix = family_get(db, "prefixes", game.id)
     manifest = family_get(db, "installs", game.id)
     job = family_get(db, "install_jobs", game.id)
-    installed = bool(game.installed or launcher or prefix)
+    installed = bool(game.installed) if native.package_of(game.id, game) else bool(game.installed or launcher or prefix)
+    package = native.package_of(game.id, game)
+    native_info = None
+    if package:
+        exists = bool(launcher and Path(launcher["executable"]).exists())
+        state = native.status(bool(game.installed), game.metadata.get("package_version"), launcher, exists)
+        native_info = {"package": package, "version": game.metadata.get("package_version"), "status": state, "label": native.LABELS[state],
+                       "executable": launcher["executable"] if launcher else None}
     ids = {game.id, base(game.id)}
     launches = [v for v in db.mapping("launches").values() if v.get("game_id") in ids and v.get("purpose", "game") == "game"]
     last = max(launches, key=lambda v: v.get("started_at", ""), default=None)
@@ -46,6 +54,7 @@ def describe(config, db, game, report, aliases=(), favorite=False, with_storage=
         "os": game.os,
         "architecture": game.architecture,
         "installed": installed,
+        "native": native_info,
         "favorite": bool(favorite),
         "aliases": list(aliases),
         "cover": ((game.metadata.get("remote") or {}).get("metadata") or {}).get("cover", {}).get("id"),
@@ -60,7 +69,10 @@ def describe(config, db, game, report, aliases=(), favorite=False, with_storage=
         },
         "prefix": {k: prefix.get(k) for k in ("state", "requested_architecture", "detected_architecture")} if prefix else None,
         "wine_settings": family_get(db, "game_settings", game.id) or None,
-        "launcher": ({"executable": launcher["executable"], "exists": Path(launcher["executable"]).is_file(), "runner": launcher["runner"], "confirmed": launcher.get("confirmed", False)} if launcher else None),
+        "launcher": ({"executable": launcher["executable"], "exists": Path(launcher["executable"]).exists(), "runner": launcher["runner"], "confirmed": launcher.get("confirmed", False),
+                      "kind": launcher.get("kind", "managed"), "profiles": profiles.names(launcher), "default_profile": profiles.default_name(launcher),
+                      "settings": {n: {"arguments": profiles.get(launcher, n)["arguments"], "environment": profiles.get(launcher, n)["environment"]} for n in profiles.names(launcher)}}
+                     if launcher else None),
         "last_launch": ({k: last.get(k) for k in ("started_at", "state", "exit_code")} if last else None),
         "install_job": ({"status": job.get("status"), "step": job.get("step"), "error": job.get("error")} if job and job.get("status") not in {"done", "cancelled"} else None),
         "storage": storage,

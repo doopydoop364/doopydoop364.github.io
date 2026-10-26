@@ -25,7 +25,7 @@ class SearchIndex:
             g_tags = tags.get(g.id) or tags.get(base(g.id)) or []
             self.rows.append({
                 "game": g, "title": title, "aliases": g_aliases, "tags": g_tags,
-                "source": g.source, "platform": g.os, "installed": bool(g.installed or fam(g.id, launchers) or fam(g.id, prefixes)),
+                "source": g.source, "platform": g.os, "installed": bool(g.installed) if g.id.startswith("pacman:") else bool(g.installed or fam(g.id, launchers) or fam(g.id, prefixes)),
                 "classification": report.get("classification", "Unknown"), "favorite": fam(g.id, favorites),
                 "blob": " ".join([title, g.id.casefold(), normalize(g.category), *g_aliases, *g_tags]),
             })

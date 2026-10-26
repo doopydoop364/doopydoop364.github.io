@@ -311,6 +311,7 @@ def make_parser():
         "--command", help="Explicit JSON argument array for custom method; {exe} expands to the path"
     )
     launch.add_argument("--allow-external", action="store_true")
+    launch.add_argument("--profile", help="Launch profile to use (default: the game's default profile)")
     launch.add_argument("--monitor", action="store_true", help="Record CPU/memory samples for this launch (also: setting performance_monitoring)")
     launch.add_argument("--dry-run", action="store_true")
     launch.add_argument(
@@ -348,6 +349,9 @@ def make_parser():
     register.add_argument("--allow-external", action="store_true")
     register.add_argument("--force-role", action="store_true")
     register.add_argument("--yes", action="store_true")
+    from . import cli_launcher
+
+    cli_launcher.extend(lsub)
     history = sub.add_parser("history", help="Launch history (all games, or one)")
     history.add_argument("game", nargs="?")
     history.add_argument("--limit", type=int, default=50)
@@ -414,6 +418,14 @@ def filters(args):
     }
 
 
+def pacman_service():
+    """Read-only Pacman queries. A function so tests can substitute a fake database; nothing here installs anything."""
+    from .catalog import pacman as catalog_pacman
+    from .runtime.pacman import PacmanService
+
+    return PacmanService(run=catalog_pacman.default_run())
+
+
 def parse_env(values):
     result = {}
     for value in values:
@@ -457,15 +469,9 @@ def choose_candidate(candidates, args):
 
 
 def register_candidate(config, db, game_id, candidate, **options):
-    from .runtime.launchers import LauncherStore
+    from .runtime import gamelaunch
 
-    return LauncherStore(config, db).register(
-        game_id,
-        catalog_title(config, db, game_id),
-        candidate["path"],
-        evidence=["Discovery score {}".format(candidate["score"])] + candidate["evidence"],
-        **options,
-    )
+    return gamelaunch.register(config, db, game_id, catalog_title(config, db, game_id), candidate, pacman_service(), **options)
 
 
 def catalog_title(config, db, game_id):
@@ -692,29 +698,37 @@ def alias_command(args, config, db):
 
 
 def discover_command(args, config, db):
-    from .runtime.discovery import confidence, discover
+    from .runtime import gamelaunch
 
-    candidates = discover(config, db, args.game, catalog_title(config, db, args.game), args.dir, args.all)
+    result = gamelaunch.discover(config, db, args.game, catalog_title(config, db, args.game), pacman_service(), args.dir, args.all)
+    candidates = result["candidates"]
     if args.register:
         chosen = next((c for c in candidates if c["rank"] == args.register), None)
         if not chosen:
             raise AppError("No candidate with that rank")
         return emit(register_candidate(config, db, args.game, chosen))
     if args.json:
-        return emit({"confidence": confidence(candidates), "candidates": candidates})
-    if not candidates:
+        return emit({"runner": result["runner"], "installed": result["installed"], "package": result["package"], "version": result["version"],
+                     "confidence": result["confidence"], "notes": result["notes"], "candidates": candidates})
+    for note in result["notes"]:
+        print(clean(note))
+    if not candidates and not result["notes"]:
         print("No candidate executables found.")
     for c in candidates:
         print(clean("{:2}. [{:4}] {:16} {}".format(c["rank"], c["score"], c["role"], c["path"])))
         for line in c["evidence"]:
             print(clean("        - " + line))
-    print("Confidence: " + confidence(candidates) + "  (register with: discover GAME --register RANK)")
+    print("Confidence: " + result["confidence"] + "  (register with: discover GAME --register RANK)")
 
 
 def launcher_command(args, config, db):
     from .runtime.discovery import discover
     from .runtime.launchers import LauncherStore
 
+    from . import cli_launcher
+
+    if args.operation in cli_launcher.OPERATIONS:
+        return cli_launcher.run(args, config, db, {"interactive": interactive, "choose_candidate": choose_candidate, "catalog_title": catalog_title, "pacman": pacman_service})
     store = LauncherStore(config, db)
     if args.operation == "list":
         return emit(list(store.all().values()))
@@ -743,14 +757,19 @@ def launcher_command(args, config, db):
 
 
 def game_info(config, db, game_id):
+    from .runtime import gamelaunch
     from .runtime.launchers import LauncherStore
 
     prefix = db.get("prefixes", game_id)
+    state = gamelaunch.status(config, db, game_id, pacman_service(), deep=False)
+    installed = state["version"] is not None if state["package"] else db.get("installs", game_id) is not None
     return {
         "id": game_id,
-        "title": game_title(config, db, game_id),
+        "title": catalog_title(config, db, game_id),
         "aliases": [r["value"]["alias"] for r in db.all("aliases") if r["value"]["game_id"] == game_id],
-        "installed": db.get("installs", game_id) is not None,
+        "installed": installed,
+        "status": {"state": state["status"], "text": state["label"]},
+        "package": {"name": state["package"], "version": state["version"]} if state["package"] else None,
         "launcher": LauncherStore(config, db).get(game_id),
         "prefix": {k: prefix.get(k) for k in ("directory", "state", "requested_architecture", "detected_architecture")} if prefix else None,
         "last_launch": max(
@@ -1226,10 +1245,13 @@ def dispatch(args, config, db):
             return
         return emit((personal.add_tag if args.operation == "add" else personal.remove_tag)(db, game_id, args.tag))
     if action == "launch":
+        from .runtime import gamelaunch, native, profiles as launch_profiles
         from .runtime.launcher import Launcher
+        from .runtime.launchers import LauncherStore
 
         custom_env = parse_env(args.env)
-        launcher = Launcher(config, db)
+        pacman = pacman_service()
+        launcher = Launcher(config, db, pacman=pacman)
         if args.executable:
             plan = launcher.plan(
                 args.game,
@@ -1242,21 +1264,46 @@ def dispatch(args, config, db):
                 args.allow_external,
             )
         else:
-            from .runtime.launchers import LauncherStore
-
             if args.method != "auto" or args.prefix or args.command or args.allow_external:
                 raise AppError("--method/--prefix/--command/--allow-external need an explicit executable")
-            if not LauncherStore(config, db).get(args.game):
-                from .runtime.discovery import discover
-
+            plan = None
+            record = LauncherStore(config, db).get(args.game)
+            if record is None:
                 print("No launcher registered for {}; searching installed files...".format(clean(args.game)), file=sys.stderr)
-                candidates = discover(config, db, args.game, catalog_title(config, db, args.game))
-                chosen = choose_candidate(candidates, args)
-                register_candidate(config, db, args.game, chosen)
-                print("Launcher registered.", file=sys.stderr)
-            plan = launcher.plan_registered(args.game, args.arg, custom_env)
+                result = gamelaunch.discover(config, db, args.game, catalog_title(config, db, args.game), pacman)
+                for note in result["notes"]:
+                    print(clean(note), file=sys.stderr)
+                if result["runner"] == "native" and not result["installed"]:
+                    raise AppError("{} is not installed. Install it with: arch-games install {}".format(result["package"], args.game))
+                if result["runner"] == "native" and result["confidence"] == "high":
+                    chosen = result["candidates"][0]  # single clear, package-owned launchable program
+                    print("Using {} (owned by package {}).".format(chosen["path"], result["package"]), file=sys.stderr)
+                else:
+                    chosen = choose_candidate(result["candidates"], args)
+                if result["runner"] == "native" and args.dry_run:
+                    link, resolved = native.verify_candidate(pacman, result["package"], chosen["path"])
+                    plan = launcher.plan(args.game, str(link), "native", None, args.arg, custom_env, None, False, cwd=str(Path.home()),
+                                         allow_paths=(str(link), str(resolved)))
+                    plan.update(registered=False, command_preview=launch_profiles.command_preview(plan["executable"], plan["arguments"], plan["custom_environment"], "native"),
+                                note="Not registered yet: run without --dry-run to register this launcher and start the game.")
+                else:
+                    register_candidate(config, db, args.game, chosen)
+                    print("Launcher registered.", file=sys.stderr)
+            elif record.get("kind") == "native-package":
+                state = gamelaunch.status(config, db, args.game, pacman)
+                if state["status"] == native.INVALID:
+                    print("{}: {}".format(state["label"], clean(state["detail"])), file=sys.stderr)
+                    if interactive(args) and input("Rediscover the launcher now (your settings are kept)? [y/N] ").strip().lower() == "y":
+                        from . import cli_launcher
+
+                        cli_launcher.rediscover(argparse.Namespace(game=args.game, dir=[], non_interactive=args.non_interactive), config, db,
+                                                {"choose_candidate": choose_candidate, "catalog_title": catalog_title}, pacman)
+                    else:
+                        raise AppError("Run: arch-games launcher rediscover {}".format(args.game))
+            if plan is None:
+                plan = launcher.plan_registered(args.game, args.arg, custom_env, profile=args.profile)
         if args.dry_run:
-            return emit({k: v for k, v in plan.items() if k != "env"} | {"custom_environment": custom_env})
+            return emit({k: v for k, v in plan.items() if k != "env"})
         plan["interactive"] = args.interactive
         monitor = None
         if args.monitor or config.values.get("performance_monitoring"):
@@ -1391,6 +1438,24 @@ def dispatch(args, config, db):
             manifest = Installer(config, db).install(game, args.archive, args.reinstall, args.timeout, print)
             emit(manifest)
         return
+    if action == "install" and args.game.startswith("pacman:"):
+        from .installation import native as native_install
+
+        def pick(candidates):
+            try:
+                return choose_candidate(candidates, args)
+            except AppError:
+                return None  # not interactive: the report tells the user how to confirm
+
+        report = native_install.install(
+            config, db, args.game, args.game.split(":", 1)[1], catalog_title(config, db, args.game), pacman_service(),
+            confirm=(lambda q: input(q + " [y/N] ").strip().lower() == "y") if interactive(args) else None,
+            yes=args.yes, choose=pick if interactive(args) else None, say=lambda t: print(clean(t), file=sys.stderr),
+        )
+        emit(report)
+        if report.get("message"):
+            print(report["message"], file=sys.stderr)
+        return
     library = Library(config, db).load(getattr(args, "source", "all"), getattr(args, "offline", False))
     if library.sync:
         print("GameVault synchronization: " + json.dumps(library.sync), file=sys.stderr)
@@ -1452,19 +1517,6 @@ def dispatch(args, config, db):
             lambda argv: main((["--state-dir", args.state_dir] if args.state_dir else []) + argv),
             getattr(args, "plain", False),
         )
-    elif action == "install":
-        game = library.find(args.game, alternatives=True)
-        if game.source != "pacman":
-            raise AppError("GameVault installation requires --archive after an explicit download")
-        if game.installed:
-            print("Already installed")
-            return
-        if args.yes or input("Install {} using Pacman? [y/N] ".format(clean(game.package))).lower() == "y":
-            import subprocess
-
-            result = subprocess.run(["sudo", "pacman", "-S", "--needed", "--", game.package])
-            if result.returncode:
-                raise AppError("Pacman installation failed")
     else:
         raise AppError("Operation not implemented")
 

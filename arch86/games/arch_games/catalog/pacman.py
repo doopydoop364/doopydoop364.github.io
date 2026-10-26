@@ -35,7 +35,13 @@ def load_catalog(path=None):
     return parse_catalog(path.read_text(encoding="utf-8"))
 
 
-def query_packages(flag, run=subprocess.run):
+def default_run():
+    """The subprocess runner used for Pacman queries (a hook so tests can substitute a fake package database)."""
+    return subprocess.run
+
+
+def query_packages(flag, run=None):
+    run = run or default_run()
     try:
         result = run(["pacman", flag], capture_output=True, text=True, timeout=30)
     except (OSError, subprocess.TimeoutExpired):
@@ -45,7 +51,8 @@ def query_packages(flag, run=subprocess.run):
     return set(result.stdout.splitlines()), ""
 
 
-def visible(games=None, run=subprocess.run):
+def visible(games=None, run=None):
+    run = run or default_run()
     available, error = query_packages("-Slq", run)
     owned, installed_error = query_packages("-Qq", run)
     selected = []

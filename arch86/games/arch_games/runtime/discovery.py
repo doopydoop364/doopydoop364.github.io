@@ -25,7 +25,7 @@ SYSTEM_EXES = {"iexplore.exe", "wordpad.exe", "notepad.exe", "explorer.exe", "un
 
 # Order matters: the first matching role wins.
 ROLE_PATTERNS = [
-    ("uninstaller", r"^(unins\d*|uninst\w*|uninstall\w*|remove\w*)$"),
+    ("uninstaller", r"^(\S*[-_.])?(unins\d*|uninst\w*|uninstall\w*|remove\w*)$"),
     ("redistributable", r"^(vc_?redist\S*|vcredist\S*|dxsetup|dxwebsetup|dotnet\S*|ndp\S*|oalinst|physx\S*|xnafx\S*|directx\S*|dxsetup\S*)$"),
     ("crash_reporter", r"^(\S*crash\S*|\S*bugreport\S*|\S*errorreport\S*|\S*sentry\S*|werfault)$"),
     ("updater", r"^(\S*updater?|update\S*|patch\w*|autoupdate\S*|\S*selfupdate\S*)$"),
