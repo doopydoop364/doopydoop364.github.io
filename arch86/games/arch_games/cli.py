@@ -1046,10 +1046,10 @@ def dispatch(args, config, db):
         from .catalog.library import Library
 
         library = Library(config, db).load(offline=True)
-        game = library.find(game_id)
-        return emit({"game": game_id, "machine": intelligence.machine_identity(config), "classification": library.reports[game_id]["classification"],
-                     "reasons": library.reports[game_id]["classification_reasons"], "legacy_status": library.reports[game_id]["status"],
-                     "facts": library.reports[game_id]["facts"], "record": intelligence.get(db, machine_id, game_id)})
+        report = library.reports[library.find(game_id).id]
+        return emit({"game": game_id, "machine": intelligence.machine_identity(config), "classification": report["classification"],
+                     "reasons": report["classification_reasons"], "legacy_status": report["status"],
+                     "facts": report["facts"], "record": intelligence.get(db, machine_id, game_id)})
     if action == "favorite":
         if args.operation == "list":
             return emit(sorted(db.mapping("favorites")))

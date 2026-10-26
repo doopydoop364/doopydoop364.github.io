@@ -221,7 +221,7 @@ class PtyTests(unittest.TestCase):
     def test_starts_navigates_and_quits_without_graphical_session(self):
         out, status = self.run_session([b"\t", b"\t", b"?", b"x", b"q"])
         self.assertIn("ARCH GAMES 3.0", out)
-        self.assertIn("Keyboard shortcuts", out)
+        self.assertIn("Keyboard and mouse help", out)
         self.assertEqual(status, 0, out[-400:])
 
     def test_ascii_fallback_on_linux_console_term(self):

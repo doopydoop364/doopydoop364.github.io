@@ -6,13 +6,50 @@ import sys
 
 from .data import Provider
 from .model import Model
-from .render import Caps, render
+from .render import Caps, render_frame
 
 KEYS = {}
 
 
 class Unsupported(Exception):
     pass
+
+
+def mouse_kind(bstate, consts):
+    """Translate a curses button-state bitmask into click | double | wheel_up | wheel_down | None.
+
+    consts: mapping of ncurses constant names to values (0 when the build lacks them), so this is testable without curses."""
+    get = lambda name: consts.get(name, 0)  # noqa: E731
+    if bstate & get("BUTTON4_PRESSED"):
+        return "wheel_up"
+    if bstate & get("BUTTON5_PRESSED"):
+        return "wheel_down"
+    if bstate & (get("BUTTON1_DOUBLE_CLICKED") | get("BUTTON1_TRIPLE_CLICKED")):
+        return "double"
+    if bstate & (get("BUTTON1_CLICKED") | get("BUTTON1_PRESSED") | get("BUTTON1_RELEASED")):
+        # PRESSED and RELEASED both arrive when the terminal does not synthesise clicks; the model treats a repeat as a double click,
+        # so react to RELEASED/CLICKED only.
+        return "click" if bstate & (get("BUTTON1_CLICKED") | get("BUTTON1_RELEASED")) else None
+    return None
+
+
+MOUSE_NAMES = ("BUTTON1_PRESSED", "BUTTON1_RELEASED", "BUTTON1_CLICKED", "BUTTON1_DOUBLE_CLICKED", "BUTTON1_TRIPLE_CLICKED", "BUTTON4_PRESSED", "BUTTON5_PRESSED")
+
+
+def enable_mouse(curses_mod):
+    """Ask for mouse events; returns the constants mapping, or None when the terminal cannot report the mouse (e.g. the Linux
+    console without gpm). Keyboard use is unaffected either way."""
+    try:
+        consts = {name: getattr(curses_mod, name, 0) for name in MOUSE_NAMES}
+        mask = 0
+        for value in consts.values():
+            mask |= value
+        available, _ = curses_mod.mousemask(mask)
+        if not available:
+            return None
+        return consts
+    except (curses_mod.error, AttributeError):
+        return None
 
 
 def detect_caps(curses_mod=None, environ=None, force_ascii=False):
@@ -55,6 +92,7 @@ def run(config, db, runner, ascii_only=False, library=None, stdout=None):
             pass
         screen.keypad(True)
         screen.timeout(-1)
+        mouse = None if os.environ.get("ARCH_GAMES_NO_MOUSE") or os.environ.get("TERM") == "linux" else enable_mouse(curses)
         caps = detect_caps(curses, force_ascii=ascii_only)
         styles = {"normal": 0, "dim": getattr(curses, "A_DIM", 0), "title": curses.A_BOLD | curses.A_REVERSE, "tabs": curses.A_BOLD,
                   "sel": curses.A_REVERSE, "key": 0, "ok": 0, "warn": curses.A_BOLD, "bad": curses.A_BOLD}
@@ -71,7 +109,9 @@ def run(config, db, runner, ascii_only=False, library=None, stdout=None):
                           key=curses.color_pair(4), tabs=curses.color_pair(4) | curses.A_BOLD, title=curses.color_pair(4) | curses.A_BOLD | curses.A_REVERSE)
         while True:
             height, width = screen.getmaxyx()
-            lines = render(model, width - 1, height, caps, status=provider.header())
+            frame = render_frame(model, width - 1, height, caps, status=provider.header())
+            model.hits = frame.hits  # hit testing always uses the frame that is on screen (current size and scroll)
+            lines = frame.lines
             screen.erase()
             for y, spans in enumerate(lines[:height]):
                 x = 0
@@ -83,15 +123,22 @@ def run(config, db, runner, ascii_only=False, library=None, stdout=None):
                     x += len(text)
             screen.refresh()
             code = screen.get_wch() if hasattr(screen, "get_wch") else screen.getch()
+            action = None
             if isinstance(code, str):
                 name = {"\n": "enter", "\x1b": "esc", "\t": "tab", "\x7f": "backspace", "\b": "backspace"}.get(code, code)
-            else:
-                if code == curses.KEY_RESIZE:
+                action = model.handle_key(name)
+            elif code == curses.KEY_RESIZE:
+                continue  # the next loop iteration redraws at the new size and refreshes the hit regions
+            elif mouse and code == getattr(curses, "KEY_MOUSE", None):
+                try:
+                    _, mx, my, _, bstate = curses.getmouse()
+                except curses.error:
                     continue
+                kind = mouse_kind(bstate, mouse)
+                action = model.handle_mouse(kind, mx, my) if kind else None
+            else:
                 name = key_name(curses, code)
-            if not name:
-                continue
-            action = model.handle_key(name)
+                action = model.handle_key(name) if name else None
             if action is None:
                 continue
             if action.kind == "quit":

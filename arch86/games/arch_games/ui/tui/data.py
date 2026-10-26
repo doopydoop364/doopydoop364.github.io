@@ -2,6 +2,8 @@
 
 
 from ...catalog.library import Library
+from ...compatibility import intelligence
+from ...core.ids import local_id
 from ...identity.resolver import normalize
 from .model import Row
 
@@ -41,9 +43,11 @@ class Provider:
         self.library = library
         self.cache = {}
 
-    def invalidate(self):
+    def invalidate(self, reprobe=True):
+        """Reload local data (never the network). reprobe=False keeps the measured system profile (saves ~0.5 s)."""
         self.cache.clear()
-        self.library = Library(self.config, self.db).load(offline=True)
+        profile = self.library.profile if (self.library is not None and not reprobe) else None
+        self.library = Library(self.config, self.db, profile).load(offline=True)
 
     def lib(self):
         if self.library is None:
@@ -55,13 +59,98 @@ class Provider:
         ram = p.get("ram_total")
         return "{} | {}".format(p.get("os_architecture", "?"), "{:.1f} GiB RAM".format(ram / 2**30) if ram else "RAM ?")
 
-    def empty_text(self, section):
-        return {"Library": "No games match. Connect GameVault or clear the search.", "Installed": "Nothing installed yet. Press 1 for the Library.",
-                "GameVault": "No GameVault games (connect with: arch-games gamevault connect).", "Downloads": "No downloads."}.get(section, "Nothing to show.")
+    GAME_SECTIONS = ("Library", "Installed", "GameVault")
+
+    def gamevault_state(self):
+        """('disconnected'|'not-synced'|'sync-failed'|'empty'|'ok', detail): why the GameVault list looks the way it does."""
+        if not self.config.values.get("server_url") or not self.config.secrets.exists():
+            return "disconnected", ""
+        lib = self.lib()
+        if any(g.source == "gamevault" for g in lib.games):
+            return ("sync-failed", lib.sync.get("warning", "")) if lib.sync.get("warning") else ("ok", "")
+        notes = [w for w in lib.warnings if "acman" not in w]
+        if any("No cached GameVault library" in w for w in notes):
+            return "not-synced", ""
+        if notes:
+            return "sync-failed", notes[0]
+        return "empty", ""
+
+    def hidden_count(self, section, search=""):
+        """How many games the current compatibility filter hides (0 when it is showing everything)."""
+        source = {"GameVault": "gamevault"}.get(section, "all")
+        library = self.lib()
+        shown, _ = library.filtered(search="", show_all=False, source=source, **({"installed": True} if section == "Installed" else {}))
+        everything, _ = library.filtered(search="", show_all=True, source=source, **({"installed": True} if section == "Installed" else {}))
+        return max(len(everything) - len(shown), 0)
+
+    def empty_text(self, section, search="", show_all=True):
+        """Say precisely why a list is empty: not connected, sync problem, empty catalog, no search match or filtered out."""
+        if section in self.GAME_SECTIONS and search:
+            return 'No game matches "{}". Esc clears the search.'.format(search)
+        if section == "GameVault":
+            state, detail = self.gamevault_state()
+            if state == "disconnected":
+                return "GameVault is not connected on this machine. Connect with: arch-games gamevault connect"
+            if state == "not-synced":
+                return "Connected, but this machine has no cached GameVault library yet. Press S to sync (needs the network)."
+            if state == "sync-failed":
+                return "GameVault synchronization failed ({}). Press S to retry.".format(detail or "see 'arch-games gamevault status'")
+            if state == "empty":
+                return "Connected and synchronized: your GameVault library is empty."
+        if section in self.GAME_SECTIONS and not show_all and self.hidden_count(section):
+            return "{} games are hidden by the compatibility filter. Press a to show them all.".format(self.hidden_count(section))
+        return {"Library": "The catalog is empty. Pacman games need pacman; GameVault games need a connection.",
+                "Installed": "Nothing is installed or registered on this machine yet.",
+                "GameVault": "No GameVault games.", "Downloads": "No downloads queued."}.get(section, "Nothing to show.")
+
+    def status_text(self, section, count, show_all, search=""):
+        if section not in self.GAME_SECTIONS:
+            return "{} entr{}".format(count, "y" if count == 1 else "ies")
+        text = "{} game{} in {}".format(count, "" if count == 1 else "s", section)
+        if search:
+            return text + ' matching "{}"'.format(search)
+        if section == "GameVault":
+            state, detail = self.gamevault_state()
+            if state == "sync-failed":
+                text += " (last sync failed: showing cached data)"
+        hidden = 0 if show_all else self.hidden_count(section)
+        if hidden:
+            text += "; {} hidden by the compatibility filter (a shows all)".format(hidden)
+        elif show_all:
+            text += "; showing everything, unknown games are labelled"
+        return text
+
+    def section_actions(self, section):
+        if section == "GameVault":
+            return {"S": ("sync library now", ["gamevault", "list"])}
+        return {}
+
+    # -- compatibility feedback (the same service as `arch-games compat set`) -----------------------------------
+    def feedback_state(self, game_id):
+        record = intelligence.get(self.db, intelligence.machine_identity(self.config)["id"], local_id(self.db, game_id)) or {}
+        return {"gameplay": record.get("gameplay_status", "unverified"), "audio": record.get("audio_status", "unknown")}
+
+    def save_feedback(self, game_id, gameplay, audio):
+        state_id = local_id(self.db, game_id)
+        stored = self.feedback_state(game_id)
+        changes = {}
+        if gameplay != stored["gameplay"]:
+            changes["gameplay_status"] = gameplay
+        if audio != stored["audio"]:
+            changes["audio_status"] = audio
+        if changes:  # only changed facts get a new evidence timestamp
+            intelligence.update(self.db, self.config, state_id, **changes)
+        self.invalidate(reprobe=False)
+        return self.lib().reports.get(game_id, {}).get("classification", "Unknown")
 
     def rows(self, section, search="", show_all=False):
         method = getattr(self, "rows_" + section.lower())
-        return method(search, show_all)
+        if section in self.GAME_SECTIONS or section in {"Downloads", "Compatibility"}:
+            return method(search, show_all)
+        # Wine/Audio/Settings/Diagnostics run subprocesses: compute once, reuse when switching tabs, recompute on refresh.
+        if section not in self.cache:
+            self.cache[section] = method(search, show_all)
+        return self.cache[section]
 
     # -- games ---------------------------------------------------------------------------------------------
     def game_rows(self, search, show_all, **filters):
@@ -120,7 +209,7 @@ class Provider:
         if installed:
             actions["l"] = ("launch", ["launch", g.id])
         actions["f"] = ("toggle favorite", ["favorite", "toggle", g.id])
-        tag = "{}{}".format(status if status != "Unknown" else "", " ●" if installed else "")
+        tag = "{}{}".format(status, " ●" if installed else "")
         return Row(g.id, g.title, tag.strip(), TONE.get(status, "dim"), detail, actions, favorite, installed)
 
     def rows_library(self, search, show_all):

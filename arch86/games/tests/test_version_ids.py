@@ -164,3 +164,22 @@ class IdHelperTests(unittest.TestCase):
         self.assertEqual(status, 200, data)
         self.assertTrue(data["favorite"])
         self.assertTrue(data["launcher"]["exists"])
+
+
+class LibraryListingTests(V2StateTests):
+    def test_registered_launcher_and_install_under_the_bare_id_do_not_duplicate_the_versioned_entry(self):
+        from arch_games.catalog.library import Library
+        from arch_games.runtime.launchers import LauncherStore
+
+        db = Database(self.config.data_dir / "state.db")
+        try:
+            LauncherStore(self.config, db).register(GAME, "Undertale", str(self.game_dir / "UNDERTALE.exe"))
+            db.put("installs", GAME, {"directory": "d", "game": {"id": GAME, "title": "Undertale", "source": "gamevault"}, "archive_sha256": "a"})
+            lib = Library(self.config, db, {"os_architecture": "x86_64", "os": "linux", "wine": {"available": True, "win64": True}, "graphics": {"display": True}, "ram_total": 2**32}).load(offline=True)
+            ids = [g.id for g in lib.games if "gamevault" in g.id]
+            self.assertEqual(ids, ["gamevault:32@34"])
+            game = lib.games[[g.id for g in lib.games].index("gamevault:32@34")]
+            self.assertTrue(game.installed)  # the bare-ID install/launcher state is visible on the versioned entry
+            self.assertEqual(lib.reports[game.id]["facts"]["game_executable"]["architecture"], "i686")
+        finally:
+            db.close()

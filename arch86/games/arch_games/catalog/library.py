@@ -114,14 +114,17 @@ class Library:
         identities = self.db.mapping("catalog_identity")
         candidates = pacman + remote
         known = {game.id for game in candidates}
+        versioned_roots = {i.split("@", 1)[0] for i in known if "@" in i}  # a versioned library entry represents its bare ID
         candidates += [
             Game(**manifest["game"])
             for ident, manifest in installs.items()
-            if ident not in known and manifest.get("game")
+            if ident not in known and ident not in versioned_roots and manifest.get("game")
         ]
         known |= {game.id for game in candidates}
+        for mapping in (installs, analyses, feedbacks, launches):
+            alias_family(mapping, known)
         for ident, launcher in self.db.mapping("launchers").items():
-            if ident not in known and isinstance(launcher, dict):
+            if ident not in known and ident not in versioned_roots and isinstance(launcher, dict):
                 # Installed outside Arch Games' extractor (e.g. by a Wine installer) and registered by the user.
                 candidates.append(Game(ident, launcher.get("title") or ident, ident.split(":", 1)[0], installed=True))
                 known.add(ident)
@@ -215,6 +218,13 @@ class Library:
                 )
                 if alternative:
                     return Game(**alternative) if alternatives else primary
+        if not game:
+            # bare <-> versioned: gamevault:32 names the single listed gamevault:32@34 (and the reverse)
+            siblings = [g for g in self.games if g.id.startswith(ident + "@")] if "@" not in ident else [g for g in self.games if g.id == ident.split("@", 1)[0]]
+            if len(siblings) == 1:
+                return siblings[0]
+            if len(siblings) > 1:
+                raise AppError("Several versions are listed for {}: {}".format(ident, ", ".join(g.id for g in siblings[:6])))
         if not game:
             raise AppError("Game is not in the current catalog; use list --all or installed")
         return game
