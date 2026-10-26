@@ -62,3 +62,17 @@ class SmokeTests(unittest.TestCase):
                 self.assertEqual(code, 1, argv)
                 self.assertTrue(err.startswith("Error:"), (argv, err[:200]))
                 self.assertNotIn("Traceback", err)
+
+
+class RoutingTests(unittest.TestCase):
+    def test_every_top_level_command_is_routed_by_the_dispatcher(self):
+        """A parsed-but-unrouted subcommand ends in 'Operation not implemented' (this happened to `web`)."""
+        import re
+        from pathlib import Path
+
+        source = (Path(__file__).parents[1] / "arch_games" / "cli.py").read_text()
+        body = source[source.index("def dispatch("):source.index("def main(")]
+        parser = make_parser()
+        subs = next(a for a in parser._actions if isinstance(a, argparse._SubParsersAction))
+        unrouted = [name for name in subs.choices if not re.search(r'action (==|in) [^\n]*"{}"'.format(re.escape(name)), body)]
+        self.assertEqual(unrouted, [], "parsed but not dispatched")

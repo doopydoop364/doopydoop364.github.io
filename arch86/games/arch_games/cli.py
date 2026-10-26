@@ -1060,6 +1060,29 @@ def dispatch(args, config, db):
         now_on = personal.toggle_favorite(db, game_id) if wanted is None else personal.set_favorite(db, game_id, wanted)
         print(("Added to favorites: " if now_on else "Removed from favorites: ") + game_id)
         return
+    if action == "web":
+        from .ui.web.server import WebApp
+
+        app = WebApp(config, args.host, args.port, args.allow_remote, args.allowed_host)
+        port = app.start()
+        shown = args.host if args.host not in ("0.0.0.0", "::") else "127.0.0.1"
+        print("Arch Games web GUI on http://{}:{}/".format(shown, port), flush=True)
+        print(
+            "Sign in (token file {}):\n  http://{}:{}/#token={}".format(
+                config.config_dir / "web-token", shown, port, app.token
+            ),
+            flush=True,
+        )
+        if args.host not in ("127.0.0.1", "::1", "localhost"):
+            print("WARNING: reachable from other machines; use only on a private network such as Tailscale.", file=sys.stderr)
+        print("Press Ctrl+C to stop.", flush=True)
+        try:
+            app.serve_forever()
+        except KeyboardInterrupt:
+            print("\nStopping web GUI.", file=sys.stderr)
+        finally:
+            app.stop()
+        return
     if action == "alias":
         return alias_command(args, config, db)
     if action == "audio":

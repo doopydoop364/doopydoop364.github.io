@@ -81,11 +81,17 @@ class WebApp:
         return self.port
 
     def serve_forever(self):
-        self.httpd.serve_forever()
+        self._serving = True
+        try:
+            self.httpd.serve_forever()
+        finally:
+            self._serving = False
 
     def stop(self):
+        """Safe to call at any time: shutdown() would block forever if serve_forever never ran."""
         if self.httpd:
-            self.httpd.shutdown()
+            if getattr(self, "_serving", False):
+                self.httpd.shutdown()
             self.httpd.server_close()
 
     def host_ok(self, header):
