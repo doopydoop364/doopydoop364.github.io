@@ -54,11 +54,14 @@ def validate_env_value(value):
     return value
 
 
-def validate_env(env, allow_sensitive=False):
+def validate_env(env, allow_sensitive=False, existing=None):
+    """existing: variables already saved. A sensitive variable you set earlier through the CLI keeps working when a front end saves
+    the form unchanged; adding or changing one there is still refused."""
     env = dict(env or {})
+    existing = existing or {}
     if len(env) > MAX_ENV:
         raise AppError("Too many environment overrides")
-    clean = {validate_env_name(k, allow_sensitive): validate_env_value(v) for k, v in env.items()}
+    clean = {validate_env_name(k, allow_sensitive or (isinstance(k, str) and existing.get(k) == v and k not in {"WINEPREFIX", "WINEARCH"})): validate_env_value(v) for k, v in env.items()}
     environment(clean)  # the launcher's own validation as the last word
     return clean
 
@@ -130,6 +133,15 @@ def edit(record, profile=None, arguments=None, environment_changes=None, remove_
     return record
 
 
+def replace(record, profile=None, arguments=None, environment_values=None, allow_sensitive=False):
+    """Replace one profile's arguments and its whole environment (what a settings form submits)."""
+    record = copy.deepcopy(record)
+    target = _target(record, profile)
+    target["arguments"] = validate_args(arguments)
+    target["environment"] = validate_env(environment_values or {}, allow_sensitive, existing=target.get("environment"))
+    return record
+
+
 def reset(record, profile=None):
     record = copy.deepcopy(record)
     target = _target(record, profile)
@@ -184,3 +196,25 @@ def command_preview(executable, arguments, environment_overrides, runner=None):
     parts.append(shlex.quote(str(executable)))
     parts += [shlex.quote(a) for a in arguments]
     return " ".join(parts)
+
+
+def apply_user_settings(record, draft, allow_sensitive=False):
+    """Copy only the user-editable settings (profiles' arguments/environment, profile list, default) from `draft` onto the stored
+    record. The executable, runner, package and every other field always come from the stored record, never from a front end."""
+    record = copy.deepcopy(record)
+    draft_names = names(draft)
+    if len(draft_names) - 1 > MAX_PROFILES:
+        raise AppError("Too many launch profiles")
+    record["arguments"] = validate_args(draft.get("arguments"))
+    record["environment"] = validate_env(draft.get("environment"), allow_sensitive, existing=record.get("environment"))
+    profiles_in = {}
+    for name in draft_names[1:]:
+        validate_profile_name(name)
+        source = (draft.get("profiles") or {})[name]
+        previous = (record.get("profiles") or {}).get(name, {})
+        profiles_in[name] = dict(previous, label=name, arguments=validate_args(source.get("arguments")),
+                                 environment=validate_env(source.get("environment"), allow_sensitive, existing=previous.get("environment")))
+    record["profiles"] = profiles_in
+    chosen = draft.get("default_profile") or DEFAULT
+    record["default_profile"] = chosen if chosen in names(record) else DEFAULT
+    return record

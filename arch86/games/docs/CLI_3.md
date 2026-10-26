@@ -35,6 +35,14 @@ recorded under (announced as "Using the local state recorded under …"), while 
 `--yes` alone never runs a downloaded installer. 2.0's `install ID --archive F` (extract only) is now `install ID --archive F --extract-only`.
 Pacman games keep the 2.0 behaviour (`sudo pacman -S --needed`, after a prompt).
 
+## Native (Pacman) games
+    arch-games install openttd             # approval, `sudo pacman -S` only then, verification against the package database, launcher discovery
+    arch-games discover openttd            # package-aware candidates with evidence
+    arch-games launcher env set openttd SDL_AUDIODRIVER alsa      # saved per game, applied on every launch
+    arch-games launcher arg add openttd -s sdl
+    arch-games launch openttd --dry-run    # program, arguments, environment overrides, working directory, runtime
+Profiles (`launcher profile ...`, `launch --profile NAME`), `launcher config|validate|rediscover|reset` and the environment policy are described in NATIVE_3.md.
+
 ## Other command groups
 
 `wine doctor|runtimes|register-runtime|status|logs|config|apply-version`, `prefix list|create|check|recover|backup|backups|restore|inspect|export|remove` (see WINE_3.md);
@@ -700,10 +708,11 @@ arch-games favorite toggle [-h] game
 Explicitly launch a selected installed executable
 
 ```
-arch-games launch [-h] [--method {auto,native,wine,dosbox,custom}] [--prefix PREFIX] [--arg ARG] [--env ENV] [--command COMMAND] [--allow-external] [--monitor] [--dry-run] [--interactive] game [executable]
+arch-games launch [-h] [--method {auto,native,wine,dosbox,custom}] [--prefix PREFIX] [--arg ARG] [--env ENV] [--command COMMAND] [--allow-external] [--profile PROFILE] [--monitor] [--dry-run] [--interactive] game [executable]
 ```
 - `executable` — Optional; omitted = use the registered launcher for this game
 - `--command` — Explicit JSON argument array for custom method; {exe} expands to the path
+- `--profile` — Launch profile to use (default: the game's default profile)
 - `--monitor` — Record CPU/memory samples for this launch (also: setting performance_monitoring)
 - `--interactive` — Attach terminal input/output instead of capturing game output
 
@@ -749,7 +758,7 @@ arch-games discover [-h] [--dir DIR] [--all] [--json] [--register RANK] game
 Registered launcher per game
 
 ```
-arch-games launcher [-h] {list,show,remove,register} ...
+arch-games launcher [-h] {list,show,remove,register,config,arg,env,profile,reset,validate,rediscover} ...
 ```
 
 #### `launcher list`
@@ -776,6 +785,165 @@ arch-games launcher remove [-h] game
 arch-games launcher register [-h] [--prefix PREFIX] [--cwd CWD] [--arg ARG] [--env ENV] [--allow-external] [--force-role] [--yes] game [executable]
 ```
 - `executable` — Absolute path; omitted = choose from discovery
+
+#### `launcher config`
+
+Show the effective launch configuration (view only; nothing is changed)
+
+```
+arch-games launcher config [-h] [--profile PROFILE] game
+```
+
+#### `launcher arg`
+
+Launch arguments of a profile (passed to the program as separate arguments, never via a shell)
+
+```
+arch-games launcher arg [-h] {add,set,remove,list,clear} ...
+```
+
+#### `launcher arg add`
+
+Append arguments, e.g.: launcher arg add openttd -s sdl
+
+```
+arch-games launcher arg add [-h] [--profile PROFILE] game ...
+```
+- `values` — Arguments, taken literally (dash-prefixed ones included)
+
+#### `launcher arg set`
+
+Replace all arguments
+
+```
+arch-games launcher arg set [-h] [--profile PROFILE] game ...
+```
+- `values` — Arguments, taken literally (dash-prefixed ones included)
+
+#### `launcher arg remove`
+
+Remove one argument by its list position (1-based) or exact text
+
+```
+arch-games launcher arg remove [-h] [--profile PROFILE] game target
+```
+
+#### `launcher arg list`
+
+```
+arch-games launcher arg list [-h] [--profile PROFILE] game
+```
+
+#### `launcher arg clear`
+
+```
+arch-games launcher arg clear [-h] [--profile PROFILE] game
+```
+
+#### `launcher env`
+
+Per-game environment overrides (no shell expansion; sensitive variables are refused)
+
+```
+arch-games launcher env [-h] {set,unset,list,policy} ...
+```
+
+#### `launcher env set`
+
+Set NAME to VALUE
+
+```
+arch-games launcher env set [-h] [--profile PROFILE] [--allow-sensitive] game name value
+```
+- `--allow-sensitive` — Allow variables such as LD_PRELOAD or PATH (CLI only)
+
+#### `launcher env unset`
+
+Remove an override
+
+```
+arch-games launcher env unset [-h] [--profile PROFILE] game name
+```
+
+#### `launcher env list`
+
+```
+arch-games launcher env list [-h] [--profile PROFILE] game
+```
+
+#### `launcher env policy`
+
+Explain which variables can and cannot be overridden
+
+```
+arch-games launcher env policy [-h]
+```
+
+#### `launcher profile`
+
+Alternative named launch configurations and the default one
+
+```
+arch-games launcher profile [-h] {list,show,create,delete,default} ...
+```
+
+#### `launcher profile list`
+
+```
+arch-games launcher profile list [-h] game
+```
+
+#### `launcher profile show`
+
+```
+arch-games launcher profile show [-h] game [name]
+```
+
+#### `launcher profile create`
+
+New profile, copied from another (default: the current default profile)
+
+```
+arch-games launcher profile create [-h] [--copy-from COPY_FROM] game name
+```
+
+#### `launcher profile delete`
+
+```
+arch-games launcher profile delete [-h] [--yes] game name
+```
+
+#### `launcher profile default`
+
+Choose the profile used by a plain `launch`
+
+```
+arch-games launcher profile default [-h] game name
+```
+
+#### `launcher reset`
+
+Clear a profile's arguments and environment (asks first)
+
+```
+arch-games launcher reset [-h] [--profile PROFILE] [--yes] game
+```
+
+#### `launcher validate`
+
+Check a saved configuration without launching anything
+
+```
+arch-games launcher validate [-h] [--profile PROFILE] game
+```
+
+#### `launcher rediscover`
+
+Re-find the executable (after a package upgrade); your arguments, environment and profiles are kept
+
+```
+arch-games launcher rediscover [-h] [--dir DIR] game
+```
 
 #### `history`
 

@@ -173,12 +173,14 @@ class ProviderIntegrationTests(unittest.TestCase):
 
 @unittest.skipUnless(os.name == "posix", "needs a pty")
 class PtyTests(unittest.TestCase):
-    def run_session(self, keys, env_extra=None, size=(24, 100)):
+    def run_session(self, keys, env_extra=None, size=(24, 100), setup=None):
         import fcntl
         import struct
         import termios
 
         with tempfile.TemporaryDirectory() as d:
+            if setup:
+                setup(d)
             pid, fd = pty.fork()
             if pid == 0:
                 env = {**os.environ, "TERM": "xterm", "LANG": "C.UTF-8", "LC_ALL": "C.UTF-8", **(env_extra or {})}
@@ -237,6 +239,25 @@ class PtyTests(unittest.TestCase):
         self.assertEqual(status, 0)
         out, status = self.run_session([b"q"], {"TERM": "linux", "LANG": "C"})
         self.assertNotIn("1000h", out)  # basic Linux console / KMSCON path: keyboard only
+        self.assertEqual(status, 0)
+
+    def test_launch_settings_panel_opens_in_a_real_curses_session(self):
+        def seed(d):
+            from arch_games.config import Config
+            from arch_games.storage.database import Database
+
+            config = Config(d)
+            db = Database(config.data_dir / "state.db")
+            program = Path(d) / "mygame"
+            program.write_bytes(b"\x7fELF" + bytes(100))
+            db.put("launchers", "local:mygame", {"game_id": "local:mygame", "title": "My Game", "executable": str(program), "runner": "native", "confirmed": True,
+                                                 "arguments": ["-s", "sdl"], "environment": {"SDL_AUDIODRIVER": "alsa"}})
+            db.close()
+
+        out, status = self.run_session([b"2", b"o", b"a", b"-q", b"\r", b"\x1b", b"\x1b", b"q"], setup=seed)
+        self.assertIn("Launch settings: My Game", out)
+        self.assertIn("SDL_AUDIODRIVER=alsa", out)
+        self.assertIn("New argument", out)
         self.assertEqual(status, 0)
 
     def test_ascii_fallback_on_linux_console_term(self):

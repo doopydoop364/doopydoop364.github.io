@@ -1,7 +1,6 @@
 """A fake Pacman database over a temporary file tree, so native-game code runs unmodified without real packages or sudo."""
 
 from contextlib import contextmanager
-import os
 from pathlib import Path
 import subprocess
 from unittest.mock import patch

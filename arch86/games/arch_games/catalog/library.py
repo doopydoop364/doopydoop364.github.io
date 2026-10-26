@@ -10,6 +10,7 @@ from ..gamevault.client import Client
 from ..models import Game
 from ..platform import system_profile
 from ..compatibility import intelligence
+from ..runtime import native
 from ..compatibility.executables import inspect_file
 from pathlib import Path
 
@@ -205,6 +206,17 @@ class Library:
                 measured=bool(binary and binary is not installer),
             )
             report["facts"] = intelligence.facts(game, report, binary if binary and binary is not installer else None, installer, self.profile, record, others)
+            package = native.package_of(game.id, game)
+            if package:
+                launcher_record = launchers.get(game.id)
+                report["facts"]["native_package"] = {
+                    "package": package, "installed": bool(game.installed), "version": game.metadata.get("package_version"),
+                    "launcher_status": native.status(bool(game.installed), game.metadata.get("package_version"), launcher_record,
+                                                     bool(launcher_record and Path(launcher_record["executable"]).exists())),
+                    "executable_exists": bool(launcher_record and Path(launcher_record["executable"]).exists()),
+                }
+            if record and record.get("launch_profile"):
+                report["facts"]["launch_configuration"] = record["launch_profile"]  # the configuration of the last launch on this machine
             report["machine"] = machine["name"]
             self.reports[game.id] = report
         return self

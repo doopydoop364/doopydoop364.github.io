@@ -14,7 +14,11 @@ FIELD_CODES = re.compile(r"%[fFuUdDnNickvm]")
 class PacmanService:
     """Thin, injectable wrapper (tests pass a fake `run`). All calls use argument arrays and a timeout."""
 
-    def __init__(self, run=subprocess.run, timeout=30):
+    def __init__(self, run=None, timeout=30):
+        if run is None:
+            from ..catalog.pacman import default_run
+
+            run = default_run()  # the same hook the catalog uses, so one fake package database serves every caller
         self.run, self.timeout = run, timeout
         self.unavailable = False
 

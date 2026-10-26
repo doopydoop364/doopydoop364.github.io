@@ -16,6 +16,11 @@ Branch `feature/arch-games-3` (based on `feature/arch-games-2` a5537c5). Not mer
 * Saves: discovery without following symlinks, hash-verified backups, restore preview + safety backup. Downloads: priorities, pause/resume, archive reuse, dedupe.
 * Data: versioned migrations with automatic backup; 2.0 data untouched.
 
+## Native Linux games and launch profiles (real-world testing round 2)
+Pacman games now install, discover, launch and are configured end to end without Wine: package-aware discovery from the package's own files and desktop entries, installed state from the local package database, ownership
+re-verified at launch, persistent per-game arguments/environment and named launch profiles, CLI (`launcher config|arg|env|profile|validate|reset|rediscover`, `launch --profile`), TUI launch-settings panel (`o`) and a safe web form.
+See NATIVE_3.md.
+
 ## Behaviour changes
 See MIGRATION_2_TO_3.md (`install --archive` semantics, `download add` reuse, `web`, `doctor`, optional `launch EXECUTABLE`).
 

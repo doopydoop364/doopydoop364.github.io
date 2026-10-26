@@ -1,7 +1,6 @@
 """Persisted, user-confirmed launch configuration per game (namespace ``launchers``)."""
 
 from datetime import datetime, timezone
-import os
 from pathlib import Path
 
 from ..compatibility.executables import inspect_file

@@ -5,7 +5,7 @@ import json
 import sys
 
 from .config import AppError
-from .runtime import gamelaunch, native, profiles
+from .runtime import gamelaunch, profiles
 from .runtime.launchers import LauncherStore
 from .ui.terminal import clean
 

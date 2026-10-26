@@ -66,6 +66,26 @@ class Panel:
         return (GAMEPLAY_OPTIONS[self.gameplay][1], AUDIO_OPTIONS[self.audio][1]) != (self.stored_gameplay, self.stored_audio)
 
 
+@dataclass
+class LaunchPanel:
+    """Editable copy of a game's launch settings. Nothing is stored until Save."""
+
+    game_id: str
+    title: str
+    original: dict
+    draft: dict
+    status: dict
+    profile: str
+    cursor: int = 0
+    input: dict = None  # {"kind": arg_add|arg_edit|env_add|env_edit|profile_new, "buffer": str, "index": int|None}
+    notice: str = ""
+    discard_warned: bool = False
+
+    @property
+    def dirty(self):
+        return self.draft != self.original
+
+
 def option_index(options, value, default=-1):
     return next((i for i, (_, v) in enumerate(options) if v == value), default)
 
@@ -86,6 +106,7 @@ class Model:
         self.rows = []
         self.page = 10
         self.panel = None
+        self.launch_panel = None
         self.hits = []  # set by the front end from the frame that was just drawn
         self._last_click = (None, 0.0)
         self.reload()
@@ -114,6 +135,7 @@ class Model:
         self.cursor = self.offset = 0
         self.detail_open = False
         self.panel = None
+        self.launch_panel = None
         self.search = ""
         self.reload()
 
@@ -132,6 +154,8 @@ class Model:
         if self.help_open:
             self.help_open = False
             return None
+        if self.launch_panel is not None:
+            return self._launch_key(key)
         if self.panel is not None:
             return self._panel_key(key)
         if self.searching:
@@ -173,6 +197,8 @@ class Model:
             )
         elif key == "v" and self.name in GAME_SECTIONS and self.current():
             self.open_panel()
+        elif key == "o" and self.name in GAME_SECTIONS and self.current():
+            self.open_launch_panel()
         elif key == "r":
             self.provider.invalidate()
             self.reload()
@@ -190,7 +216,7 @@ class Model:
         section = self.section_actions()
         if key in section:
             return Action("run", list(section[key][1]))
-        if key.isprintable() and len(key) == 1 and key not in "ajkqrbvHL/?":
+        if key.isprintable() and len(key) == 1 and key not in "ajkoqrbvHL/?":
             self.message = "No action '{}' here (press ? for help)".format(key)
         return None
 
@@ -275,7 +301,10 @@ class Model:
             self.help_open = False
             return None
         if kind in {"wheel_up", "wheel_down"}:
-            if self.panel is None and not self.searching:
+            if self.launch_panel is not None:
+                if self.launch_panel.input is None:
+                    self._lp_move(-WHEEL_STEP if kind == "wheel_up" else WHEEL_STEP)
+            elif self.panel is None and not self.searching:
                 self.move(-WHEEL_STEP if kind == "wheel_up" else WHEEL_STEP)
             return None
         if kind not in {"click", "double"}:
@@ -293,6 +322,8 @@ class Model:
             return self.handle_key(hit.value)
         elif hit.kind == "back":
             return self.handle_key("esc")
+        elif hit.kind == "lp_item" and self.launch_panel is not None:
+            return self._lp_click(hit.value, kind == "double")
         elif hit.kind == "fb_option" and self.panel is not None:
             group, index = hit.value
             self.panel.focus = PANEL_FOCUS.index(group)
@@ -317,4 +348,262 @@ class Model:
             self._last_click = (None, 0.0)
         else:
             self._last_click = ((self.name, index), self.clock())
+        return None
+
+
+    # -- launch settings panel -----------------------------------------------------------------------------------
+    def open_launch_panel(self):
+        row = self.current()
+        loader = getattr(self.provider, "launch_settings", None)
+        if row is None or loader is None:
+            self.message = "Launch settings are not available here"
+            return
+        loaded = loader(row.key)
+        if loaded is None:
+            self.message = "No launcher is registered yet: press x to find the executable first"
+            return
+        import copy
+
+        from ...runtime import profiles
+
+        record = loaded["record"]
+        self.launch_panel = LaunchPanel(loaded["state_id"], row.label, copy.deepcopy(record), copy.deepcopy(record), loaded["status"], profiles.default_name(record))
+
+    def lp_items(self):
+        """The panel's lines: info (not selectable) and selectable items, built from the current draft."""
+        from ...runtime import profiles
+
+        p = self.launch_panel
+        cfg = profiles.get(p.draft, p.profile)
+        items = [{"kind": "info", "text": "Executable: {}".format(cfg["executable"]), "tone": "bad" if p.status.get("status") == "launcher-invalid" else "normal"},
+                 {"kind": "info", "text": "Runtime: {}   Status: {}".format("native Linux (no Wine)" if cfg["runner"] == "native" else cfg["runner"], p.status.get("label", "")), "tone": "dim"}]
+        if p.status.get("detail"):
+            items.append({"kind": "info", "text": p.status["detail"], "tone": "warn"})
+        default = profiles.default_name(p.draft)
+        items.append({"kind": "profile", "text": "Profile: < {} >{}   ({}/{})".format(p.profile, "  [default]" if p.profile == default else "", profiles.names(p.draft).index(p.profile) + 1, len(profiles.names(p.draft)))})
+        items.append({"kind": "info", "text": "Arguments (passed one by one, never through a shell):", "tone": "dim"})
+        for i, a in enumerate(cfg["arguments"]):
+            items.append({"kind": "arg", "index": i, "text": "  {}. {}".format(i + 1, a)})
+        items.append({"kind": "arg_add", "text": "  [+ add argument]"})
+        items.append({"kind": "info", "text": "Environment overrides:", "tone": "dim"})
+        for name in sorted(cfg["environment"]):
+            items.append({"kind": "env", "name": name, "text": "  {}={}".format(name, cfg["environment"][name])})
+        items.append({"kind": "env_add", "text": "  [+ add variable NAME=VALUE]"})
+        items.append({"kind": "info", "text": "Command: " + profiles.command_preview(cfg["executable"], cfg["arguments"], cfg["environment"], cfg["runner"]), "tone": "key"})
+        items.append({"kind": "set_default", "text": "[ Make '{}' the default profile ]".format(p.profile), "button": True})
+        items.append({"kind": "new_profile", "text": "[ New profile (copy of '{}') ]".format(p.profile), "button": True})
+        if p.profile != profiles.DEFAULT:
+            items.append({"kind": "delete_profile", "text": "[ Delete profile '{}' ]".format(p.profile), "button": True})
+        items.append({"kind": "rediscover", "text": "[ Rediscover executable (settings are kept) ]", "button": True})
+        items.append({"kind": "save", "text": "[ Save ]" + ("  (unsaved changes)" if p.dirty else ""), "button": True})
+        items.append({"kind": "cancel", "text": "[ Cancel ]", "button": True})
+        return items
+
+    SELECTABLE = {"profile", "arg", "arg_add", "env", "env_add", "set_default", "new_profile", "delete_profile", "rediscover", "save", "cancel"}
+
+    def _lp_selectable(self):
+        return [i for i, item in enumerate(self.lp_items()) if item["kind"] in self.SELECTABLE]
+
+    def _lp_move(self, delta):
+        p = self.launch_panel
+        sel = self._lp_selectable()
+        if not sel:
+            return
+        pos = sel.index(p.cursor) if p.cursor in sel else 0
+        p.cursor = sel[max(0, min(len(sel) - 1, pos + delta))]
+
+    def _lp_item(self):
+        items = self.lp_items()
+        p = self.launch_panel
+        if p.cursor >= len(items) or items[p.cursor]["kind"] not in self.SELECTABLE:
+            sel = self._lp_selectable()
+            p.cursor = sel[0] if sel else 0
+        return self.lp_items()[p.cursor]
+
+    def _launch_key(self, key):
+        p = self.launch_panel
+        if p.input is not None:
+            return self._lp_input_key(key)
+        item = self._lp_item()
+        if key != "esc":
+            p.discard_warned = False
+        if key in {"down", "j", "tab"}:
+            self._lp_move(1)
+        elif key in {"up", "k", "btab"}:
+            self._lp_move(-1)
+        elif key in {"pgdn"}:
+            self._lp_move(8)
+        elif key in {"pgup"}:
+            self._lp_move(-8)
+        elif key in {"left", "h", "["}:
+            self._lp_profile(-1)
+        elif key in {"right", "l", "]"}:
+            self._lp_profile(1)
+        elif key in {"d", "x"} and item["kind"] in {"arg", "env"}:
+            self._lp_delete(item)
+        elif key == "a":
+            self._lp_begin("arg_add", "")
+        elif key == "e":
+            self._lp_begin("env_add", "")
+        elif key == "s":
+            return self.save_launch_panel()
+        elif key == "enter":
+            return self._lp_activate(item)
+        elif key == "esc":
+            return self.cancel_launch_panel(force=p.discard_warned)
+        return None
+
+    def _lp_profile(self, step):
+        from ...runtime import profiles
+
+        p = self.launch_panel
+        names = profiles.names(p.draft)
+        p.profile = names[(names.index(p.profile) + step) % len(names)]
+        p.cursor = 3 if p.cursor >= len(self.lp_items()) else p.cursor
+
+    def _lp_begin(self, kind, buffer, index=None):
+        self.launch_panel.input = {"kind": kind, "buffer": buffer, "index": index}
+        self.launch_panel.notice = ""
+
+    def _lp_activate(self, item):
+        from ...runtime import profiles
+
+        p = self.launch_panel
+        kind = item["kind"]
+        if kind == "profile":
+            self._lp_profile(1)
+        elif kind == "arg":
+            self._lp_begin("arg_edit", profiles.get(p.draft, p.profile)["arguments"][item["index"]], item["index"])
+        elif kind == "arg_add":
+            self._lp_begin("arg_add", "")
+        elif kind == "env":
+            self._lp_begin("env_edit", "{}={}".format(item["name"], profiles.get(p.draft, p.profile)["environment"][item["name"]]), item["name"])
+        elif kind == "env_add":
+            self._lp_begin("env_add", "")
+        elif kind == "new_profile":
+            self._lp_begin("profile_new", "")
+        elif kind == "set_default":
+            self._lp_apply(lambda d: profiles.set_default(d, p.profile), "'{}' will be the default profile (unsaved)".format(p.profile))
+        elif kind == "delete_profile":
+            name = p.profile
+            self._lp_apply(lambda d: profiles.delete(d, name), "Profile '{}' removed (unsaved)".format(name))
+            p.profile = profiles.default_name(p.draft)
+        elif kind == "rediscover":
+            return Action("run", ["launcher", "rediscover", p.game_id])
+        elif kind == "save":
+            return self.save_launch_panel()
+        elif kind == "cancel":
+            return self.cancel_launch_panel(force=True)
+        return None
+
+    def _lp_apply(self, change, notice=""):
+        from ...config import AppError
+
+        p = self.launch_panel
+        try:
+            p.draft = change(p.draft)
+            p.notice = notice
+        except AppError as exc:
+            p.notice = str(exc)
+
+    def _lp_delete(self, item):
+        from ...runtime import profiles
+
+        p = self.launch_panel
+        cfg = profiles.get(p.draft, p.profile)
+        if item["kind"] == "arg":
+            args = cfg["arguments"][: item["index"]] + cfg["arguments"][item["index"] + 1:]
+            self._lp_apply(lambda d: profiles.edit(d, p.profile, arguments=args), "Argument removed (unsaved)")
+        else:
+            self._lp_apply(lambda d: profiles.edit(d, p.profile, remove_env=[item["name"]]), "{} removed (unsaved)".format(item["name"]))
+        self._lp_move(0)
+
+    def _lp_input_key(self, key):
+        from ...runtime import profiles
+
+        p = self.launch_panel
+        entry = p.input
+        if key == "esc":
+            p.input = None
+            p.notice = "Edit cancelled"
+        elif key == "backspace":
+            entry["buffer"] = entry["buffer"][:-1]
+        elif key == "enter":
+            self._lp_commit(entry)
+        elif len(key) == 1 and key.isprintable() and len(entry["buffer"]) < 512:
+            entry["buffer"] += key
+        return None
+
+    def _lp_commit(self, entry):
+        from ...config import AppError
+        from ...runtime import profiles
+
+        p = self.launch_panel
+        text, kind = entry["buffer"], entry["kind"]
+        try:
+            cfg = profiles.get(p.draft, p.profile)
+            if kind in {"arg_add", "arg_edit"}:
+                if not text:
+                    raise AppError("An argument cannot be empty")
+                args = list(cfg["arguments"])
+                if kind == "arg_add":
+                    args.append(text)
+                else:
+                    args[entry["index"]] = text
+                p.draft = profiles.edit(p.draft, p.profile, arguments=args)
+            elif kind in {"env_add", "env_edit"}:
+                name, sep, value = text.partition("=")
+                if not sep:
+                    raise AppError("Write it as NAME=VALUE")
+                remove = [entry["index"]] if kind == "env_edit" and entry["index"] != name else []
+                p.draft = profiles.edit(p.draft, p.profile, environment_changes={name.strip(): value}, remove_env=remove)  # sensitive names are refused here
+            else:
+                p.draft = profiles.create(p.draft, text.strip(), p.profile)
+                p.profile = text.strip()
+            p.input = None
+            p.notice = "Changed (unsaved): press s to save"
+        except AppError as exc:
+            p.notice = str(exc)  # the input stays open so the text can be corrected
+
+    def _lp_click(self, index, double):
+        p = self.launch_panel
+        if p.input is not None:
+            return None
+        items = self.lp_items()
+        if not 0 <= index < len(items) or items[index]["kind"] not in self.SELECTABLE:
+            return None
+        item = items[index]
+        p.cursor = index
+        if item.get("button") or item["kind"] in {"arg_add", "env_add", "profile"}:
+            return self._lp_activate(item)
+        previous, then = self._last_click
+        repeated = previous == ("lp", index) and self.clock() - then <= DOUBLE_CLICK_SECONDS
+        if double or repeated:
+            self._last_click = (None, 0.0)
+            return self._lp_activate(item)
+        self._last_click = (("lp", index), self.clock())
+        return None
+
+    def save_launch_panel(self):
+        from ...config import AppError
+
+        p = self.launch_panel
+        try:
+            self.provider.save_launch_settings(p.game_id, p.draft)
+        except (AppError, OSError) as exc:
+            p.notice = "Could not save: {}".format(str(exc)[:100])
+            return None
+        self.launch_panel = None
+        self.reload()
+        self.message = "Launch settings saved for {}".format(p.title)
+        return None
+
+    def cancel_launch_panel(self, force=False):
+        p = self.launch_panel
+        if p.dirty and not force:
+            p.discard_warned = True
+            p.notice = "Unsaved changes: press Esc again to discard them, or s to save"
+            return None
+        self.launch_panel = None
+        self.message = "Launch settings unchanged"
         return None

@@ -62,7 +62,10 @@ def hints(model):
     row = model.current()
     base = ["/ search", "Enter details", "Tab section", "? help", "q quit"]
     extra = [f"{k} {d}" for k, (d, _) in sorted((row.actions if row else {}).items())][:3]
+    if model.launch_panel is not None:
+        return "Up/Down move  Enter edit/activate  a add arg  e add env  d delete  [ ] profile  s save  Esc cancel"
     if model.name in GAME_SECTIONS and row:
+        extra.append("o launch settings")
         extra.append("v feedback")
         extra.append("a all/filter")
     extra += [f"{k} {d}" for k, (d, _) in sorted(model.section_actions().items())][:2]
@@ -113,7 +116,9 @@ def render_frame(model, width, height, caps=None, title="ARCH GAMES 3.0", status
         lines.append([(pad("Search: " + clean(model.search) + ("_" if model.searching else ""), width, caps), "key")])
         body_h -= 1
     top = len(lines)
-    if model.panel is not None:
+    if model.launch_panel is not None:
+        body, body_hits = launch_panel_lines(model, width, body_h, caps, top)
+    elif model.panel is not None:
         body, body_hits = panel_lines(model, width, body_h, caps, top)
     elif model.detail_open:
         body, body_hits = detail_lines(model, width, body_h, caps, top)
@@ -206,6 +211,7 @@ def detail_lines(model, width, height, caps, top):
     hits = []
     actions = sorted(row.actions.items())
     if model.name in GAME_SECTIONS:
+        actions.append(("o", ("launch settings (arguments, environment, profiles)", None)))
         actions.append(("v", ("compatibility feedback", None)))
     for key, (desc, _) in actions:
         out.append([(pad("  [{}] {}".format(key, desc), width, caps), "key")])
@@ -263,6 +269,43 @@ def panel_lines(model, width, height, caps, top):
     return out, hits
 
 
+def launch_panel_lines(model, width, height, caps, top):
+    """Launch settings: a scrolling list of info lines and selectable items; the text input (if any) sits on the last line."""
+    p = model.launch_panel
+    items = model.lp_items()
+    if p.cursor >= len(items) or items[p.cursor]["kind"] not in model.SELECTABLE:
+        sel = model._lp_selectable()
+        p.cursor = sel[0] if sel else 0
+    footer = 2  # input / notice line and a key hint line
+    room = max(height - 1 - footer, 1)
+    start = max(0, min(p.cursor - room // 2, max(len(items) - room, 0)))
+    out, hits = [[(pad("Launch settings: " + clean(p.title), width, caps), "title")]], []
+    for index in range(start, min(start + room, len(items))):
+        item = items[index]
+        selected = index == p.cursor
+        selectable = item["kind"] in model.SELECTABLE
+        mark = caps.cursor if selected else " "
+        text = ("{} {}".format(mark, item["text"]) if selectable else "  " + item["text"])
+        tone = "sel" if selected else item.get("tone", "key" if item.get("button") else "normal")
+        out.append([(pad(text, width, caps), tone)])
+        if selectable:
+            hits.append(Hit(0, width, top + len(out) - 1, top + len(out), "lp_item", index))
+    while len(out) < height - footer:
+        out.append(blank(width))
+    if p.input is not None:
+        labels = {"arg_add": "New argument", "arg_edit": "Edit argument", "env_add": "New variable (NAME=VALUE)", "env_edit": "Edit variable (NAME=VALUE)", "profile_new": "New profile name"}
+        out.append([(pad("{}: {}_".format(labels[p.input["kind"]], clean(p.input["buffer"])), width, caps), "key")])
+        out.append([(pad(p.notice or "Enter: accept   Esc: cancel the edit", width, caps), "warn" if p.notice else "dim")])
+    else:
+        out.append([(pad(p.notice or "Nothing is saved until you choose Save (s).", width, caps), "warn" if p.notice else "dim")])
+        out.append([(pad("Sensitive variables (PATH, LD_*, HOME, ...) are refused here: use the CLI with --allow-sensitive.", width, caps), "dim")])
+    out = out[:height]
+    hits = [h for h in hits if h.y0 < top + height]
+    while len(out) < height:
+        out.append(blank(width))
+    return out, hits
+
+
 def _label(options, value, default):
     return next((label for label, v in options if v == value), dict((v, name) for name, v in options).get(default, "Untested"))
 
@@ -281,6 +324,7 @@ HELP = [
     ("  l launch  i install  d download", "run the CLI command, then return here"),
     ("  s settings  w wine status  x find executable", ""),
     ("  v", "compatibility feedback (gameplay and audio) for this machine"),
+    ("  o", "launch settings: arguments, environment, profiles, executable status (needs a registered launcher)"),
     ("  a", "toggle the compatibility filter: GameVault and Installed start by showing every game,"),
     ("", "Library starts hiding unverified ones; labels show Unknown rather than hiding"),
     ("  S (GameVault tab)", "sync the library now (the only network use; tabs never sync)"),

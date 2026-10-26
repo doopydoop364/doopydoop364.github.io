@@ -26,6 +26,7 @@ Stdlib-only Python 3.10+. Optional pieces (web GUI, remote audio bridge, perform
 | `catalog/library.py, search.py` | combine Pacman, GameVault cache and local records; attach compatibility reports; indexed search. |
 | `compatibility/` | 2.0 analyzer + archive/PE inspection (unchanged) and `intelligence.py` (facts, per-machine records, classification). |
 | `runtime/discovery.py, launchers.py, launcher.py` | find the real game executable, persist the user-confirmed launcher, launch it (argv arrays only). |
+| `runtime/pacman.py, native.py, profiles.py, gamelaunch.py, cli_launcher.py, installation/native.py` | read-only Pacman queries; package-aware native discovery, status and ownership verification; launch profiles (validation and pure edits); the launch services shared by CLI/TUI/web; `launcher ...` commands; the native install flow. |
 | `runtime/prefixes.py, winetools.py` | prefix lifecycle (2.0 recovery logic intact), runtimes/layouts, doctor/status, per-game settings. |
 | `installation/workflow.py` | resumable install job: acquire → verify → inspect → plan → approve → extract → prefix → installer → discover → register → test. |
 | `downloads/` | persistent queue with priority/pause/resume/dedupe. |

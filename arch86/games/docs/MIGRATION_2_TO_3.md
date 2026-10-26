@@ -24,6 +24,10 @@ compatibility evidence and feedback stay where they are and keep working.
 2.0 let you create a prefix under `gamevault:32` while the library lists the game as `gamevault:32@34`. 3.0 treats them as one game for local state: your existing `gamevault:32` prefix is found when you
 say `undertale`, `discover`/`launch`/`install` do not create a second prefix or download again, and the library shows the game as installed. If one bare ID has several versioned records, 3.0 never guesses between them.
 
+## Launcher records (native games, profiles)
+No migration is needed: launcher records gain optional fields (`kind`, `package`, `profiles`, `default_profile`, `extras`). Records written earlier keep working unchanged and are only extended when you edit them.
+Re-registering a launcher keeps your arguments, environment and profiles.
+
 ## Rollback
 Stop 3.0, copy the backup over `state.db`, reinstall the 2.0 ref (`--ref feature/arch-games-2`). 2.0 ignores the 3.0 namespaces. Data written only by 3.0 (aliases, launchers, compat records, save backups)
 stays in the files and database copy you restore from, so keep the backup you are rolling back *from* if you may return to 3.0.

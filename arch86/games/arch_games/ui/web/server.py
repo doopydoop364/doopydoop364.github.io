@@ -295,6 +295,8 @@ def make_handler(app):
                     return api.recent(db)
                 if n == 2 and p[0] == "game":
                     return api.game(db, p[1])
+                if n == 2 and p[0] == "launcher":
+                    return api.launcher_state(db, p[1])
                 if p == ["downloads"]:
                     return api.downloads(db)
                 if p == ["installs"]:
@@ -335,7 +337,11 @@ def make_handler(app):
                 if p == ["install", "approve"]:
                     return api.install_approve(d.get("game"), d.get("plan_sha256"), d.get("approve_installer"))
                 if p == ["launch"]:
-                    return api.launch(d.get("game"))
+                    return api.launch(d.get("game"), d.get("profile"))
+                if n == 3 and p[0] == "launcher" and p[2] == "settings":
+                    return api.launcher_settings(db, p[1], d)
+                if n == 3 and p[0] == "launcher" and p[2] == "profile":
+                    return api.launcher_profile(db, p[1], d)
                 if n == 3 and p[:2] == ["wine", "config"]:
                     return api.wine_config(db, p[2], d)
                 if p == ["audio", "remote", "disable"]:

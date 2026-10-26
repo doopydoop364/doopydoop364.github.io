@@ -114,7 +114,7 @@
         var comp = g.compatibility;
         view.appendChild(h('p', {}, h('a', { href: '#/library' }, '← Library')));
         view.appendChild(h('div', { class: 'hero' }, cover(g, true), h('div', {}, h('h1', {}, g.title), h('div', {}, badge(comp.classification, TONE[comp.classification]), g.installed ? badge('installed', 'ok') : badge('not installed'), badge(g.source), badge(g.os)), h('p', { class: 'muted' }, g.description ? g.description.slice(0, 400) : ''), buttons)));
-        view.appendChild(h('div', { class: 'panel' }, kv([['ID', g.id], ['Aliases', g.aliases.join(', ')], ['Architecture', g.architecture], ['Wine prefix', g.prefix ? (g.prefix.detected_architecture || g.prefix.requested_architecture) + ' (' + g.prefix.state + ')' : null],
+        view.appendChild(h('div', { class: 'panel' }, kv([['ID', g.id], ['Aliases', g.aliases.join(', ')], ['Native package', g.native ? g.native.package + (g.native.version ? ' ' + g.native.version : '') + ' — ' + g.native.label : null], ['Architecture', g.architecture], ['Wine prefix', g.prefix ? (g.prefix.detected_architecture || g.prefix.requested_architecture) + ' (' + g.prefix.state + ')' : null],
           ['Executable', g.launcher ? g.launcher.executable + (g.launcher.exists ? '' : '  — MISSING') : 'not registered (run: arch-games discover ' + g.id + ')'], ['Last launch', g.last_launch ? g.last_launch.started_at + ' · ' + g.last_launch.state + (g.last_launch.exit_code ? ' · exit ' + g.last_launch.exit_code : '') : null],
           ['Storage', g.storage ? bytes(g.storage.bytes) + (g.storage.partial ? '+' : '') : null], ['Tags', g.tags.join(', ')]])));
         view.appendChild(h('h2', {}, 'Compatibility: ' + comp.classification));
@@ -122,6 +122,7 @@
         view.appendChild(h('h2', {}, 'Evidence'));
         view.appendChild(h('div', { class: 'panel' }, h('ul', { class: 'plain' }, comp.evidence.map(function (e) { return h('li', {}, e); })), comp.uncertainties.length ? h('p', { class: 'muted' }, 'Uncertain:') : null, h('ul', { class: 'plain' }, comp.uncertainties.map(function (e) { return h('li', { class: 'muted' }, e); }))));
         if (g.job) view.appendChild(planPanel(g, render));
+        if (g.launcher) view.appendChild(launchPanel(g, render));
         view.appendChild(wineForm(g));
         var notes = h('textarea', { 'aria-label': 'Notes' }); notes.value = g.notes || '';
         var tags = h('input', { 'aria-label': 'Tags (comma separated)', value: g.tags.join(', ') });
@@ -148,6 +149,45 @@
       }
     }
     (j.next || []).forEach(function (n) { box.appendChild(h('p', { class: 'muted' }, n)); });
+    return box;
+  }
+
+  function launchPanel(g, render) {
+    var box = h('div', {}, h('h2', {}, 'Launch settings')), panel = h('div', { class: 'panel' });
+    box.appendChild(panel);
+    api('GET', 'launcher/' + encodeURIComponent(g.id)).then(function (s) {
+      var current = s.default_profile;
+      var names = Object.keys(s.profiles);
+      var select = h('select', { 'aria-label': 'Launch profile' });
+      names.forEach(function (n) { var o = h('option', { value: n }, n + (n === s.default_profile ? ' (default)' : '')); if (n === current) o.selected = true; select.appendChild(o); });
+      var args = h('textarea', { 'aria-label': 'Arguments, one per line', rows: 4 }), env = h('textarea', { 'aria-label': 'Environment, NAME=VALUE per line', rows: 4 });
+      function load() {
+        var p = s.profiles[select.value];
+        args.value = p.arguments.join('\n');
+        env.value = Object.keys(p.environment).sort().map(function (k) { return k + '=' + p.environment[k]; }).join('\n');
+      }
+      select.addEventListener('change', load); load();
+      if (s.hint) panel.appendChild(h('div', { class: 'warnbox' }, h('p', {}, s.status_text + (s.detail ? ': ' + s.detail : '')), h('p', {}, h('code', {}, s.hint))));
+      panel.appendChild(kv([['Status', s.status_text], ['Runtime', s.runner === 'native' ? 'native Linux (no Wine)' : s.runner], ['Executable', s.executable], ['Package', s.package], ['Profile', select]]));
+      panel.appendChild(h('p', { class: 'muted' }, 'Arguments are passed to the program one by one (never through a shell). Environment overrides: ' + s.environment_policy));
+      panel.appendChild(h('label', {}, 'Arguments (one per line)')); panel.appendChild(args);
+      panel.appendChild(h('label', {}, 'Environment (NAME=VALUE per line)')); panel.appendChild(env);
+      var save = h('button', { class: 'primary', onclick: function () {
+        var environment = {}, bad = null;
+        env.value.split('\n').filter(function (l) { return l.trim(); }).forEach(function (l) { var i = l.indexOf('='); if (i < 1) { bad = l; } else { environment[l.slice(0, i).trim()] = l.slice(i + 1); } });
+        if (bad) { toast('Not NAME=VALUE: ' + bad, true); return; }
+        var list = args.value.split('\n').filter(function (l) { return l !== ''; });
+        act(save, api('POST', 'launcher/' + encodeURIComponent(g.id) + '/settings', { profile: select.value, arguments: list, environment: environment }), 'Saved').then(function (r) { s = r; });
+      } }, 'Save settings');
+      var def = h('button', { onclick: function () { act(def, api('POST', 'launcher/' + encodeURIComponent(g.id) + '/profile', { action: 'default', name: select.value }), 'Default profile set').then(render); } }, 'Make default');
+      var newName = h('input', { placeholder: 'new profile name', 'aria-label': 'New profile name' });
+      var create = h('button', { onclick: function () { act(create, api('POST', 'launcher/' + encodeURIComponent(g.id) + '/profile', { action: 'create', name: newName.value, copy_from: select.value }), 'Profile created').then(render); } }, 'Create profile');
+      var del = h('button', { class: 'danger', onclick: function () { if (select.value === 'default') { toast('The default profile cannot be deleted', true); return; } act(del, api('POST', 'launcher/' + encodeURIComponent(g.id) + '/profile', { action: 'delete', name: select.value }), 'Profile deleted').then(render); } }, 'Delete profile');
+      var go = h('button', { onclick: function () { act(go, api('POST', 'launch', { game: g.id, profile: select.value }), 'Launching…').then(function (j) { pollJob(j, render); }); } }, 'Launch with this profile');
+      panel.appendChild(h('p', { class: 'row' }, save, def, go, del));
+      panel.appendChild(h('p', { class: 'row' }, newName, create));
+      panel.appendChild(h('p', { class: 'muted' }, s.not_editable_here));
+    }).catch(function (e) { if (e.message !== 'login') panel.appendChild(h('p', { class: 'muted' }, e.message)); });
     return box;
   }
 

@@ -134,6 +134,26 @@ class Provider:
         record = intelligence.get(self.db, intelligence.machine_identity(self.config)["id"], local_id(self.db, game_id)) or {}
         return {"gameplay": record.get("gameplay_status", "unverified"), "audio": record.get("audio_status", "unknown")}
 
+    # -- launch settings (the same services as `arch-games launcher ...`) --------------------------------------
+    def launch_settings(self, game_id):
+        from ...runtime import gamelaunch
+        from ...runtime.launchers import LauncherStore
+        from ...runtime.pacman import PacmanService
+        from ...catalog.pacman import default_run
+
+        state_id = local_id(self.db, game_id)
+        record = LauncherStore(self.config, self.db).get(state_id)
+        if record is None:
+            return None
+        status = gamelaunch.status(self.config, self.db, state_id, PacmanService(run=default_run()), deep=False)
+        return {"state_id": state_id, "record": record, "status": status}
+
+    def save_launch_settings(self, game_id, draft):
+        from ...runtime import gamelaunch, profiles
+
+        gamelaunch.edit(self.config, self.db, game_id, lambda record: profiles.apply_user_settings(record, draft))
+        self.invalidate(reprobe=False)
+
     def save_feedback(self, game_id, gameplay, audio):
         state_id = local_id(self.db, game_id)
         stored = self.feedback_state(game_id)
@@ -185,6 +205,16 @@ class Provider:
         if aliases:
             detail.append(("Aliases: " + ", ".join(aliases), "dim"))
         detail.append(("State: " + ("installed" if installed else "not installed"), "ok" if installed else "dim"))
+        nat = d.get("native")
+        if nat:
+            tone = {"ready": "ok", "installed-no-launcher": "warn", "launcher-invalid": "bad", "package-removed": "bad"}.get(nat["status"], "dim")
+            detail.append(("Native Linux package {}{}: {}".format(nat["package"], " " + nat["version"] if nat["version"] else "", nat["label"]), tone))
+        launcher = d.get("launcher")
+        if launcher and launcher["profiles"] != ["default"]:
+            detail.append(("Launch profiles: {} (default: {})".format(", ".join(launcher["profiles"]), launcher["default_profile"]), "dim"))
+        elif launcher and (launcher["settings"]["default"]["arguments"] or launcher["settings"]["default"]["environment"]):
+            detail.append(("Launch settings saved: {} argument(s), {} environment override(s) (o to edit)".format(
+                len(launcher["settings"]["default"]["arguments"]), len(launcher["settings"]["default"]["environment"])), "dim"))
         detail.append(("Compatibility: {}".format(status), TONE.get(status, "dim")))
         detail += [("  = " + str(x), "normal") for x in d["compatibility"]["reasons"][:2]]
         detail += [("  + " + str(x), "dim") for x in d["compatibility"]["evidence"][:3]]

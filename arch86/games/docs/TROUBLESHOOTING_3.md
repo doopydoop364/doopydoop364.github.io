@@ -20,6 +20,9 @@ Start with `arch-games doctor --verbose`; it names the failing layer and the fix
 | Browser audio: "authentication failed" | Wrong token; use the one in `~/.config/arch-games-audio-bridge/token` on the host. 5 failures/min are throttled. |
 | Browser audio: capture error / "no audio within 5 s" | The sink or VM output is wrong: `…remote doctor`; check QEMU `out.name=` and that the VM is playing. |
 | Browser audio silent after clicking | Click "Enable audio" (autoplay policy); check mute/volume and the buffer figure; Safari needs the click on this page. |
+| A Pacman game installed but `launch` says no executable was found | See NATIVE_3.md: `arch-games discover GAME --all --json`, then `launcher register` for an owned program. |
+| A native game launches but is silent | Save its audio settings as launch arguments/environment (NATIVE_3.md, OpenTTD example); check `audio doctor`. |
+| `Launcher is missing or no longer belongs to the package` | `arch-games launcher rediscover GAME` (your settings are kept). |
 | `arch-games web` says "Operation not implemented" | That was a 3.0 packaging bug fixed in the real-world-testing round: update (`git pull`, `sh arch86/games/install.sh`). |
 | GameVault tab says to connect although you are connected | Fixed: the tab now explains the actual state; `a` toggles the compatibility filter, `S` syncs. |
 | Web GUI: Sign in loops | Open the exact URL printed by `arch-games web` (token in `#token=`); cookies must be enabled for 127.0.0.1. |

@@ -19,3 +19,7 @@ In a QEMU/KVM guest with no sound card, the fix text shows the host QEMU flags t
 them but never changes the host or restarts a VM. `audio devices` lists ALSA/PCI/Pulse devices. `audio test [--seconds N] [--backend auto|pulse|alsa]` plays a
 bounded (<=10 s) 440 Hz tone with `paplay`/`pw-play`/`aplay`, unprivileged; success means the player exited cleanly, not that you heard it.
 Remote delivery: see REMOTE_AUDIO_3.md.
+
+### A game that is silent while `audio doctor` says ALSA works
+Some games pick the wrong backend (JACK/Pulse) inside a VM. Save the game's own audio settings once as a launch profile (NATIVE_3.md), for example OpenTTD on the Arch64 VM:
+`SDL_AUDIODRIVER=alsa AUDIODEV=plughw:0,0` and argument `-s sdl`. That configuration was tested on that VM only; it is an example, not a default.

@@ -231,3 +231,23 @@ compat feedback through the CLI, TUI navigation. **Not claimed:** anything below
 | `audio doctor` device-without-server | New verdict `alsa-direct` plus `alsa-playback` and `wine-audio-confirmed:*` layers; a missing PulseAudio/PipeWire server is informational when ALSA playback exists; remote delivery stays separate; diagnosis never plays sound | tests/test_audio.py (AlsaDirectTests) |
 | Launcher title `gamevault:32` | Registered launchers now store the resolved catalog/custom title (also through the bare/versioned sibling); re-registering never replaces a real title with the bare ID; original title stays resolvable after `title set` | tests/test_version_ids.py (LauncherTitleTests) |
 | Found while testing | `Library` listed both `gamevault:32` (launcher/install) and `gamevault:32@34` (the earlier family-ID patch to the library had silently not applied); fixed with a regression test. `compat show` now finds a game through its bare/versioned sibling | tests/test_version_ids.py (LibraryListingTests) |
+
+### Real-world testing round 2: native Pacman games, OpenTTD, per-game launch configuration
+**User finding (OpenTTD on the Arch64 VM):** search and Pacman installation worked, but `launch`/`launch --dry-run` failed with "No game executables found"; the title showed as `pacman:openttd`; OpenTTD needed
+`SDL_AUDIODRIVER=alsa AUDIODEV=plughw:0,0 openttd -s sdl` for sound. **Root causes (from reading the code):** (1) discovery only searched managed install directories and Wine prefixes, never package-owned files;
+(2) `Launcher.plan` required executables to live inside a managed root, so `/usr/bin/openttd` was refused even if found; (3) the Pacman install path ended after `sudo pacman` with no verification, discovery or registration;
+(4) `info` derived installed state and title from Arch Games' own records only; (5) there was no persistent per-game arguments/environment beyond a single flat record and no CLI/TUI/web way to edit it, and re-registering rebuilt the record.
+
+| Requirement | Status | Evidence |
+|---|---|---|
+| Package-aware discovery (ownership, ELF/scripts, desktop entries, symlinks, helpers excluded, ranking, confirmation) | done (fixture) | tests/test_native_discovery.py (25) |
+| Authoritative installed state and the five-status vocabulary in CLI/TUI/web | done (fixture) | test_native_discovery, test_native_cli, test_web_native, test_tui_launch_panel |
+| Native launch end to end, no Wine, dry-run content, stale/removed/upgraded launchers, rediscovery keeping settings | done (fixture) | tests/test_launch_profiles.py, test_native_cli.py |
+| Persistent arguments/environment/profiles, validation, sensitive-variable policy, no shell | done | tests/test_launch_profiles.py |
+| CLI `launcher config/arg/env/profile/validate/reset/rediscover`, `launch --profile` | done | tests/test_native_cli.py, generated CLI reference |
+| Install workflow: approval, verification, discovery, registration, retry without reinstall, honest partial success | done (sudo step mocked) | tests/test_native_cli.py |
+| TUI launch settings (keyboard, mouse, small terminals, save/cancel) | done | tests/test_tui_launch_panel.py + a real curses pty test |
+| Web: native status, launch, safe settings edits, no executable/path edits | done | tests/test_web_native.py |
+| Titles (`info`, launcher, compat) resolve to the catalog title | done | test_native_cli |
+| Compatibility evidence from launches (profile, args, env names shared, values local), started != verified | done | test_launch_profiles, test_native_cli |
+| Real `pacman`, real OpenTTD, real audio | **not verified** (needs the user's VM) | TESTING_3.md "Native games" |

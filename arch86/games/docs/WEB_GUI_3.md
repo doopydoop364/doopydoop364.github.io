@@ -13,6 +13,13 @@ Wine settings form, notes/tags, Launch / Queue download / Prepare install), Down
 (job list with the same plan the CLI shows; installer execution needs a ticked approval box and a plan hash that matches what you reviewed),
 Audio (local verdict + layers, remote bridge status/link/disable), Wine (doctor), Diagnostics (doctor + storage).
 
+## Native games and launch settings
+Pacman games show their package status (available / installed-no-launcher / ready / launcher-invalid / package-removed), the native executable and a **Launch settings** form: a profile selector, arguments (one per line),
+environment (`NAME=VALUE` per line), Save, make default, create/delete profile and "Launch with this profile". Stale or missing launchers show the reason and the terminal command to fix them
+(`arch-games launcher rediscover ID`). **Not editable in the browser, by design:** the executable, the runner, the working directory, and anything that needs sudo (package installation). Sensitive environment
+variables (PATH, HOME, LD_*, ...) and `WINEPREFIX` are refused by the server, arguments are passed to the program as an argument array (never a shell), and the new endpoints
+(`GET /api/launcher/ID`, `POST /api/launcher/ID/settings`, `POST /api/launcher/ID/profile`, `launch` with `profile`) sit behind the same token session, CSRF header, Host/Origin checks and input validation as the rest.
+
 ## Security model
 * Loopback by default. Non-loopback needs `--allow-remote`; token login is always required; the token is a 0600 file `web-token` in the config dir.
 * Login: token in the URL **fragment** → `POST /api/login` → `HttpOnly; SameSite=Strict` session cookie (8 h) + per-session CSRF token that

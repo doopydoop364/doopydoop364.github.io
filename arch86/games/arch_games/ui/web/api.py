@@ -243,13 +243,70 @@ class Api:
         return self.start_job("install", gid, target)
 
     # -- launch / wine / audio / diagnostics ---------------------------------------------------------------------------
-    def launch(self, gid):
+    # -- launch settings: arguments, environment and profiles only (never the executable, runner or working directory) -----
+    def launcher_state(self, db, gid):
+        from ...runtime import gamelaunch, profiles
+        from ...runtime.launchers import LauncherStore
+
+        gid = local_id(db, game_id(gid))
+        record = LauncherStore(self.config, db).get(gid)
+        if record is None:
+            raise AppError("No launcher is registered for this game; find its executable from the terminal: arch-games discover {}".format(gid))
+        status = gamelaunch.status(self.config, db, gid)
+        hint = {"launcher-invalid": "Run in a terminal: arch-games launcher rediscover " + gid, "package-removed": "Reinstall in a terminal: arch-games install " + gid,
+                "installed-no-launcher": "Run in a terminal: arch-games discover " + gid}.get(status["status"])
+        cfg = profiles.get(record)
+        return {
+            "game_id": gid, "executable": record["executable"], "runner": record["runner"], "kind": record.get("kind", "managed"),
+            "package": record.get("package"), "working_directory": cfg["working_directory"], "status": status["status"], "status_text": status["label"],
+            "detail": status["detail"], "hint": hint, "default_profile": profiles.default_name(record),
+            "profiles": {n: {"arguments": profiles.get(record, n)["arguments"], "environment": profiles.get(record, n)["environment"]} for n in profiles.names(record)},
+            "editable": ["arguments", "environment", "profiles", "default_profile"],
+            "not_editable_here": "The executable, runner and working directory can only be changed from the terminal (arch-games launcher ...).",
+            "environment_policy": "Sensitive variables (PATH, HOME, LD_*, ...) and WINEPREFIX/WINEARCH are refused.",
+        }
+
+    def launcher_settings(self, db, gid, body):
+        from ...runtime import gamelaunch, profiles
+
+        gid = local_id(db, game_id(gid))
+        profile = body.get("profile")
+        if profile is not None and not isinstance(profile, str):
+            raise BadRequest("Invalid profile")
+        env = body.get("environment", {})
+        args = body.get("arguments", [])
+        if not isinstance(env, dict) or not isinstance(args, list):
+            raise BadRequest("arguments must be a list and environment an object")
+        try:
+            gamelaunch.edit(self.config, db, gid, lambda r: profiles.replace(r, profile, args, env, allow_sensitive=False))
+        except AppError as exc:
+            raise BadRequest(str(exc)) from None
+        return self.launcher_state(db, gid)
+
+    def launcher_profile(self, db, gid, body):
+        from ...runtime import gamelaunch, profiles
+
+        gid = local_id(db, game_id(gid))
+        action, name = body.get("action"), body.get("name")
+        if action not in {"create", "delete", "default"} or not isinstance(name, str):
+            raise BadRequest("action must be create, delete or default, with a profile name")
+        change = {"create": lambda r: profiles.create(r, name, body.get("copy_from") if isinstance(body.get("copy_from"), str) else None),
+                  "delete": lambda r: profiles.delete(r, name), "default": lambda r: profiles.set_default(r, name)}[action]
+        try:
+            gamelaunch.edit(self.config, db, gid, change)
+        except AppError as exc:
+            raise BadRequest(str(exc)) from None
+        return self.launcher_state(db, gid)
+
+    def launch(self, gid, profile=None):
         from ...runtime.launcher import Launcher
 
+        if profile is not None and not isinstance(profile, str):
+            raise BadRequest("Invalid profile")
         db = self.db()
         try:
             gid = local_id(db, game_id(gid))
-            plan = Launcher(self.config, db).plan_registered(gid)
+            plan = Launcher(self.config, db).plan_registered(gid, profile=profile)
         finally:
             db.close()
         needs_display = plan["method"] in {"wine", "native", "dosbox"}

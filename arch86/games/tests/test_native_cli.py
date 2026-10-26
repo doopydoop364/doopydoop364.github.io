@@ -111,7 +111,11 @@ class OpenTTDWorkflow(unittest.TestCase):
         compat = self.json("compat", "show", "openttd")
         self.assertEqual((compat["record"]["launch_status"], compat["record"]["gameplay_status"]), ("exited_ok", "unverified"))
         self.assertNotEqual(compat["classification"], "Verified working")
-        self.assertEqual(compat["facts"]["game_executable"]["os"], None if compat["facts"]["game_executable"]["os"] is None else "linux")
+        facts = compat["facts"]
+        self.assertEqual((facts["native_package"]["package"], facts["native_package"]["version"], facts["native_package"]["launcher_status"], facts["native_package"]["executable_exists"]),
+                         ("openttd", "15.3-1", "ready", True))
+        self.assertEqual(facts["launch_configuration"]["environment"], {"SDL_AUDIODRIVER": "alsa", "AUDIODEV": "plughw:0,0"})
+        self.assertEqual((facts["launch_configuration"]["arguments"], facts["launch_configuration"]["runner"]), (["-s", "sdl"], "native"))
         self.cli("compat", "set", "openttd", "--gameplay", "works", "--audio", "works")
         self.assertEqual(self.json("compat", "show", "openttd")["classification"], "Verified working")
         exported = self.json("compat", "export")["records"][0]["launch_profile"]

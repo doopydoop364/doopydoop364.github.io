@@ -34,6 +34,21 @@ Search over 20,000 games: index build < 3 s, a query < 0.35 s (asserted in tests
 Remote audio page with a synthetic tone (`tools/audio_bridge_selftest.py` style): connect, AudioContext running, frames received, buffer ≈130 ms, server returned to idle on disconnect and no capture process was left.
 Web GUI: sign-in from the URL fragment, library, game detail, downloads progress bar, audio/wine/diagnostics views. These found and fixed a DOM-helper bug and a CSP/inline-style bug.
 
+## Native games (OpenTTD) - what is and is not verified
+Verified by the automated suite with a fake Pacman database over a temporary file tree (tests/native_fixtures.py): package-aware discovery (single/multiple programs, helpers excluded, wrappers, owned/unowned symlinks, desktop entries incl.
+hostile ones, private lib directories, /opt, name differing from package), status transitions (available / installed-no-launcher / ready / launcher-invalid / package-removed, upgrade, external removal, install before Arch Games),
+registration and launch-time ownership checks, profiles and environment policy, no shell evaluation, history and compatibility evidence, CLI, TUI (keyboard, mouse, small terminals, a real curses session) and web settings, and a
+mocked end-to-end OpenTTD run (tests/test_native_cli.py). **Not verified:** a real `pacman`, a real OpenTTD, your audio. On the Arch64 VM:
+```fish
+arch-games search openttd; arch-games info openttd         # title OpenTTD, status installed or available
+arch-games install openttd                                  # approve; or skip if installed
+arch-games discover openttd; arch-games launch openttd --dry-run
+arch-games launcher env set openttd SDL_AUDIODRIVER alsa; arch-games launcher env set openttd AUDIODEV plughw:0,0
+arch-games launcher arg add openttd -s sdl; arch-games launch openttd --dry-run   # Command: env AUDIODEV=plughw:0,0 SDL_AUDIODRIVER=alsa /usr/bin/openttd -s sdl
+arch-games launch openttd                                   # sound should work; then: arch-games compat set openttd --gameplay works --audio works
+arch-games                                                  # TUI: select OpenTTD, press o (launch settings); web: arch-games web
+```
+
 ## Real-machine test plan (NOT yet performed: needs the user's VMs/host)
 Do these in order; stop and report at the first surprise. Nothing here is destructive; nothing modifies host audio unless you choose to run the printed commands.
 

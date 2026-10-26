@@ -284,3 +284,25 @@ class ValidateAndSettingsTests(Base):
         self.assertEqual((cfg["arguments"], cfg["environment"], cfg["working_directory"]), (["-a"], {"E": "1"}, "/tmp"))
         updated = profiles.edit(legacy, None, environment_changes={"F": "2"})
         self.assertEqual(updated["environment"], {"E": "1", "F": "2"})
+
+
+class GrandfatheredSensitiveVariableTests(unittest.TestCase):
+    """A sensitive variable saved earlier through the CLI (--allow-sensitive) must not lock the TUI/web out of saving other changes."""
+
+    BASE = {"game_id": "g", "executable": "/usr/bin/g", "runner": "native", "arguments": [], "environment": {"LD_LIBRARY_PATH": "/opt/x", "A": "1"}}
+
+    def test_unchanged_sensitive_variable_survives_a_form_save_but_cannot_be_added_or_changed(self):
+        saved = profiles.replace(self.BASE, None, ["-q"], {"LD_LIBRARY_PATH": "/opt/x", "A": "2"})
+        self.assertEqual(saved["environment"], {"LD_LIBRARY_PATH": "/opt/x", "A": "2"})
+        with self.assertRaises(AppError):
+            profiles.replace(self.BASE, None, [], {"LD_LIBRARY_PATH": "/opt/other"})  # changed
+        with self.assertRaises(AppError):
+            profiles.replace(self.BASE, None, [], {"LD_LIBRARY_PATH": "/opt/x", "LD_PRELOAD": "/evil.so"})  # added
+        with self.assertRaises(AppError):
+            profiles.replace(self.BASE, None, [], {"WINEPREFIX": "/x"})
+        draft = dict(self.BASE, arguments=["-z"])
+        applied = profiles.apply_user_settings(self.BASE, draft)
+        self.assertEqual(applied["environment"], self.BASE["environment"])
+        self.assertEqual(applied["arguments"], ["-z"])
+        with self.assertRaises(AppError):
+            profiles.apply_user_settings(self.BASE, dict(self.BASE, environment={"PATH": "/evil"}))
