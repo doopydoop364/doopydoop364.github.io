@@ -519,8 +519,6 @@ class Model:
         self._lp_move(0)
 
     def _lp_input_key(self, key):
-        from ...runtime import profiles
-
         p = self.launch_panel
         entry = p.input
         if key == "esc":
