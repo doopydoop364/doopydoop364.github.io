@@ -10,7 +10,7 @@ Branch `feature/arch-games-3` (based on `feature/arch-games-2` a5537c5). Not mer
 * Wine: layout/runtime awareness, doctor/status/logs with redaction, per-game settings, prefix backups/restore/export, 2.0 recovery fix preserved.
 * Audio: layered diagnosis (device vs server vs sink vs Wine driver vs session), VM awareness with printed host advice, bounded tone test. Optional per-VM browser audio via a small host bridge
   (dedicated sink monitor, token auth, WebSocket + PCM + Web Audio), off by default.
-* Interfaces: curses TUI (ASCII/no-colour/small-terminal fallbacks), optional web GUI (loopback, session+CSRF, allowlisted operations).
+* Interfaces: curses TUI (mouse support, in-TUI compatibility feedback, ASCII/no-colour/small-terminal fallbacks), optional web GUI (loopback, session+CSRF, allowlisted operations).
 * Compatibility: separate evidence facts, per-machine records (arch86/arch64/cachyos), seven-state classification with reasons; only your confirmation on this machine verifies.
 * Library: history, playtime estimates, optional CPU/memory monitoring, explicit benchmarks (FPS only from real mechanisms), favorites, tags, notes, titles, search, explainable recommendations, sync bundles.
 * Saves: discovery without following symlinks, hash-verified backups, restore preview + safety backup. Downloads: priorities, pause/resume, archive reuse, dedupe.

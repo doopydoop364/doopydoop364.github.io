@@ -12,7 +12,7 @@ from arch_games.gamevault.client import Client
 from arch_games.storage.database import Database
 from arch_games.ui.tui.app import enable_mouse, mouse_kind
 from arch_games.ui.tui.data import Provider
-from arch_games.ui.tui.model import AUDIO_OPTIONS, GAMEPLAY_OPTIONS, SECTIONS, Hit, Model, Row
+from arch_games.ui.tui.model import AUDIO_OPTIONS, GAMEPLAY_OPTIONS, SECTIONS, Model
 from arch_games.ui.tui.render import Caps, render_frame
 from test_discovery_launch import GAME, build_undertale
 from test_tui import FakeProvider
@@ -472,3 +472,22 @@ class PanelWithoutServiceTests(unittest.TestCase):
         m.handle_key("v")
         self.assertIsNone(m.panel)
         self.assertIn("not available", m.message)
+
+
+class SaveFailureTests(unittest.TestCase):
+    def test_a_failing_save_keeps_the_panel_and_reports_it(self):
+        class Failing(FakeProvider):
+            def feedback_state(self, game_id):
+                return {"gameplay": "unverified", "audio": "unknown"}
+
+            def save_feedback(self, game_id, gameplay, audio):
+                raise OSError("disk full")
+
+        m = Model(Failing(3))
+        m.handle_key("v")
+        m.handle_key("left")
+        m.handle_key("s")
+        self.assertIsNotNone(m.panel)  # the choices are kept so you can retry or cancel
+        self.assertIn("Could not save: disk full", m.message)
+        m.handle_key("esc")
+        self.assertIsNone(m.panel)

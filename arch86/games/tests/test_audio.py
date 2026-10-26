@@ -198,7 +198,7 @@ class AlsaDirectTests(unittest.TestCase):
         self.assertEqual(layers["guest-audio-server"]["status"], "info")  # informational, not a problem
         self.assertIn("fine for programs that use ALSA directly", layers["guest-audio-server"]["detail"])
         self.assertIn("not required", layers["guest-audio-server"]["fix"])
-        self.assertFalse(any(l["status"] == "fail" for l in report["layers"]))
+        self.assertFalse(any(layer["status"] == "fail" for layer in report["layers"]))
 
     def test_alsa_nodes_without_aplay_still_count_but_say_unconfirmed(self):
         root = make_root(self.tmp.name, HDA, nodes=("controlC0", "pcmC0D0p", "pcmC0D0c"))

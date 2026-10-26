@@ -252,7 +252,11 @@ class Model:
     def save_panel(self):
         """Explicit save through the same compatibility service the CLI uses; nothing is written while navigating."""
         p = self.panel
-        result = self.provider.save_feedback(p.game_id, GAMEPLAY_OPTIONS[p.gameplay][1], AUDIO_OPTIONS[p.audio][1])
+        try:
+            result = self.provider.save_feedback(p.game_id, GAMEPLAY_OPTIONS[p.gameplay][1], AUDIO_OPTIONS[p.audio][1])
+        except Exception as exc:  # a failed write must not crash the TUI or lose the panel's choices
+            self.message = "Could not save: {}".format(str(exc)[:100] or type(exc).__name__)
+            return None
         self.panel = None
         self.reload()
         self.message = "Saved: gameplay {}, audio {} - now {}".format(GAMEPLAY_OPTIONS[p.gameplay][0].lower(), AUDIO_OPTIONS[p.audio][0].lower(), result)

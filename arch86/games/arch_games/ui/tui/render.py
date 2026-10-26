@@ -264,7 +264,7 @@ def panel_lines(model, width, height, caps, top):
 
 
 def _label(options, value, default):
-    return next((label for label, v in options if v == value), dict((v, l) for l, v in options).get(default, "Untested"))
+    return next((label for label, v in options if v == value), dict((v, name) for name, v in options).get(default, "Untested"))
 
 
 HELP = [
