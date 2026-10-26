@@ -3,6 +3,7 @@
 Discover -> install (approved; the privileged step is mocked) -> detect -> find the executable -> register -> configure audio ->
 dry-run -> launch -> record the result. No real package is installed and sudo is never called."""
 
+import no_probe  # noqa: F401  (must come first: disables real system probes)
 import io
 import json
 import os

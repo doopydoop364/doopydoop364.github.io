@@ -1,5 +1,6 @@
 """Acceptance test J: interruptions and failures leave actionable, recoverable states and an intact database."""
 
+import no_probe  # noqa: F401  (must come first: disables real system probes)
 import io
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path

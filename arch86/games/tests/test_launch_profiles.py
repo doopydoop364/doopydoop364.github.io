@@ -1,5 +1,6 @@
 """Launch profiles: validation, pure edits, persistence, effective configuration and safe native launching."""
 
+import no_probe  # noqa: F401  (must come first: disables real system probes)
 import copy
 import os
 from pathlib import Path

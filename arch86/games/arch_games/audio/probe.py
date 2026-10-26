@@ -33,6 +33,8 @@ class Probe:
         """Run a read-only tool; (ok, stdout). Missing tool and failure are distinguishable via None."""
         if not self.which(argv[0]):
             return None, ""
+        if self.run is subprocess.run and os.environ.get("ARCH_GAMES_NO_PROBE"):
+            return None, ""  # test-suite guard: never execute real system tools
         try:
             result = self.run(argv, capture_output=True, text=True, timeout=timeout, env=self.environ)
         except (OSError, subprocess.TimeoutExpired):

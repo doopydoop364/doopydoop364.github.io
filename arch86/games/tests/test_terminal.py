@@ -1,3 +1,4 @@
+import no_probe  # noqa: F401  (must come first: disables real system probes)
 import unittest
 from arch_games.ui.terminal import clean, fit, menu, render_sections, section_command
 

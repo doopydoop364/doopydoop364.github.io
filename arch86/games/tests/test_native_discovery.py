@@ -1,5 +1,6 @@
 """Package-aware discovery of native Linux games against a fake Pacman database (no real packages, no sudo, nothing executed)."""
 
+import no_probe  # noqa: F401  (must come first: disables real system probes)
 from pathlib import Path
 import tempfile
 import unittest

@@ -1,5 +1,6 @@
 """TUI launch settings: keyboard and mouse editing of arguments, environment and profiles with explicit save."""
 
+import no_probe  # noqa: F401  (must come first: disables real system probes)
 from pathlib import Path
 import tempfile
 import unittest

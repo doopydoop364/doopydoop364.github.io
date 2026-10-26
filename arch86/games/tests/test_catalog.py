@@ -1,3 +1,4 @@
+import no_probe  # noqa: F401  (must come first: disables real system probes)
 import unittest
 from arch_games.catalog.filters import merge_catalogs, select
 from arch_games.catalog.library import expand_versions

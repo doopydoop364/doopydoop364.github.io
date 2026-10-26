@@ -47,7 +47,7 @@ def system_profile(path=None, run=None, which=None, environ=None):
         "ram_available": memory.get("MemAvailable"),
         "disk_free": free,
         "cpus": os.cpu_count(),
-        "graphics": detect_graphics(runner, environ),
+        "graphics": detect_graphics(run, environ),
         "wine": detect_wine(runner, finder),
         "runtimes": {name: finder(name) for name in ["dosbox", "dosbox-staging", "proton", "steam"]},
         "evidence": ["Kernel architecture (CPU execution mode); /proc/meminfo; filesystem free space"],

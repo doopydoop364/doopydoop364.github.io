@@ -1,3 +1,4 @@
+import no_probe  # noqa: F401  (must come first: disables real system probes)
 import tempfile
 import unittest
 from arch_games.config import AppError, Config

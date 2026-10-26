@@ -1,5 +1,6 @@
 """TUI filters/empty states, mouse handling and hit testing, and the in-TUI compatibility feedback panel."""
 
+import no_probe  # noqa: F401  (must come first: disables real system probes)
 from pathlib import Path
 import tempfile
 import unittest

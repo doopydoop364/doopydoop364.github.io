@@ -32,3 +32,7 @@ Start with `arch-games doctor --verbose`; it names the failing layer and the fix
 | Slow `doctor --verbose` | It probes graphics tools (≈0.5 s); plain `doctor` skips them. |
 
 Redaction: `wine logs` and diagnostics redact by default. Review any log before sharing it, and use `--raw` only for yourself.
+
+## `vulkaninfo` crashes / coredump storm
+
+`vulkaninfo` can segfault (some NVIDIA setups) when `DISPLAY` is set but the X connection fails (missing or stale `XAUTHORITY`). Arch Games therefore: runs `vulkaninfo --summary` with `DISPLAY` and `WAYLAND_DISPLAY` removed from its environment; runs `glxinfo` only if a display looks reachable (X socket exists, `XAUTHORITY` readable if set); caches the graphics measurement per process and in `~/.cache/arch-games/graphics.json` for 10 minutes; and treats a probe killed by a signal (`-11`, or exit 128+) as *crashed*: it is reported as an uncertainty (`vulkan: probe crashed`, result unknown, not "unavailable") and not retried for 24 hours. Set `ARCH_GAMES_NO_PROBE=1` to disable probing entirely; delete the cache file to force a re-measure.

@@ -2,6 +2,7 @@
 
 Nothing here runs Wine or a Windows binary."""
 
+import no_probe  # noqa: F401  (must come first: disables real system probes)
 from contextlib import redirect_stderr, redirect_stdout
 import io
 import json

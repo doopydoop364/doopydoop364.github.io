@@ -251,3 +251,7 @@ compat feedback through the CLI, TUI navigation. **Not claimed:** anything below
 | Titles (`info`, launcher, compat) resolve to the catalog title | done | test_native_cli |
 | Compatibility evidence from launches (profile, args, env names shared, values local), started != verified | done | test_launch_profiles, test_native_cli |
 | Real `pacman`, real OpenTTD, real audio | **not verified** (needs the user's VM) | TESTING_3.md "Native games" |
+
+## Fix: graphics-probe crash storm and probe-free tests
+
+Cause: every `system_profile()` (each `Library` load, launch, doctor, `info`, performance save, and every test) re-ran `vulkaninfo --summary`, which segfaults on an NVIDIA host when `DISPLAY` is set but X auth fails. Fix in `compatibility/graphics.py`: process + disk cache (10 min), crash memory (24 h), `vulkaninfo` without display variables, `glxinfo` gated on a reachable display, signal exits treated as crashes, 5 s timeout kept; `ARCH_GAMES_NO_PROBE` kill switch (also in the audio `Probe`); `tests/no_probe.py` imported by every test module; regression tests in `tests/test_graphics_probe.py`. TUI and web only reach the probe through `Library`/`system_profile`, so they use the cache (no per-keypress or per-request probing). Verified with fixtures/fake runners only; not yet observed on the user's NVIDIA host.

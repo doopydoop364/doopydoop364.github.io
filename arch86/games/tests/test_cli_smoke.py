@@ -1,5 +1,6 @@
 """Every command parses, and the read-only commands run on an empty state without crashing."""
 
+import no_probe  # noqa: F401  (must come first: disables real system probes)
 import argparse
 from contextlib import redirect_stderr, redirect_stdout
 import io

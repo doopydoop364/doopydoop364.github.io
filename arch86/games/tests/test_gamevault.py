@@ -1,3 +1,4 @@
+import no_probe  # noqa: F401  (must come first: disables real system probes)
 import io
 import json
 from pathlib import Path

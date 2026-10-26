@@ -1,5 +1,6 @@
 """Audio bridge with real sockets and real (synthetic) capture subprocesses. No audio hardware is used."""
 
+import no_probe  # noqa: F401  (must come first: disables real system probes)
 import asyncio
 import base64
 import json

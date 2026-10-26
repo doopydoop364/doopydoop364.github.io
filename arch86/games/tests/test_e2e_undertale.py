@@ -3,6 +3,7 @@ real prefix management through fake wine/wineboot/wineserver scripts, discovery,
 
 Nothing here runs real Wine or a real game: the fake `wine` only records its invocations and creates the GOG file layout."""
 
+import no_probe  # noqa: F401  (must come first: disables real system probes)
 import base64
 from contextlib import redirect_stderr, redirect_stdout
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer

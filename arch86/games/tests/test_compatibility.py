@@ -1,3 +1,4 @@
+import no_probe  # noqa: F401  (must come first: disables real system probes)
 import unittest
 from arch_games.compatibility.analyzer import analyze
 from arch_games.compatibility.executables import inspect_bytes

@@ -1,3 +1,4 @@
+import no_probe  # noqa: F401  (must come first: disables real system probes)
 from contextlib import redirect_stderr, redirect_stdout
 import io
 from pathlib import Path

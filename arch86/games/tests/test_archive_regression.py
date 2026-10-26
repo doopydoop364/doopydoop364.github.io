@@ -1,5 +1,6 @@
 """Regression for native-install worker discovery and a synthetic GOG-style RAR4."""
 
+import no_probe  # noqa: F401  (must come first: disables real system probes)
 from contextlib import redirect_stderr, redirect_stdout
 import ctypes
 import io

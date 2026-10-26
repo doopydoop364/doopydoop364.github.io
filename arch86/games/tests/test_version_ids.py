@@ -1,6 +1,7 @@
 """The real 2.0 state: the Undertale prefix is keyed by the bare ID (gamevault:32) while a GameVault library cache
 expands the game into versioned IDs (gamevault:32@34). Names must still reach the existing prefix and nothing is duplicated."""
 
+import no_probe  # noqa: F401  (must come first: disables real system probes)
 import io
 import json
 import os

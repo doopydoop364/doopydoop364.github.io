@@ -1,5 +1,6 @@
 """Web GUI: real HTTP server on loopback with real sessions; services shared with the CLI."""
 
+import no_probe  # noqa: F401  (must come first: disables real system probes)
 from contextlib import redirect_stdout
 import http.client
 import io

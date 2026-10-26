@@ -1,5 +1,6 @@
 """Web GUI and native Pacman games: status display, launch, and the safe subset of launch-settings edits."""
 
+import no_probe  # noqa: F401  (must come first: disables real system probes)
 import http.client
 import json
 import os

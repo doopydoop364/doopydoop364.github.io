@@ -1,5 +1,6 @@
 """Prefix lifecycle regressions. All runtimes/data are controlled test fixtures."""
 
+import no_probe  # noqa: F401  (must come first: disables real system probes)
 from contextlib import redirect_stdout
 import io
 import json

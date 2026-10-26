@@ -1,5 +1,6 @@
 """TUI: pure model/renderer tests plus a real pseudo-terminal run (curses over a pty, no graphical session)."""
 
+import no_probe  # noqa: F401  (must come first: disables real system probes)
 import os
 from pathlib import Path
 import pty

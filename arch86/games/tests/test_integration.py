@@ -1,5 +1,6 @@
 """Full local workflow over real loopback HTTP; no private services or games."""
 
+import no_probe  # noqa: F401  (must come first: disables real system probes)
 import base64
 from contextlib import redirect_stdout, redirect_stderr
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer

@@ -30,6 +30,12 @@ Simulated: Wine, wineboot, wineserver (scripts that record calls), GameVault (lo
 Performance reference (tools/bench_startup.py, median of 5, fresh state dir, this host): `--version` 68→81 ms, `list --source pacman` 845→876 ms, `doctor` 85→161 ms (2.0→3.0).
 Search over 20,000 games: index build < 3 s, a query < 0.35 s (asserted in tests; typically much faster).
 
+## Graphics probes never run in tests
+
+`tests/no_probe.py` (imported first by every `tests/test_*.py`) sets `ARCH_GAMES_NO_PROBE=1`. With that variable set, `detect_graphics()` and the audio `Probe` refuse to execute real `lspci`, `glxinfo`, `vulkaninfo` (CLI subprocesses inherit it). Tests that need probe behaviour inject a fake runner; `tests/test_graphics_probe.py` drives the real code path with a recording runner. A guard test fails if a new test module forgets the import. Run the suite without a display and with a timeout:
+
+    env -u DISPLAY -u WAYLAND_DISPLAY timeout 500 python3 -m unittest discover -s tests
+
 ## Manual real-browser checks already performed (dev host, in-app Chromium pane)
 Remote audio page with a synthetic tone (`tools/audio_bridge_selftest.py` style): connect, AudioContext running, frames received, buffer ≈130 ms, server returned to idle on disconnect and no capture process was left.
 Web GUI: sign-in from the URL fragment, library, game detail, downloads progress bar, audio/wine/diagnostics views. These found and fixed a DOM-helper bug and a CSP/inline-style bug.

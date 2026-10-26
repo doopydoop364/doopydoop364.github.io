@@ -2,6 +2,7 @@
 
 No installer is executed: the fake `popen` stands in for Wine and writes game files."""
 
+import no_probe  # noqa: F401  (must come first: disables real system probes)
 import json
 import os
 from pathlib import Path

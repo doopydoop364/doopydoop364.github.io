@@ -1097,6 +1097,11 @@ def dispatch(args, config, db):
         if args.host not in ("127.0.0.1", "::1", "localhost"):
             print("WARNING: reachable from other machines; use only on a private network such as Tailscale.", file=sys.stderr)
         print("Press Ctrl+C to stop.", flush=True)
+        import signal
+
+        # A background job or service manager may start us with SIGINT ignored: stop cleanly on both signals regardless.
+        for number in (signal.SIGINT, signal.SIGTERM):
+            signal.signal(number, signal.default_int_handler)
         try:
             app.serve_forever()
         except KeyboardInterrupt:
