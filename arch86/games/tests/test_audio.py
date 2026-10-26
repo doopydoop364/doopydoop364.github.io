@@ -169,3 +169,81 @@ class ToneTests(unittest.TestCase):
         from arch_games.config import AppError
         with self.assertRaises(AppError):
             run_test(Probe(), backend="evil")
+
+
+class AlsaDirectTests(unittest.TestCase):
+    """The Arch64 case: an Intel HDA card and working direct ALSA playback, but no PulseAudio/PipeWire server in the guest."""
+
+    APLAY = (0, "**** List of PLAYBACK Hardware Devices ****\ncard 0: Intel [HDA Intel], device 0: ALC269 Analog [ALC269 Analog]\n", "")
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+
+    def probe(self, runner, root, env=None):
+        return Probe(root=root, run=runner, which=runner.which, environ=env if env is not None else {"XDG_RUNTIME_DIR": "/run/user/1000"})
+
+    def layers(self, report):
+        return {layer["layer"]: layer for layer in report["layers"]}
+
+    def test_alsa_works_without_a_server_is_not_a_failure(self):
+        root = make_root(self.tmp.name, HDA)
+        r = Runner({"pactl": (1, "", "Connection refused"), "aplay": self.APLAY})
+        report = diagnose(self.probe(r, root))
+        self.assertEqual(report["verdict"], "alsa-direct")
+        layers = self.layers(report)
+        self.assertEqual(layers["guest-device"]["status"], "ok")
+        self.assertEqual(layers["alsa-playback"]["status"], "ok")
+        self.assertIn("direct ALSA playback available", layers["alsa-playback"]["detail"])
+        self.assertEqual(layers["guest-audio-server"]["status"], "info")  # informational, not a problem
+        self.assertIn("fine for programs that use ALSA directly", layers["guest-audio-server"]["detail"])
+        self.assertIn("not required", layers["guest-audio-server"]["fix"])
+        self.assertFalse(any(l["status"] == "fail" for l in report["layers"]))
+
+    def test_alsa_nodes_without_aplay_still_count_but_say_unconfirmed(self):
+        root = make_root(self.tmp.name, HDA, nodes=("controlC0", "pcmC0D0p", "pcmC0D0c"))
+        r = Runner({"pactl": (1, "", "")})
+        report = diagnose(self.probe(r, root))
+        self.assertEqual(report["verdict"], "alsa-direct")
+        self.assertIn("aplay` is not installed", self.layers(report)["alsa-playback"]["detail"])
+
+    def test_no_server_and_no_alsa_playback_is_still_reported_as_a_problem(self):
+        root = make_root(self.tmp.name, HDA)  # a card, but no playback node and aplay absent
+        report = diagnose(self.probe(Runner({"pactl": (1, "", "")}), root))
+        self.assertEqual(report["verdict"], "device-without-server")
+        self.assertEqual(self.layers(report)["guest-audio-server"]["status"], "fail")
+        self.assertEqual(self.layers(report)["alsa-playback"]["status"], "warn")
+
+    def test_user_confirmation_is_a_separate_layer_and_remote_stays_informational(self):
+        root = make_root(self.tmp.name, HDA)
+        r = Runner({"pactl": (1, "", ""), "aplay": self.APLAY})
+        report = diagnose(self.probe(r, root), confirmations=[{"game": "gamevault:32", "title": "Undertale", "audio": "works"}, {"game": "g2", "audio": "issues"}])
+        layers = self.layers(report)
+        self.assertEqual(layers["wine-audio-confirmed:gamevault:32"]["status"], "ok")
+        self.assertIn("Undertale", layers["wine-audio-confirmed:gamevault:32"]["detail"])
+        self.assertEqual(layers["wine-audio-confirmed:g2"]["status"], "warn")
+        self.assertEqual(layers["remote-delivery"]["status"], "info")
+        self.assertEqual(report["verdict"], "alsa-direct")  # remote delivery and user feedback never change the device/server verdict
+
+    def test_with_a_server_the_verdict_is_still_working_and_no_tone_is_played_by_diagnosis(self):
+        root = make_root(self.tmp.name, HDA)
+        r = Runner({"pactl": PACTL_OK, "aplay": self.APLAY})
+        report = diagnose(self.probe(r, root))
+        self.assertEqual(report["verdict"], "working")
+        self.assertFalse(any(call[0] in {"paplay", "pw-play", "speaker-test"} for call in r.calls))
+        self.assertFalse(any(call[:2] == ["aplay", "-q"] for call in r.calls))  # only `aplay -l` (listing), never playback
+
+    def test_diagnose_for_collects_confirmations_from_this_machines_records(self):
+        from arch_games.audio.diagnose import diagnose_for
+        from arch_games.compatibility import intelligence
+        from arch_games.config import Config
+        from arch_games.storage.database import Database
+
+        config = Config(Path(self.tmp.name) / "s")
+        db = Database(config.data_dir / "state.db")
+        self.addCleanup(db.close)
+        intelligence.update(db, config, "gamevault:32", title="Undertale", audio_status="works")
+        root = make_root(self.tmp.name, HDA)
+        r = Runner({"pactl": (1, "", ""), "aplay": self.APLAY})
+        report = diagnose_for(config, db, self.probe(r, root))
+        self.assertIn("wine-audio-confirmed:gamevault:32", self.layers(report))

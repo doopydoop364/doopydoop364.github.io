@@ -278,11 +278,9 @@ class Api:
 
     def audio(self, db):
         from ...audio import remote
-        from ...audio.diagnose import diagnose
-        from ...runtime.discovery import prefix_path
+        from ...audio.diagnose import diagnose_for
 
-        regs = {r["key"]: prefix_path(self.config, db, r["key"]) / "user.reg" for r in db.all("prefixes") if prefix_path(self.config, db, r["key"])}
-        return {"local": diagnose(prefix_user_regs=regs), "remote": remote.status(self.config, timeout=2)}
+        return {"local": diagnose_for(self.config, db), "remote": remote.status(self.config, timeout=2)}
 
     def audio_remote_disable(self):
         from ...audio import remote

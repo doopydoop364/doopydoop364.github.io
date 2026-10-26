@@ -37,7 +37,7 @@ per-game settings, prefix backup/restore/export · layered audio diagnostics · 
 save discovery/backup/restore · favorites, tags, notes, search, explainable recommendations, private sync bundles · download priorities, pause/resume and dedupe · versioned database migrations.
 
 ## Guides
-[Architecture](docs/ARCHITECTURE_3.md) · [Installation](docs/INSTALLATION_3.md) · [CLI](docs/CLI_3.md) · [Wine](docs/WINE_3.md) · [Audio](docs/AUDIO_3.md) · [Remote audio](docs/REMOTE_AUDIO_3.md) ·
+[Architecture](docs/ARCHITECTURE_3.md) · [Terminal UI](docs/TUI_3.md) · [Installation](docs/INSTALLATION_3.md) · [CLI](docs/CLI_3.md) · [Wine](docs/WINE_3.md) · [Audio](docs/AUDIO_3.md) · [Remote audio](docs/REMOTE_AUDIO_3.md) ·
 [Web GUI](docs/WEB_GUI_3.md) · [Compatibility](docs/COMPATIBILITY_3.md) · [Migration](docs/MIGRATION_2_TO_3.md) · [Testing](docs/TESTING_3.md) · [Troubleshooting](docs/TROUBLESHOOTING_3.md) ·
 [Security (incl. 3.0 review)](docs/SECURITY.md) · [Progress and requirement checklist](docs/DEVELOPMENT_PROGRESS_3.md).
 2.0 references that still apply: [GameVault](docs/GAMEVAULT.md), [API notes](docs/GAMEVAULT_API.md), [archive limits](docs/ARCHIVE_SECURITY.md), [prefix recovery](docs/PREFIX_RECOVERY_FIX.md), [methodology](docs/COMPATIBILITY.md).

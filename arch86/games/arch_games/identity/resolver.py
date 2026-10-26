@@ -61,7 +61,7 @@ def collect_candidates(games, db):
         result.append(seen[ident])
 
     for game in games:
-        add(game.id, game.title, game.source, [game.package] if game.package else [])
+        add(game.id, game.title, game.source, [x for x in (game.package, game.metadata.get("original_title")) if x])  # a custom title keeps the original name usable
         for alt in game.metadata.get("alternatives", []) or []:
             if isinstance(alt, dict) and alt.get("id"):
                 add(alt["id"], alt.get("title") or game.title, alt.get("source", game.source), [alt.get("package", "")])

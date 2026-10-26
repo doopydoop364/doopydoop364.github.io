@@ -214,10 +214,10 @@ def doctor(config, db, run=subprocess.run, which=shutil.which, environ=None, gra
         if info.get("vulkan") is False or info.get("vulkan") is None:
             items.append(check_item("vulkan", "warn", "Vulkan not available or not measured (DXVK/VKD3D-based games need it)", "Install vulkan-tools / a Vulkan driver (lavapipe works in VMs but is slow)"))
     try:  # one-line audio summary; `audio doctor` has the layers
-        from ..audio.diagnose import diagnose
+        from ..audio.diagnose import HEALTHY, diagnose_for
 
-        verdict = diagnose()["verdict"]
-        items.append(check_item("audio", "ok" if verdict == "working" else "warn", "audio verdict: " + verdict, None if verdict == "working" else "Run: arch-games audio doctor"))
+        verdict = diagnose_for(config, db)["verdict"]
+        items.append(check_item("audio", "ok" if verdict in HEALTHY else "warn", "audio verdict: " + verdict, None if verdict in HEALTHY else "Run: arch-games audio doctor"))
     except Exception:
         items.append(check_item("audio", "warn", "audio could not be diagnosed", "Run: arch-games audio doctor"))
     prefix_issues = 0

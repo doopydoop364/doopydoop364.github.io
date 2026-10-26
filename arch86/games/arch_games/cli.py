@@ -461,7 +461,7 @@ def register_candidate(config, db, game_id, candidate, **options):
 
     return LauncherStore(config, db).register(
         game_id,
-        game_title(config, db, game_id),
+        catalog_title(config, db, game_id),
         candidate["path"],
         evidence=["Discovery score {}".format(candidate["score"])] + candidate["evidence"],
         **options,
@@ -469,13 +469,18 @@ def register_candidate(config, db, game_id, candidate, **options):
 
 
 def catalog_title(config, db, game_id):
+    """Human-readable title for a game ID: the catalog/custom title (also via its bare/versioned sibling), else the best local record."""
+    from .core.ids import base
     from .identity.service import build_resolver
 
     try:
         resolver, _ = build_resolver(config, db)
-        return resolver.by_id[game_id]["title"] if game_id in resolver.by_id else game_title(config, db, game_id)
     except AppError:
         return game_title(config, db, game_id)
+    if game_id in resolver.by_id and resolver.by_id[game_id]["title"] != game_id:
+        return resolver.by_id[game_id]["title"]
+    siblings = [c for c in resolver.candidates if base(c["id"]) == base(game_id) and c["title"] != c["id"]]
+    return siblings[0]["title"] if siblings else game_title(config, db, game_id)
 
 
 def install_command(args, config, db):
@@ -632,8 +637,6 @@ def wine_command(args, config, db):
 def audio_command(args, config, db):
     from .audio import diagnose as audio
     from .audio.tone import run_test
-    from .runtime.discovery import prefix_path
-
     if args.operation == "remote":
         from .audio import remote
 
@@ -660,12 +663,7 @@ def audio_command(args, config, db):
         if not result["played"]:
             raise AppError("Sound test failed; run 'audio doctor'")
         return
-    regs = {}
-    for row in db.all("prefixes"):
-        path = prefix_path(config, db, row["key"])
-        if path:
-            regs[row["key"]] = path / "user.reg"
-    report = audio.diagnose(prefix_user_regs=regs)
+    report = audio.diagnose_for(config, db)
     if args.json:
         return emit(report)
     print("Audio verdict: " + report["verdict"])
@@ -696,7 +694,7 @@ def alias_command(args, config, db):
 def discover_command(args, config, db):
     from .runtime.discovery import confidence, discover
 
-    candidates = discover(config, db, args.game, game_title(config, db, args.game), args.dir, args.all)
+    candidates = discover(config, db, args.game, catalog_title(config, db, args.game), args.dir, args.all)
     if args.register:
         chosen = next((c for c in candidates if c["rank"] == args.register), None)
         if not chosen:
@@ -740,7 +738,7 @@ def launcher_command(args, config, db):
     if args.executable:
         candidate = {"path": str(Path(args.executable).expanduser()), "score": "user", "evidence": ["Path supplied by the user"]}
     else:
-        candidate = choose_candidate(discover(config, db, args.game, game_title(config, db, args.game)), args)
+        candidate = choose_candidate(discover(config, db, args.game, catalog_title(config, db, args.game)), args)
     emit(register_candidate(config, db, args.game, candidate, **options))
 
 
@@ -988,7 +986,11 @@ def dispatch(args, config, db):
         op = args.operation
         if op == "discover":
             found = manager.discover(game_id, catalog_title(config, db, game_id))
-            return emit({"candidates": found, "note": "Nothing is registered automatically. Register a folder with: saves add GAME PATH. Registry-stored saves are not covered."})
+            note = "Nothing is registered automatically. Register a folder with: saves add GAME PATH. Registry-stored saves are not covered."
+            if not found:
+                note = ("No save folder was found. That is expected if the game has not been played and saved yet (most games create their save folder on the first save): "
+                        "play and save once, then run this again, or register a folder yourself with: saves add GAME PATH. " + note)
+            return emit({"candidates": found, "note": note})
         if op == "paths":
             return emit(manager.paths(game_id))
         if op == "add":
@@ -1248,7 +1250,7 @@ def dispatch(args, config, db):
                 from .runtime.discovery import discover
 
                 print("No launcher registered for {}; searching installed files...".format(clean(args.game)), file=sys.stderr)
-                candidates = discover(config, db, args.game, game_title(config, db, args.game))
+                candidates = discover(config, db, args.game, catalog_title(config, db, args.game))
                 chosen = choose_candidate(candidates, args)
                 register_candidate(config, db, args.game, chosen)
                 print("Launcher registered.", file=sys.stderr)

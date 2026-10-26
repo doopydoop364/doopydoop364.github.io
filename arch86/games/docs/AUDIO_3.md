@@ -11,7 +11,10 @@
 | session-environment | Is `XDG_RUNTIME_DIR` set (needed to find user servers)? | environment |
 | remote-delivery | Informational: browser delivery and host routing are outside the guest. | - |
 
-Verdicts: `working`, `muted`, `no-audio-device`, `device-without-server`, `server-without-sinks`, `server-only`.
+Verdicts: `working` (server + sink), `muted`, `alsa-direct` (sound card and direct ALSA playback, no PulseAudio/PipeWire server: normal and fine for Wine's ALSA driver; the server layer is
+informational, not a failure), `no-audio-device`, `device-without-server` (a card but neither a server nor an ALSA playback device could be confirmed), `server-without-sinks`, `server-only`.
+Extra layers: `alsa-playback` (devices listed by `aplay -l`, or `pcmC*D*p` nodes when `aplay` is missing) and `wine-audio-confirmed:GAME` (your own audio feedback for this machine, from `compat set` or the TUI `v` panel).
+Remote delivery stays a separate, informational layer. Diagnosis never plays sound; only `audio test` does.
 In a QEMU/KVM guest with no sound card, the fix text shows the host QEMU flags to add (`-device intel-hda -device hda-output,...`); Arch Games prints
 them but never changes the host or restarts a VM. `audio devices` lists ALSA/PCI/Pulse devices. `audio test [--seconds N] [--backend auto|pulse|alsa]` plays a
 bounded (<=10 s) 440 Hz tone with `paplay`/`pw-play`/`aplay`, unprivileged; success means the player exited cleanly, not that you heard it.

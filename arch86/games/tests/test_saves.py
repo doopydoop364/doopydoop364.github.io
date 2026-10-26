@@ -220,3 +220,40 @@ class BackupRestoreTests(Base):
         self.assertEqual(code, 0)
         self.assertTrue(json.loads(out)["applied"])
         self.db = Database(self.config.data_dir / "state.db")
+
+
+class NoSavesYetTests(Base):
+    """A game that has never been played has no save folder: empty results, no errors, nothing registered or created."""
+
+    def test_unplayed_game_gives_an_empty_explained_result(self):
+        import shutil
+
+        shutil.rmtree(self.saves)  # as if Undertale had never been run
+        self.assertEqual(self.manager.discover(GAME, "Undertale"), [])
+        self.assertEqual(self.manager.paths(GAME), [])
+        users = self.prefix / "drive_c" / "users"
+        self.assertFalse((users / "player" / "AppData" / "Local" / "UNDERTALE").exists())  # discovery never creates folders
+        with self.assertRaises(AppError) as ctx:
+            self.manager.backup(GAME)
+        self.assertIn("No save locations are registered", str(ctx.exception))
+        self.db.close()
+        import io
+        from contextlib import redirect_stderr, redirect_stdout
+
+        out = io.StringIO()
+        with redirect_stdout(out), redirect_stderr(io.StringIO()):
+            code = main(["--state-dir", str(Path(self.temp.name) / "state"), "--non-interactive", "saves", "discover", GAME])
+        self.assertEqual(code, 0)
+        data = json.loads(out.getvalue())
+        self.assertEqual(data["candidates"], [])
+        self.assertIn("has not been played and saved yet", data["note"])
+        out = io.StringIO()
+        with redirect_stdout(out), redirect_stderr(io.StringIO()):
+            self.assertEqual(main(["--state-dir", str(Path(self.temp.name) / "state"), "--non-interactive", "saves", "paths", GAME]), 0)
+        self.assertEqual(json.loads(out.getvalue()), [])
+        self.db = Database(self.config.data_dir / "state.db")
+
+    def test_nonexistent_registered_folder_is_refused_not_created(self):
+        with self.assertRaises(AppError):
+            self.manager.add_path(GAME, str(self.prefix / "drive_c" / "does" / "not" / "exist"))
+        self.assertFalse((self.prefix / "drive_c" / "does").exists())

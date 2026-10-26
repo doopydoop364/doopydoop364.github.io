@@ -15,10 +15,13 @@ Start with `arch-games doctor --verbose`; it names the failing layer and the fix
 | Prefix `failed` but files look fine | `prefix check ID` then `prefix recover ID` (metadata-only, 2.0 logic). |
 | Game exits at once | `wine logs GAME` (redacted), `wine status GAME`; try `wine config GAME --dll-override …`/`--virtual-desktop`. A graphical session is required: set DISPLAY/WAYLAND_DISPLAY. |
 | `audio doctor`: no-audio-device in a VM | The VM has no sound hardware. Add the QEMU flags it prints on the host and restart the VM yourself. |
+| `audio doctor`: alsa-direct | Not a problem: the VM has a sound card and ALSA playback; there is just no PulseAudio/PipeWire server (Wine can use ALSA directly). |
 | `audio doctor`: device-without-server | `systemctl --user enable --now pipewire pipewire-pulse wireplumber`; make sure `XDG_RUNTIME_DIR` is set (KMSCON/su sessions often lack it). |
 | Browser audio: "authentication failed" | Wrong token; use the one in `~/.config/arch-games-audio-bridge/token` on the host. 5 failures/min are throttled. |
 | Browser audio: capture error / "no audio within 5 s" | The sink or VM output is wrong: `…remote doctor`; check QEMU `out.name=` and that the VM is playing. |
 | Browser audio silent after clicking | Click "Enable audio" (autoplay policy); check mute/volume and the buffer figure; Safari needs the click on this page. |
+| `arch-games web` says "Operation not implemented" | That was a 3.0 packaging bug fixed in the real-world-testing round: update (`git pull`, `sh arch86/games/install.sh`). |
+| GameVault tab says to connect although you are connected | Fixed: the tab now explains the actual state; `a` toggles the compatibility filter, `S` syncs. |
 | Web GUI: Sign in loops | Open the exact URL printed by `arch-games web` (token in `#token=`); cookies must be enabled for 127.0.0.1. |
 | Web GUI: `Unrecognised Host header` | You opened it through another hostname; start with `--allowed-host NAME:PORT` (remote use needs `--allow-remote`). |
 | TUI garbled | `arch-games menu --ascii` or `TERM=xterm`; `NO_COLOR=1` disables colour; `arch-games menu --plain` is the line menu. |

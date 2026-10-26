@@ -77,11 +77,15 @@ class Provider:
 
     def hidden_count(self, section, search=""):
         """How many games the current compatibility filter hides (0 when it is showing everything)."""
+        memo = ("hidden", section)
+        if memo in self.cache:  # the status line asks on every redraw; the answer only changes on refresh
+            return self.cache[memo]
         source = {"GameVault": "gamevault"}.get(section, "all")
         library = self.lib()
         shown, _ = library.filtered(search="", show_all=False, source=source, **({"installed": True} if section == "Installed" else {}))
         everything, _ = library.filtered(search="", show_all=True, source=source, **({"installed": True} if section == "Installed" else {}))
-        return max(len(everything) - len(shown), 0)
+        self.cache[memo] = max(len(everything) - len(shown), 0)
+        return self.cache[memo]
 
     def empty_text(self, section, search="", show_all=True):
         """Say precisely why a list is empty: not connected, sync problem, empty catalog, no search match or filtered out."""
@@ -270,10 +274,10 @@ class Provider:
         return rows
 
     def rows_audio(self, search, show_all):
-        from ...audio.diagnose import diagnose
+        from ...audio.diagnose import HEALTHY, diagnose_for
 
-        report = diagnose()
-        rows = [Row("verdict", "Verdict: " + report["verdict"], "", "ok" if report["verdict"] == "working" else "warn", [("Run 'audio doctor' for the full report", "dim")], {"t": ("play test tone", ["audio", "test"])})]
+        report = diagnose_for(self.config, self.db)
+        rows = [Row("verdict", "Verdict: " + report["verdict"], "", "ok" if report["verdict"] in HEALTHY else "warn", [("Run 'audio doctor' for the full report", "dim")], {"t": ("play test tone", ["audio", "test"])})]
         for layer in report["layers"]:
             rows.append(Row(layer["layer"], layer["layer"], layer["status"].upper(), STATUS_TONE.get(layer["status"], "dim"), [(layer["detail"], "normal")] + [(line, "warn") for line in (layer["fix"] or "").splitlines()]))
         return rows

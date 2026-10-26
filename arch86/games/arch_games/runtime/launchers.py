@@ -81,6 +81,10 @@ class LauncherStore:
             raise AppError("Working directory must be an existing directory inside managed storage")
         environment(env)  # validates keys and values
         stat = path.stat()
+        existing = self.get(game_id) or {}
+        previous = existing.get("title")
+        if previous and previous != game_id and (not title or title == game_id):
+            title = previous  # re-registering must not replace a real title (e.g. one you set) with the bare ID
         record = {
             "game_id": game_id,
             "title": title,

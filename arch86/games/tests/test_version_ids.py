@@ -17,7 +17,7 @@ from arch_games.storage.database import Database
 from test_discovery_launch import GAME, build_undertale  # GAME == "gamevault:32"
 
 
-class V2StateTests(unittest.TestCase):
+class V2Base(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
@@ -46,6 +46,8 @@ class V2StateTests(unittest.TestCase):
             code = main(["--state-dir", str(self.state), "--non-interactive", *argv])
         return code, out.getvalue(), err.getvalue()
 
+
+class V2StateTests(V2Base):
     def test_discover_and_launch_by_title_reach_the_bare_id_prefix(self):
         code, out, err = self.cli("discover", "undertale", "--json")
         self.assertEqual(code, 0, err)
@@ -166,7 +168,7 @@ class IdHelperTests(unittest.TestCase):
         self.assertTrue(data["launcher"]["exists"])
 
 
-class LibraryListingTests(V2StateTests):
+class LibraryListingTests(V2Base):
     def test_registered_launcher_and_install_under_the_bare_id_do_not_duplicate_the_versioned_entry(self):
         from arch_games.catalog.library import Library
         from arch_games.runtime.launchers import LauncherStore
@@ -181,5 +183,36 @@ class LibraryListingTests(V2StateTests):
             game = lib.games[[g.id for g in lib.games].index("gamevault:32@34")]
             self.assertTrue(game.installed)  # the bare-ID install/launcher state is visible on the versioned entry
             self.assertEqual(lib.reports[game.id]["facts"]["game_executable"]["architecture"], "i686")
+        finally:
+            db.close()
+
+
+class LauncherTitleTests(V2Base):
+    def test_registering_stores_the_resolved_human_title_not_the_id(self):
+        self.assertEqual(self.cli("discover", "undertale", "--register", "1")[0], 0)
+        code, out, _ = self.cli("launcher", "show", "undertale")
+        self.assertEqual(json.loads(out)["title"], "Undertale")
+        # registering by ID (no title typed) still resolves the catalog title
+        self.cli("launcher", "remove", "undertale")
+        self.assertEqual(self.cli("discover", "gamevault:32", "--register", "1")[0], 0)
+        self.assertEqual(json.loads(self.cli("launcher", "show", "gamevault:32")[1])["title"], "Undertale")
+
+    def test_custom_titles_are_respected_and_reregistering_never_downgrades_a_title(self):
+        self.cli("title", "set", "undertale", "UT (my copy)")
+        self.cli("discover", "undertale", "--register", "1")
+        self.assertEqual(json.loads(self.cli("launcher", "show", "undertale")[1])["title"], "UT (my copy)")
+        db = Database(self.config.data_dir / "state.db")
+        try:
+            from arch_games.runtime.launchers import LauncherStore
+
+            store = LauncherStore(self.config, db)
+            exe = json.loads(self.cli("launcher", "show", "undertale")[1])["executable"]
+            store.register(GAME, GAME, exe)  # a caller that only knows the ID
+            self.assertEqual(store.get(GAME)["title"], "UT (my copy)")
+            # an old record whose title is the bare ID is simply updated when a real title is known
+            record = dict(store.get(GAME), title=GAME)
+            db.put("launchers", GAME, record)
+            store.register(GAME, "Undertale", exe)
+            self.assertEqual(store.get(GAME)["title"], "Undertale")
         finally:
             db.close()

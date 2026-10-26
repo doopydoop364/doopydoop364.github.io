@@ -224,6 +224,21 @@ class PtyTests(unittest.TestCase):
         self.assertIn("Keyboard and mouse help", out)
         self.assertEqual(status, 0, out[-400:])
 
+    def test_mouse_click_changes_section_in_a_real_curses_session_and_is_off_on_the_linux_console(self):
+        def sgr(x, y, release):  # xterm SGR mouse report, left button, 1-based cell
+            return "\x1b[<0;{};{}{}".format(x, y, "m" if release else "M").encode()
+
+        out, status = self.run_session([sgr(15, 2, False), sgr(15, 2, True), b"q"])
+        self.assertIn("1000h", out)  # the terminal was asked to report the mouse
+        self.assertIn("Nothing is installed or registered", out)  # the click on the "Installed" tab opened that section
+        self.assertEqual(status, 0)
+        out, status = self.run_session([b"q"], {"ARCH_GAMES_NO_MOUSE": "1"})
+        self.assertNotIn("1000h", out)
+        self.assertEqual(status, 0)
+        out, status = self.run_session([b"q"], {"TERM": "linux", "LANG": "C"})
+        self.assertNotIn("1000h", out)  # basic Linux console / KMSCON path: keyboard only
+        self.assertEqual(status, 0)
+
     def test_ascii_fallback_on_linux_console_term(self):
         out, status = self.run_session([b"q"], {"TERM": "linux", "LANG": "C"})
         self.assertIn("ARCH GAMES 3.0", out)

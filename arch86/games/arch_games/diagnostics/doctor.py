@@ -83,7 +83,7 @@ def launcher_checks(config, db):
 
 def run(config, db, verbose=False, probe_graphics=None, online=False):
     """probe_graphics defaults to `verbose`: the graphics tools cost about half a second, so quick checks skip them."""
-    from ..audio.diagnose import diagnose
+    from ..audio.diagnose import HEALTHY, diagnose_for
     from ..runtime import winetools
 
     items = [app_integrity()]
@@ -107,15 +107,8 @@ def run(config, db, verbose=False, probe_graphics=None, online=False):
         status = "warn" if row["check"] == "wine" and row["status"] == "fail" else row["status"]  # Wine is optional for Pacman games
         items.append(item("wine", row["check"], status, row["detail"], row["fix"]))
     items += launcher_checks(config, db)
-    regs = {}
-    from ..runtime.discovery import prefix_path
-
-    for row in db.all("prefixes"):
-        p = prefix_path(config, db, row["key"])
-        if p:
-            regs[row["key"]] = p / "user.reg"
-    audio = diagnose(prefix_user_regs=regs)
-    items.append(item("audio", "verdict", {"working": "ok"}.get(audio["verdict"], "warn"), audio["verdict"]))
+    audio = diagnose_for(config, db)
+    items.append(item("audio", "verdict", "ok" if audio["verdict"] in HEALTHY else "warn", audio["verdict"]))
     if verbose:
         for layer in audio["layers"]:
             items.append(item("audio", layer["layer"], layer["status"] if layer["status"] != "info" else "info", layer["detail"], layer["fix"]))
