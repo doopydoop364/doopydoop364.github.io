@@ -50,8 +50,10 @@ def build_handlers(p, S, mem, P, new, set_size):
         H[name] = pr
         return pr.body()
 
+    from cpu_pm import build_pm
     build_math(p, S, mem, P, new, set_size, fchk)
-    extra = build_handlers2(p, S, mem, P, new, set_size, fchk)
+    pm_ents = build_pm(p, S, mem, P, new, set_size, fchk)
+    extra = build_handlers2(p, S, mem, P, new, set_size, fchk) + pm_ents
 
     def jump_rel(b, disp):
         b.set(S.EIP, (S.EIP + disp + S.CODE_MASK) % S.CODE_MASK)
@@ -252,6 +254,7 @@ def build_handlers(p, S, mem, P, new, set_size):
                     w.call(P.rm_get, 2)
                     fchk(w)
                     w.call(P.seg_load, S.REG, S.RMV)
+                    fchk(w)
 
     with handler("h_lea") as (b,):                 # 8D
         b.call(P.modrm_decode)
@@ -329,6 +332,11 @@ def build_handlers(p, S, mem, P, new, set_size):
         b.set(S.EA_OFF, S.IMM)
         b.call(P.ea_seg_select, 3)
         b.set(S.EA_LIN, (S.SEGBASE[S.EA_SEG + 1] + S.EA_OFF) % 4294967296)
+        with b.if_(S.OPCODE < 162) as t:
+            t.call(P.ea_chk, S.OPSZ, 0)
+        with b.else_() as t:
+            t.call(P.ea_chk, S.OPSZ, 1)
+        fchk(b)
         with b.if_(S.OPCODE < 162) as t:           # A0/A1: acc <- [moffs]
             with t.if_(eq(S.OPSZ, 1)) as u:
                 u.call(mem.mem_rb, S.EA_LIN)

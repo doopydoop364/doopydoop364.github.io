@@ -41,6 +41,20 @@ instructions (LGDT LIDT MOV CRn LMSW ARPL LAR LSL ...), CPUID, RDTSC, CMPXCHG8B,
 0F 1F hint NOPs, LOCK validity checking, CPU-profile gating (8086/286/386/486 differences).
 The CPU is **not yet an 80386**: no protected mode, paging, or V86.
 
+## Protected mode (v0.3 slice A: segmentation)
+Implemented: CR0.PE via `MOV CR0` / `LMSW`; GDT/LDT descriptor fetch; hidden segment cache per register
+(base, limit with granularity, access/flags, derived usable/readable/writable/expand-down); null selectors;
+data/stack segment loads with RPL/DPL/type/present checks (#GP/#NP/#SS with selector error codes); accessed-bit
+update; every data access checked against the cache (null, read-only, execute-only, expand-down, limit; #GP or
+#SS with error code 0); CS.D / SS.B default sizes; direct far JMP/CALL/RETF to code segments (conforming and
+non-conforming rules, same privilege level); LGDT LIDT SGDT SIDT (16-bit operand size masks the base to 24 bits)
+LLDT SLDT LTR STR VERR VERW LAR LSL ARPL SMSW LMSW CLTS MOV CRn (CR0 write mask depends on the CPU profile
+variable; default 386); returning to real mode keeps the hidden limits (unreal mode works).
+Real-mode segment loads never touch the hidden limit/attributes, matching hardware.
+Not yet (they raise vector 256 and stop visibly, never silently): IDT delivery of exceptions in protected mode,
+privilege transitions (TSS stack switch, call gates, IRET/RETF to outer levels), task gates/TSS switching, V86,
+I/O permission checks, debug registers, paging. See DEVELOPMENT_PROGRESS.md for the v0.3 plan.
+
 ## Exceptions
 `cpu_fault(vec)` / `cpu_trap(vec)` record a pending exception; the faulting helper returns early and the
 handler re-checks `FAULT_PEND` before changing architectural state. `cpu_step` then calls `exc_deliver`:

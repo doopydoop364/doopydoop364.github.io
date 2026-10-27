@@ -61,13 +61,13 @@ def build_handlers2(p, S, mem, P, new, set_size, fchk):
             with t.else_() as u:
                 u.call(mem.mem_wd, lin, val)
 
-    pr = new("ea_limit", ["size"])        # #SS / #GP when EA_SEG:EA_OFF..+size-1 exceeds the limit
+    pr = new("ea_limit", ["size"])        # read access check of EA_SEG:EA_OFF (see core ea_chk)
     with pr.body() as (b, size):
-        with b.if_(S.EA_OFF + size - 1 > S.SEGLIM[S.EA_SEG + 1]) as t:
-            with t.if_(eq(S.EA_SEG, 2)) as u:
-                u.call(P.cpu_fault, 12)
-            with t.else_() as u:
-                u.call(P.cpu_fault, 13)
+        b.call(P.ea_chk, size, 0)
+
+    pr = new("ea_limit_w", ["size"])      # write access check
+    with pr.body() as (b, size):
+        b.call(P.ea_chk, size, 1)
 
     pr = new("read_far_ptr")              # modrm decoded: H3 = offset (OSZ bytes), H4 = selector
     with pr.body() as (b,):
@@ -102,7 +102,7 @@ def build_handlers2(p, S, mem, P, new, set_size, fchk):
     def str_dst_limit(b):
         b.set(S.EA_SEG, 0)
         b.set(S.EA_OFF, S.H4)
-        b.call(P.ea_limit, S.OPSZ)
+        b.call(P.ea_limit_w, S.OPSZ)
         fchk(b)
 
     with handler("h_string", 0xA4, 0xA7) as (b,):          # MOVS CMPS
@@ -131,9 +131,12 @@ def build_handlers2(p, S, mem, P, new, set_size, fchk):
         b.call(P.pop, S.OSZ)
         b.set(S.H2, S.PV % 65536)
         b.call(P.pop, S.OSZ)
-        b.call(P.seg_load, 1, S.H2)
-        b.set(S.EIP, S.H1 % S.CODE_MASK)
-        b.call(P.flags_unpack, S.PV, S.OSZ)
+        b.set(S.H3, S.PV)
+        b.call(P.cs_ret_load, S.H2, S.H1)
+        with b.if_(S.FAULT_PEND > -1) as t:                 # restore ESP: nothing is committed on a fault
+            t.replace(S.GPR, 5, S.H4)
+            t.stop_script()
+        b.call(P.flags_unpack, S.H3, S.OSZ)
 
     with handler("h_bound", 0x62) as (b,):
         set_size(b, S.OSZ)
@@ -158,68 +161,69 @@ def build_handlers2(p, S, mem, P, new, set_size, fchk):
         b.set(S.H3, S.IMM)
         b.call(P.fetch_imm, 2)
         b.set(S.H4, S.IMM)
-        b.call(P.push, S.OSZ, S.SEG[2])
-        b.call(P.push, S.OSZ, S.EIP)
-        b.call(P.seg_load, 1, S.H4)
-        b.set(S.EIP, S.H3 % S.CODE_MASK)
+        b.call(P.far_xfer, S.H4, S.H3, 1)
 
     with handler("h_jmp_far", 0xEA) as (b,):
         b.call(P.fetch_imm, S.OSZ)
         b.set(S.H3, S.IMM)
         b.call(P.fetch_imm, 2)
-        b.call(P.seg_load, 1, S.IMM)
-        b.set(S.EIP, S.H3 % S.CODE_MASK)
+        b.call(P.far_xfer, S.IMM, S.H3, 0)
 
     pr = new("grp5_far")                 # FF /3 CALL m16:16, FF /5 JMP m16:16 (modrm decoded, OSZ)
     with pr.body() as (b,):
         b.call(P.read_far_ptr)
         fchk(b)
         with b.if_(eq(S.REG, 3)) as t:
-            t.call(P.push, S.OSZ, S.SEG[2])
-            t.call(P.push, S.OSZ, S.EIP)
-        b.call(P.seg_load, 1, S.H4)
-        b.set(S.EIP, S.H3 % S.CODE_MASK)
+            t.call(P.far_xfer, S.H4, S.H3, 1)
+        with b.else_() as t:
+            t.call(P.far_xfer, S.H4, S.H3, 0)
 
     with handler("h_retf", 0xCA, 0xCB) as (b,):
         with b.if_(eq(S.OPCODE, 0xCA)) as t:
             t.call(P.fetch_imm, 2)
-            t.set(S.X8, S.IMM)
+            t.set(S.H2, S.IMM)
         with b.else_() as t:
-            t.set(S.X8, 0)
+            t.set(S.H2, 0)
+        b.set(S.X7, S.GPR[5])
         b.call(P.pop, S.OSZ)
         b.set(S.H1, S.PV)
         b.call(P.pop, S.OSZ)
-        b.call(P.seg_load, 1, S.PV % 65536)
-        b.set(S.EIP, S.H1 % S.CODE_MASK)
-        with b.if_(S.X8 > 0) as t:
+        b.call(P.cs_ret_load, S.PV % 65536, S.H1)
+        with b.if_(S.FAULT_PEND > -1) as t:
+            t.replace(S.GPR, 5, S.X7)
+            t.stop_script()
+        with b.if_(S.H2 > 0) as t:
             with t.if_(S.STK32) as u:
-                u.replace(S.GPR, 5, (S.GPR[5] + S.X8) % 4294967296)
+                u.replace(S.GPR, 5, (S.GPR[5] + S.H2) % 4294967296)
             with t.else_() as u:
-                u.replace(S.GPR, 5, S.GPR[5] - S.GPR[5] % 65536 + (S.GPR[5] % 65536 + S.X8) % 65536)
+                u.replace(S.GPR, 5, S.GPR[5] - S.GPR[5] % 65536 + (S.GPR[5] % 65536 + S.H2) % 65536)
 
     with handler("h_lxs", 0xC4, 0xC5) as (b,):               # LES LDS
         set_size(b, S.OSZ)
         b.call(P.modrm_decode)
         b.call(P.read_far_ptr)
         fchk(b)
-        b.call(P.reg_set, S.OSZ, S.REG, S.H3)
         b.call(P.seg_load, S.OPCODE % 2 * 3, S.H4)
+        fchk(b)
+        b.call(P.reg_set, S.OSZ, S.REG, S.H3)
 
     with handler("h_lxs2", 0x1B2, 0x1B2) as (b,):            # LSS
         set_size(b, S.OSZ)
         b.call(P.modrm_decode)
         b.call(P.read_far_ptr)
         fchk(b)
-        b.call(P.reg_set, S.OSZ, S.REG, S.H3)
         b.call(P.seg_load, 2, S.H4)
+        fchk(b)
+        b.call(P.reg_set, S.OSZ, S.REG, S.H3)
 
     with handler("h_lfs_lgs", 0x1B4, 0x1B5) as (b,):         # LFS LGS
         set_size(b, S.OSZ)
         b.call(P.modrm_decode)
         b.call(P.read_far_ptr)
         fchk(b)
-        b.call(P.reg_set, S.OSZ, S.REG, S.H3)
         b.call(P.seg_load, S.OPCODE - 0x1B4 + 4, S.H4)
+        fchk(b)
+        b.call(P.reg_set, S.OSZ, S.REG, S.H3)
 
     # ------------------------------------------------- segment push / pop --
     for op in (0x06, 0x0E, 0x16, 0x1E):
@@ -249,8 +253,11 @@ def build_handlers2(p, S, mem, P, new, set_size, fchk):
                 u.set(S.H1, 4)
             with t.else_() as u:
                 u.set(S.H1, 5)
+        b.set(S.X7, S.GPR[5])
         b.call(P.pop, S.OSZ)
         b.call(P.seg_load, S.H1, S.PV % 65536)
+        with b.if_(S.FAULT_PEND > -1) as t:                 # a faulting load must not consume the stack slot
+            t.replace(S.GPR, 5, S.X7)
 
     # ------------------------------------------------------- PUSHA / POPA --
     with handler("h_pusha", 0x60) as (b,):
@@ -283,6 +290,8 @@ def build_handlers2(p, S, mem, P, new, set_size, fchk):
         b.call(P.reg_get, S.OSZ, 5)
         b.call(P.push, S.OSZ, S.RV)
         b.set(S.H3, S.GPR[5])                           # frame pointer = ESP after the push
+        with b.if_(eq(S.STK32, 0)) as t:
+            t.set(S.H3, S.GPR[5] % 65536)
         with b.if_(S.X8 > 0) as t:
             t.set(S.H1, 1)
             with t.while_not(eq(S.H1, S.X8)) as w:

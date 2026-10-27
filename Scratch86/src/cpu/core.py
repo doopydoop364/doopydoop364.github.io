@@ -52,13 +52,10 @@ def build(p, S, mem):
             b.set(S.OP_M, S.SZ_M[sz])
             b.set(S.OP_SGN, S.SZ_SGN[sz])
 
-    def limit_chk(b, size):
-        """Segment-limit check for EA_SEG:EA_OFF (#SS for SS, else #GP); returns from the caller."""
-        with b.if_(S.EA_OFF + size - 1 > S.SEGLIM[S.EA_SEG + 1]) as t:
-            with t.if_(eq(S.EA_SEG, 2)) as u:
-                u.call(P.cpu_fault, 12)
-            with t.else_() as u:
-                u.call(P.cpu_fault, 13)
+    def limit_chk(b, size, wr=0):
+        """Segment access check for EA_SEG:EA_OFF; returns from the caller if it faulted."""
+        b.call(P.ea_chk, size, wr)
+        with b.if_(S.FAULT_PEND > -1) as t:
             t.stop_script()
 
     # ======================================================================
@@ -84,23 +81,25 @@ def build(p, S, mem):
         with b.else_() as t:
             with t.if_(eq(size, 2)) as u:
                 u.set(S.TC, S.GPR[idx + 1])
-                u.replace(S.GPR, idx + 1, S.TC - S.TC % 65536 + val)
+                u.replace(S.GPR, idx + 1, S.TC - S.TC % 65536 + val % 65536)
             with t.else_() as u:
                 with u.if_(idx < 4) as w:
                     w.set(S.TC, S.GPR[idx + 1])
-                    w.replace(S.GPR, idx + 1, S.TC - S.TC % 256 + val)
+                    w.replace(S.GPR, idx + 1, S.TC - S.TC % 256 + val % 256)
                 with u.else_() as w:
                     w.set(S.TC, S.GPR[idx - 3])
-                    w.replace(S.GPR, idx - 3, S.TC - (floor(S.TC / 256) % 256) * 256 + val * 256)
+                    w.replace(S.GPR, idx - 3, S.TC - (floor(S.TC / 256) % 256) * 256 + (val % 256) * 256)
 
+    new("seg_load_pm", ["idx", "sel"])        # body generated in cpu_pm.py
     pr = new("seg_load", ["idx", "sel"])
     with pr.body() as (b, idx, sel):
-        # Real-mode load: base = selector * 16.  Protected-mode descriptor
-        # loading is a later milestone (v0.6); the hidden-base list exists so
-        # that it can slot in here.
-        b.replace(S.SEG, idx + 1, sel)
-        b.replace(S.SEGBASE, idx + 1, sel * 16)
-        b.replace(S.SEGLIM, idx + 1, 65535)
+        # Real mode: base = selector * 16; the hidden limit/attributes are NOT touched (this is
+        # what makes "unreal mode" work on real hardware).  Protected mode: see cpu_pm.seg_load_pm.
+        with b.if_(eq(S.CR0 % 2, 1)) as t:
+            t.call(P.seg_load_pm, idx, sel)
+        with b.else_() as t:
+            t.replace(S.SEG, idx + 1, sel)
+            t.replace(S.SEGBASE, idx + 1, sel * 16)
 
     # ======================================================================
     # fetch
@@ -138,6 +137,44 @@ def build(p, S, mem):
             t.set(S.FAULT_PEND, vec)
             t.set(S.FAULT_ERR, 0)
             t.set(S.FAULT_TRAP, 0)
+
+    pr = new("cpu_fault_err", ["vec", "err"])
+    with pr.body() as (b, vec, err):
+        with b.if_(S.FAULT_PEND < 0) as t:
+            t.set(S.FAULT_PEND, vec)
+            t.set(S.FAULT_ERR, err)
+            t.set(S.FAULT_TRAP, 0)
+
+    # EA_SEG:EA_OFF access check against the hidden descriptor cache.  Fast path: ordinary
+    # read/write expand-up segment (SEGPERM == 7) whose limit is not exceeded.
+    pr = new("ea_slow", ["size", "wr"])
+    with pr.body() as (b, size, wr):
+        b.set(S.TA, S.SEGPERM[S.EA_SEG + 1])
+        b.set(S.TC, 0)                                       # 1 = violation
+        b.set(S.TB, S.EA_OFF + size - 1)
+        with b.if_(eq(S.TA % 2, 0)) as t:                    # null / unusable
+            t.set(S.TC, 1)
+        with b.else_() as t:
+            with t.if_(AND(eq(wr, 1), eq(floor(S.TA / 4) % 2, 0))) as u:
+                u.set(S.TC, 1)
+            with t.if_(AND(eq(wr, 0), eq(floor(S.TA / 2) % 2, 0))) as u:
+                u.set(S.TC, 1)
+            with t.if_(eq(floor(S.TA / 8) % 2, 0)) as u:     # expand-up
+                with u.if_(S.TB > S.SEGLIM[S.EA_SEG + 1]) as w:
+                    w.set(S.TC, 1)
+            with t.else_() as u:                             # expand-down: valid offsets are (limit, top]
+                with u.if_(OR(S.EA_OFF < S.SEGLIM[S.EA_SEG + 1] + 1, S.TB > 65535 + 4294901760 * (floor(S.SEGATTR[S.EA_SEG + 1] / 1024) % 2))) as w:
+                    w.set(S.TC, 1)
+        with b.if_(eq(S.TC, 1)) as t:
+            with t.if_(eq(S.EA_SEG, 2)) as u:
+                u.call(P.cpu_fault_err, 12, 0)
+            with t.else_() as u:
+                u.call(P.cpu_fault_err, 13, 0)
+
+    pr = new("ea_chk", ["size", "wr"])
+    with pr.body() as (b, size, wr):
+        with b.if_(OR(ne(S.SEGPERM[S.EA_SEG + 1], 7), S.EA_OFF + size - 1 > S.SEGLIM[S.EA_SEG + 1])) as t:
+            t.call(P.ea_slow, size, wr)
 
     pr = new("cpu_trap", ["vec"])      # software interrupt / trap: pushes the *next* EIP
     with pr.body() as (b, vec):
@@ -282,7 +319,7 @@ def build(p, S, mem):
         with b.if_(S.EA_REG) as t:
             t.call(P.reg_set, size, S.RM, val)
         with b.else_() as t:
-            limit_chk(t, size)
+            limit_chk(t, size, 1)
             with t.if_(eq(size, 1)) as u:
                 u.call(mem.mem_wb, S.EA_LIN, val)
             with t.else_() as u:

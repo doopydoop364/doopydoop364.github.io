@@ -179,7 +179,7 @@ def test_register_widths_and_high_low_bytes():
 def test_unsupported_opcode_faults_visibly():
     r = run_asm("nop\nud2\nhlt")             # UD2 (0F 0B) is architecturally invalid; no IVT handler -> visible stop
     assert r["state"] == FAULT
-    assert r["fault"] == {"vec": 6, "opc": 0x10B, "eip": 0x7C01}
+    assert {k: r["fault"][k] for k in ("vec", "opc", "eip")} == {"vec": 6, "opc": 0x10B, "eip": 0x7C01}
     assert r["eip"] == 0x7C01                 # faulting instruction address
     assert r["insns"] == 1                    # only the NOP completed
 

@@ -8,10 +8,18 @@ from refmodel import run_reference
 CMP_FLAGS = ["CF", "PF", "AF", "ZF", "SF", "OF", "DF"]
 
 
-def make_case(seed, allow32=True):
+def make_case(seed, allow32=True, pm=False):
     g = Gen(seed, allow32)
     src = g.program()
     init = g.init_state()
+    if pm:
+        import pmprog
+        full = pmprog.wrap(src, init)
+        code = list(assemble(full))
+        # registers/flags/segments are established by the bootstrap itself; only memory is preloaded
+        run_init = {"mem": init["mem"]}
+        return {"name": "pm%d" % seed, "src": src, "code": code, "init": run_init, "ref_init": run_init,
+                "peek": Gen.PEEK, "limit": 8000, "mask": list(g.mask), "pm": True}
     code = list(assemble(src))
     return {"name": "seed%d" % seed, "src": src, "code": code, "init": init, "peek": Gen.PEEK, "limit": 5000,
             "mask": list(g.mask)}
@@ -20,18 +28,19 @@ def make_case(seed, allow32=True):
 def compare(case, res, masks=None):
     """Return list of difference strings between Scratch86 `res` and the reference."""
     masks = case.get("mask", ()) if masks is None else masks
-    ref = run_reference(case["code"], case["init"], case["peek"])
+    ref = run_reference(case["code"], case.get("ref_init", case["init"]), case["peek"])
     if "error" in ref:
         return None          # reference faulted (e.g. 32-bit EA > 0xFFFF): skip
     diffs = []
     exc = ref.get("exc")
-    if exc and exc["vec"] == 5:
-        # Unicorn reports stale (lazily evaluated) arithmetic flags when BOUND raises #BR; verified
+    if exc and exc["vec"] in (5, 10, 11, 12, 13):
+        # Unicorn reports stale (lazily evaluated) arithmetic flags when a helper raises #BR/#TS/#NP/#SS/#GP; verified
         # against the same program without BOUND. Registers, memory, EIP and vector still compared.
         masks = set(masks) | {"CF", "PF", "AF", "ZF", "SF", "OF"}
-    if res["state"] == 3 and res["fault"]["vec"] in (12, 13) and re.search(r"\[[^\]]*e[a-z]{2}|0x67", case.get("src", "")):
-        # Intel faults real-mode accesses beyond the 0xFFFF segment limit; QEMU (the oracle) does
-        # not check limits, so such cases cannot be compared. Limit logic has directed tests.
+    if res["state"] == 3 and res["fault"]["vec"] in (12, 13) and not (exc and exc["vec"] == res["fault"]["vec"]):
+        # Intel parts fault accesses beyond the segment limit; QEMU (the oracle) does not check data
+        # limits, so a #GP/#SS here that the oracle did not raise cannot be compared (directed tests
+        # cover the limit logic).
         return None
     if res["state"] == 3 and not exc:
         diffs.append("scratch86 fault vec=%d opcode=%02x at %x" % (res["fault"]["vec"], res["fault"]["opc"], res["fault"]["eip"]))

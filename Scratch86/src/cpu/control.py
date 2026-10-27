@@ -26,11 +26,21 @@ def build(p, S, mem, P):
     with pr.body() as (b,):
         b.set(S.H4, S.FAULT_PEND)              # vector
         b.set(S.FAULT_PEND, -1)
+        with b.if_(S.H4 > 255) as t:           # 256: feature not implemented yet -> visible stop
+            t.set(S.FAULT_VEC, 256)
+            t.set(S.FAULT_OPC, S.OPCODE)
+            t.set(S.FAULT_EIP, S.EIP_START)
+            t.set(S.EIP, S.EIP_START)
+            t.set(S.CPU_STATE, 3)
+            t.stop_script()
         b.set(S.FAULT_VEC, S.H4)
         b.set(S.FAULT_OPC, S.OPCODE)
         b.set(S.FAULT_EIP, S.EIP_START)
         with b.if_(eq(S.FAULT_TRAP, 0)) as t:
             t.set(S.EIP, S.EIP_START)
+        with b.if_(eq(S.CR0 % 2, 1)) as t:     # protected-mode IDT delivery: v0.3 slice B (visible stop meanwhile)
+            t.set(S.CPU_STATE, 3)
+            t.stop_script()
         b.call(mem.mem_rw, S.H4 * 4)
         b.set(S.H3, S.MEMV)                    # new IP
         b.call(mem.mem_rw, S.H4 * 4 + 2)
@@ -121,6 +131,19 @@ def build(p, S, mem, P):
         b.set(S.CR2, 0)
         b.set(S.CR3, 0)
         b.set(S.CPU_MODE, 0)
+        b.set(S.CPL, 0)
+        b.set(S.CR4, 0)
+        b.set(S.GDTR_BASE, 0)
+        b.set(S.GDTR_LIM, 65535)
+        b.set(S.IDTR_BASE, 0)
+        b.set(S.IDTR_LIM, 1023)
+        for nm in ("LDTR_SEL", "LDTR_BASE", "LDTR_LIM", "LDTR_ATTR", "TR_SEL", "TR_BASE", "TR_LIM", "TR_ATTR"):
+            b.set(getattr(S, nm), 0)
+        b.set(S.TR_LIM, 65535)
+        for i in range(6):                  # real-mode descriptor caches: 64 KiB, read/write data (CS: code)
+            b.replace(S.SEGLIM, i + 1, 65535)
+            b.replace(S.SEGATTR, i + 1, 0x9B if i == 1 else 0x93)
+            b.replace(S.SEGPERM, i + 1, 7)
         b.set(S.DEF_OSZ, 2)
         b.set(S.DEF_ASZ, 2)
         b.set(S.STK32, 0)

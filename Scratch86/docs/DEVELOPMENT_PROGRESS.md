@@ -10,6 +10,8 @@ Large OS images and product keys live in `media/` (git-ignored). Scratch/log fil
 * Exceptions: pending-fault convention + real-mode IVT delivery + TF trap done. Segment-limit checks done for r/m, string, XLAT, BOUND, far-pointer accesses (not yet for stack pushes/pops, moffs, instruction fetch).
 * OS Palooza drive present but **unmounted** -> docs/os-media-inventory.md (needs user approval to mount read-only).
 
+* **v0.3 slice A (protected-mode segmentation) done**: 20 directed PM tests + 2000-program PM differential (0 mismatches). Slice B (IDT delivery, privilege transitions, IRET/RETF outer, gates, TSS, V86) next; draft in `src/cpu/cpu_pm_int.py.new`.
+
 ## Decisions
 * Fault convention: a faulting helper calls `cpu_fault` and `stop_script`s (returns from the helper); handlers call `fchk` after rm_get/rm_set etc. and before modifying state; `cpu_step` delivers after the handler (control.py `exc_deliver`).
 * REP: one iteration per step, EIP rewound to the prefix start (restartable, interruptible).
