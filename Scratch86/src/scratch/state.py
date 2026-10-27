@@ -82,6 +82,14 @@ def declare(p, ram_banks=RAM_BANKS):
     # ---- CPU run control ----------------------------------------------------
     S.CPU_STATE = v("CPU_STATE (0=off 1=run 2=halted 3=fault)")
     S.FAULT_VEC = v("FAULT vector (6=#UD 0=#DE)")
+    S.PG = v("paging enabled (CR0.PG)")
+    S.SUPACC = v("implicit supervisor access (descriptor tables, TSS, IDT)")
+    S.PLIN = v("linear address after paging (physical, before A20)")
+    S.TLB_TAG = p.list("TLB tags (linear page number, -1 empty)", [-1] * 64)
+    S.TLB_PHYS = p.list("TLB physical frame base", [0] * 64)
+    S.TLB_FLAGS = p.list("TLB flags (1 writable 2 user 4 dirty)", [0] * 64)
+    for _n in range(1, 12):
+        setattr(S, "PX%d" % _n, v("paging temp %d" % _n))
     S.FAULT_ERR1 = v("error code of the first (original) exception")
     S.SHUTDOWN = v("CPU shut down (triple fault)")
     S.FAULT_SOFT = v("pending exception is a software interrupt (INT n / INT3 / INTO)")

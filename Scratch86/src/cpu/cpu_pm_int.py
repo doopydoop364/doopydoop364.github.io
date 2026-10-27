@@ -31,6 +31,7 @@ def build_pm_int(p, S, mem, P, new, fchk, helpers):
 
     # ------------------------------------------------------------- one delivery --
     with new("pm_deliver_one", ["vec", "err", "soft"]).body() as (b, vec, err, soft):
+        b.set(S.SUPACC, 1)                                          # IDT/GDT/TSS/stack accesses of a delivery are supervisor accesses
         b.set(S.E_VEC, vec)
         b.set(S.E_SOFT, soft)
         b.set(S.E_EXT, 1 - soft)
@@ -315,6 +316,7 @@ def build_pm_int(p, S, mem, P, new, fchk, helpers):
     # --------------------------------------------------------------- I/O permission --
     with new("io_check", ["port", "size"]).body() as (b, port, size):
         with b.if_(AND(eq(S.CR0 % 2, 1), S.CPL > floor(S.EFL_OTHER / 4096) % 4)) as t:
+            t.set(S.SUPACC, 1)
             # TSS I/O bitmap (32-bit TSS only): word at +0x66 gives the bitmap offset
             with t.if_(floor(S.TR_ATTR % 16 / 8) < 1) as u:
                 u.call(P.cpu_fault_err, 13, 0)
@@ -333,6 +335,7 @@ def build_pm_int(p, S, mem, P, new, fchk, helpers):
                     with x.if_(eq(S.X5, 1)) as y:
                         y.set(S.X2, 1)
                 w.change(S.X3, 1)
+            t.set(S.SUPACC, 0)
             with t.if_(eq(S.X2, 1)) as u:
                 u.call(P.cpu_fault_err, 13, 0)
 

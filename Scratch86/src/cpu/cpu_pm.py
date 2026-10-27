@@ -35,6 +35,7 @@ def build_pm(p, S, mem, P, new, set_size, fchk):
     pr = new("desc_fetch", ["sel"])        # -> D_LO D_HI D_LIN, D_OK=0 (and #GP pending) when outside the table
     with pr.body() as (b, sel):
         b.set(S.D_OK, 0)
+        b.set(S.SUPACC, 1)                 # descriptor-table reads are implicit supervisor accesses (cleared each step)
         with b.if_(eq(floor(sel / 4) % 2, 1)) as t:          # LDT
             t.set(S.TA, S.LDTR_BASE)
             t.set(S.TB, S.LDTR_LIM)
@@ -52,6 +53,7 @@ def build_pm(p, S, mem, P, new, set_size, fchk):
         b.call(mem.mem_rd, (S.D_LIN + 4) % 4294967296)
         b.set(S.D_HI, S.MEMV)
         b.set(S.D_OK, 1)
+        b.set(S.SUPACC, 0)
 
     pr = new("desc_decode")                # D_LO/D_HI -> D_BASE D_LIM D_ATTR
     with pr.body() as (b,):
@@ -77,7 +79,9 @@ def build_pm(p, S, mem, P, new, set_size, fchk):
 
     def set_accessed(b):
         with b.if_(eq(S.D_ATTR % 2, 0)) as t:
+            t.set(S.SUPACC, 1)
             t.call(mem.mem_wb, (S.D_LIN + 5) % 4294967296, S.D_ATTR % 256 + 1)
+            t.set(S.SUPACC, 0)
             t.set(S.D_ATTR, S.D_ATTR + 1)
 
     with P.seg_load_pm.body() as (b, idx, sel):
@@ -246,6 +250,7 @@ def build_pm(p, S, mem, P, new, set_size, fchk):
     with two("h_grp6", 0x100) as (b,):
         need_pm(b)
         b.call(P.modrm_decode)
+        fchk(b)
         with b.if_(S.REG < 2) as t:                          # SLDT / STR
             with t.if_(eq(S.REG, 0)) as u:
                 u.set(S.X1, S.LDTR_SEL)
@@ -360,6 +365,7 @@ def build_pm(p, S, mem, P, new, set_size, fchk):
     # ------------------------------------------------------------- 0F 01 group 7 --
     with two("h_grp7", 0x101) as (b,):
         b.call(P.modrm_decode)
+        fchk(b)
         with b.if_(S.REG < 4) as t:                          # SGDT SIDT LGDT LIDT: memory operand only
             with t.if_(eq(S.EA_REG, 1)) as u:
                 u.call(P.cpu_fault, 6)
@@ -414,12 +420,15 @@ def build_pm(p, S, mem, P, new, set_size, fchk):
                     w.call(P.cr0_changed)
                 with u.else_() as w:
                     with w.if_(AND(eq(S.REG, 7), ge(S.PROFILE, 4), eq(S.EA_REG, 0))) as x:
-                        need_cpl0(x)                         # INVLPG (486+): no TLB until v0.4
+                        need_cpl0(x)                         # INVLPG (486+)
+                        x.call(mem.tlb_inval, S.EA_LIN)
                     with w.else_() as x:
                         x.call(P.cpu_fault, 6)
 
     with P.cr0_changed.body() as (b,):
         b.set(S.CPU_MODE, S.CR0 % 2)
+        b.set(S.PG, floor(S.CR0 / 2147483648))
+        b.call(mem.tlb_flush)
 
     with two("h_clts", 0x106) as (b,):
         need_cpl0(b)
@@ -427,6 +436,7 @@ def build_pm(p, S, mem, P, new, set_size, fchk):
 
     with two("h_mov_cr", 0x120, 0x123) as (b,):
         b.call(P.modrm_decode)
+        fchk(b)
         need_cpl0(b)
         with b.if_(eq(S.OPCODE % 2, 1)) as t:                # 0F 21/23 MOV DRn: debug registers are not implemented
             t.call(P.cpu_fault, 256)
@@ -444,7 +454,7 @@ def build_pm(p, S, mem, P, new, set_size, fchk):
             t.dispatch(S.REG, [
                 (0, 0, lambda u: u.call(P.cr0_write, S.X1)),
                 (2, 2, lambda u: u.set(S.CR2, S.X1)),
-                (3, 3, lambda u: u.set(S.CR3, S.X1)),
+                (3, 3, lambda u: (u.set(S.CR3, S.X1), u.call(mem.tlb_flush))),
                 (4, 4, lambda u: u.set(S.CR4, S.X1))])
 
     pr = P.cr0_write
@@ -465,6 +475,7 @@ def build_pm(p, S, mem, P, new, set_size, fchk):
         need_pm(b)
         set_size(b, S.OSZ)
         b.call(P.modrm_decode)
+        fchk(b)
         b.call(P.rm_get, 2)
         fchk(b)
         b.call(P.lar_lsl_do, S.RMV, S.OPCODE - 0x102)
@@ -524,6 +535,7 @@ def build_pm(p, S, mem, P, new, set_size, fchk):
     with new("h_arpl").body() as (b,):                       # 63
         need_pm(b)
         b.call(P.modrm_decode)
+        fchk(b)
         b.call(P.rm_get, 2)
         fchk(b)
         b.set(S.H3, S.RMV)

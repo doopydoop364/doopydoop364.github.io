@@ -31,7 +31,7 @@ def gate(label, typ=0xE, dpl=0, present=1, sel=0x08):
 
 
 def kernel(body, gates=None, user="", idt_entries=128, tss_ss0=0x10, iobits=b"\xff\xff\xff\xff", mem=None, peek=None,
-           limit=6000, idt_limit=None, tss_access=0x89, setup_ltr=True, extra=""):
+           limit=6000, idt_limit=None, tss_access=0x89, setup_ltr=True, extra="", profile=None):
     gates = gates or {}
     idt = []
     for v in range(idt_entries):
@@ -86,7 +86,10 @@ def kernel(body, gates=None, user="", idt_entries=128, tss_ss0=0x10, iobits=b"\x
         {user}
     """
     code = list(assemble(src))
-    case = {"name": "pmi", "code": code, "init": {"regs": {}, "mem": mem or []}, "peek": peek or [], "limit": limit}
+    init = {"regs": {}, "mem": mem or []}
+    if profile is not None:
+        init["vars"] = {"CPU profile (0=8086 1=286 3=386 4=486)": profile}
+    case = {"name": "pmi", "code": code, "init": init, "peek": peek or [], "limit": limit}
     return run_cases([case])[0]
 
 

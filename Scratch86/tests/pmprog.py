@@ -27,7 +27,22 @@ GDT = [
 ]
 
 
-def wrap(program, init, bits32=True):
+PAGE_MAP = {0x10: 0x80, 0x20: 0x81, 0x30: 0x82, 0x31: 0x90}      # linear page -> physical page (windows)
+
+
+def paging_setup():
+    """16-bit PM code that builds PD@0x10000 / PT@0x11000 (identity map of the first MiB, windows remapped)
+    through the flat FS segment and turns paging on."""
+    lines = ["mov ax, 0x28", "mov fs, ax", "mov edi, 0x11000", "mov eax, 3", "mov ecx, 256",
+             "pg_loop: mov dword ptr fs:[edi], eax", "add edi, 4", "add eax, 4096", "dec ecx", "jnz pg_loop",
+             "mov edi, 0x10000", "mov dword ptr fs:[edi], %d" % (0x11000 | 3)]       # (registers: 16-bit code cannot encode 32-bit absolute offsets)
+    for lp, pp in PAGE_MAP.items():
+        lines.append("mov dword ptr fs:[edi+%d], %d" % (0x1000 + 4 * lp, (pp << 12) | 3))
+    lines += ["mov eax, 0x10000", "mov cr3, eax", "mov eax, cr0", "or eax, 0x80000000", "mov cr0, eax"]
+    return lines
+
+
+def wrap(program, init, bits32=True, paged=False):
     """Return assembly text; `program` is the generator's body (ending in hlt)."""
     regs = init["regs"]
     flags = init.get("flags", {})
@@ -51,6 +66,7 @@ def wrap(program, init, bits32=True):
         "gdt:",
     ] + GDT + [
         "pm_entry:",
+    ] + (paging_setup() if paged else []) + [
         "mov ax, 0x10", "mov ds, ax", "mov ax, 0x18", "mov es, ax", "mov ax, 0x28", "mov fs, ax", "mov gs, ax",
         "mov ax, 0x20", "mov ss, ax",
         "mov esp, %d" % (regs.get("ESP", 0x1000)),

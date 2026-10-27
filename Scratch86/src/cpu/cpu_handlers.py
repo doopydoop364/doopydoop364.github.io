@@ -68,6 +68,7 @@ def build_handlers(p, S, mem, P, new, set_size):
             with t.else_() as u:
                 set_size(u, S.OSZ)
             t.call(P.modrm_decode)
+            fchk(t)
             with t.if_(S.H2 < 2) as u:             # r/m <- r/m op reg
                 u.call(P.rm_get, S.OPSZ)
                 fchk(u)
@@ -91,6 +92,7 @@ def build_handlers(p, S, mem, P, new, set_size):
             with t.else_() as u:
                 set_size(u, S.OSZ)
             t.call(P.fetch_imm, S.OPSZ)
+            fchk(t)
             t.set(S.H3, S.IMM)
             t.call(P.reg_get, S.OPSZ, 0)
             t.call(P.alu, S.H1, S.RV, S.H3)
@@ -103,11 +105,14 @@ def build_handlers(p, S, mem, P, new, set_size):
         with b.else_() as t:
             set_size(t, S.OSZ)
         b.call(P.modrm_decode)
+        fchk(b)
         with b.if_(eq(S.OPCODE, 129)) as t:
             t.call(P.fetch_imm, S.OPSZ)
+            fchk(t)
             t.set(S.H3, S.IMM)
         with b.else_() as t:                       # 80: imm8   83: imm8 sign-extended
             t.call(P.fetch8)
+            fchk(t)
             with t.if_(eq(S.OPCODE, 131)) as u:
                 u.set(S.H3, (sx8(S.FB) + S.OP_M) % S.OP_M)
             with t.if_(eq(S.OPCODE, 128)) as u:
@@ -125,6 +130,7 @@ def build_handlers(p, S, mem, P, new, set_size):
         with b.else_() as t:
             set_size(t, S.OSZ)
         b.call(P.modrm_decode)
+        fchk(b)
         b.call(P.rm_get, S.OPSZ)
         fchk(b)
         b.set(S.H3, S.RMV)
@@ -137,6 +143,7 @@ def build_handlers(p, S, mem, P, new, set_size):
         with b.else_() as t:
             set_size(t, S.OSZ)
         b.call(P.fetch_imm, S.OPSZ)
+        fchk(b)
         b.set(S.H3, S.IMM)
         b.call(P.reg_get, S.OPSZ, 0)
         b.call(P.alu, 4, S.RV, S.H3)
@@ -150,6 +157,7 @@ def build_handlers(p, S, mem, P, new, set_size):
     with handler("h_group4") as (b,):              # FE
         set_size(b, 1)
         b.call(P.modrm_decode)
+        fchk(b)
         with b.if_(S.REG < 2) as t:
             t.call(P.rm_get, 1)
             fchk(t)
@@ -162,6 +170,7 @@ def build_handlers(p, S, mem, P, new, set_size):
     with handler("h_group5") as (b,):              # FF
         set_size(b, S.OSZ)
         b.call(P.modrm_decode)
+        fchk(b)
         with b.if_(S.REG < 2) as t:
             t.call(P.rm_get, S.OPSZ)
             fchk(t)
@@ -197,11 +206,13 @@ def build_handlers(p, S, mem, P, new, set_size):
         with b.else_() as t:
             set_size(t, S.OSZ)
         b.call(P.modrm_decode)
+        fchk(b)
         with b.if_(S.REG < 2) as t:                # TEST r/m, imm
             t.call(P.rm_get, S.OPSZ)
             fchk(t)
             t.set(S.H3, S.RMV)
             t.call(P.fetch_imm, S.OPSZ)
+            fchk(t)
             t.call(P.alu, 4, S.H3, S.IMM)
         with b.else_() as t:
             with t.if_(eq(S.REG, 2)) as u:         # NOT (no flags)
@@ -226,6 +237,7 @@ def build_handlers(p, S, mem, P, new, set_size):
         with b.else_() as t:
             set_size(t, S.OSZ)
         b.call(P.modrm_decode)
+        fchk(b)
         with b.if_(S.OPCODE < 138) as t:           # 88/89: r/m <- reg
             t.call(P.reg_get, S.OPSZ, S.REG)
             t.call(P.rm_set, S.OPSZ, S.RV)
@@ -237,6 +249,7 @@ def build_handlers(p, S, mem, P, new, set_size):
 
     with handler("h_mov_sreg") as (b,):            # 8C 8E
         b.call(P.modrm_decode)
+        fchk(b)
         with b.if_(S.REG > 5) as t:
             t.call(P.cpu_fault, 6)
         with b.else_() as t:
@@ -258,6 +271,7 @@ def build_handlers(p, S, mem, P, new, set_size):
 
     with handler("h_lea") as (b,):                 # 8D
         b.call(P.modrm_decode)
+        fchk(b)
         with b.if_(S.EA_REG) as t:
             t.call(P.cpu_fault, 6)
         with b.else_() as t:
@@ -269,8 +283,10 @@ def build_handlers(p, S, mem, P, new, set_size):
     with handler("h_pop_rm") as (b,):              # 8F /0
         b.set(S.H4, S.GPR[5])                      # ESP before the pop (restored if the store faults)
         b.call(P.pop, S.OSZ)
+        fchk(b)
         b.set(S.H3, S.PV)
         b.call(P.modrm_decode)
+        fchk(b)
         with b.if_(S.REG > 0) as t:
             t.call(P.cpu_fault, 6)
         with b.else_() as t:
@@ -284,6 +300,7 @@ def build_handlers(p, S, mem, P, new, set_size):
         with b.else_() as t:
             set_size(t, S.OSZ)
         b.call(P.modrm_decode)
+        fchk(b)
         b.call(P.rm_get, S.OPSZ)
         fchk(b)
         b.set(S.H3, S.RMV)
@@ -305,9 +322,11 @@ def build_handlers(p, S, mem, P, new, set_size):
     with handler("h_mov_imm_reg") as (b,):         # B0-BF
         with b.if_(S.OPCODE < 184) as t:
             t.call(P.fetch8)
+            fchk(t)
             t.call(P.reg_set, 1, S.OPCODE % 8, S.FB)
         with b.else_() as t:
             t.call(P.fetch_imm, S.OSZ)
+            fchk(t)
             t.call(P.reg_set, S.OSZ, S.OPCODE % 8, S.IMM)
 
     with handler("h_mov_rm_imm") as (b,):          # C6 C7
@@ -316,10 +335,12 @@ def build_handlers(p, S, mem, P, new, set_size):
         with b.else_() as t:
             set_size(t, S.OSZ)
         b.call(P.modrm_decode)
+        fchk(b)
         with b.if_(S.REG > 0) as t:
             t.call(P.cpu_fault, 6)
         with b.else_() as t:
             t.call(P.fetch_imm, S.OPSZ)
+            fchk(t)
             t.call(P.rm_set, S.OPSZ, S.IMM)
             fchk(t)
 
@@ -329,6 +350,7 @@ def build_handlers(p, S, mem, P, new, set_size):
         with b.else_() as t:
             set_size(t, S.OSZ)
         b.call(P.fetch_imm, S.ASZ)
+        fchk(b)
         b.set(S.EA_OFF, S.IMM)
         b.call(P.ea_seg_select, 3)
         b.set(S.EA_LIN, (S.SEGBASE[S.EA_SEG + 1] + S.EA_OFF) % 4294967296)
@@ -379,14 +401,17 @@ def build_handlers(p, S, mem, P, new, set_size):
 
     with handler("h_pop_reg") as (b,):             # 58-5F
         b.call(P.pop, S.OSZ)
+        fchk(b)
         b.call(P.reg_set, S.OSZ, S.OPCODE % 8, S.PV)
 
     with handler("h_push_imm") as (b,):            # 68 6A
         with b.if_(eq(S.OPCODE, 104)) as t:
             t.call(P.fetch_imm, S.OSZ)
+            fchk(t)
             t.call(P.push, S.OSZ, S.IMM)
         with b.else_() as t:
             t.call(P.fetch8)
+            fchk(t)
             t.call(P.push, S.OSZ, (sx8(S.FB) + S.SZ_M[S.OSZ]) % S.SZ_M[S.OSZ])
 
     with handler("h_pushf") as (b,):               # 9C
@@ -398,6 +423,7 @@ def build_handlers(p, S, mem, P, new, set_size):
 
     with handler("h_popf") as (b,):                # 9D
         b.call(P.pop, S.OSZ)
+        fchk(b)
         b.call(P.flags_unpack, S.PV, S.OSZ)
 
     with handler("h_sahf_lahf") as (b,):
@@ -429,6 +455,7 @@ def build_handlers(p, S, mem, P, new, set_size):
     # ------------------------------------------------------- control flow --
     with handler("h_jcc") as (b,):                 # 70-7F
         b.call(P.fetch8)
+        fchk(b)
         b.set(S.H3, sx8(S.FB))
         b.call(P.cond_eval, S.OPCODE % 16)
         with b.if_(eq(S.COND, 1)) as t:
@@ -437,9 +464,11 @@ def build_handlers(p, S, mem, P, new, set_size):
     with handler("h_jmp_call_rel") as (b,):        # E8 E9 EB
         with b.if_(eq(S.OPCODE, 235)) as t:
             t.call(P.fetch8)
+            fchk(t)
             t.set(S.H3, sx8(S.FB))
         with b.else_() as t:
             t.call(P.fetch_imm, S.OSZ)
+            fchk(t)
             with t.if_(eq(S.OSZ, 2)) as u:
                 u.set(S.H3, S.IMM - 65536 * floor(S.IMM / 32768))
             with t.if_(eq(S.OSZ, 4)) as u:
@@ -451,10 +480,12 @@ def build_handlers(p, S, mem, P, new, set_size):
     with handler("h_ret") as (b,):                 # C2 C3
         with b.if_(eq(S.OPCODE, 194)) as t:
             t.call(P.fetch_imm, 2)
+            fchk(t)
             t.set(S.H3, S.IMM)
         with b.else_() as t:
             t.set(S.H3, 0)
         b.call(P.pop, S.OSZ)
+        fchk(b)
         b.set(S.EIP, S.PV % S.CODE_MASK)
         with b.if_(S.H3 > 0) as t:                 # release imm16 bytes of stack
             with t.if_(S.STK32) as u:
@@ -464,6 +495,7 @@ def build_handlers(p, S, mem, P, new, set_size):
 
     with handler("h_loop") as (b,):                # E0 E1 E2 E3
         b.call(P.fetch8)
+        fchk(b)
         b.set(S.H3, sx8(S.FB))
         # counter is CX or ECX according to the *address* size
         with b.if_(eq(S.OPCODE, 227)) as t:        # JCXZ / JECXZ
@@ -549,6 +581,7 @@ def build_handlers(p, S, mem, P, new, set_size):
     S.DISPATCH2 = compress(two)
     with new("h_0f").body() as (b,):                 # two-byte opcode escape; OPCODE becomes 0x100 + byte
         b.call(P.fetch8)
+        fchk(b)
         b.set(S.OPCODE, S.FB + 256)
         cases = [(lo, hi, (lambda u, nm=nm: u.call(getattr(P, nm)))) for lo, hi, nm in S.DISPATCH2]
         b.dispatch(S.OPCODE, cases, default=lambda u: u.call(P.h_unsupported))

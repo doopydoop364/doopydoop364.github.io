@@ -9,5 +9,8 @@ Environment: Linux 7.2 (CachyOS), Node v26.11.1, one machine, no other load duri
 | 2026-10-21 | stock scratch-vm 5.0.300 (interpreter) | alu | 36,367 / 37,494 / 38,399 |
 | 2026-10-21 | TurboWarp scratch-vm 2.1.46 compiler (headless, git 371839d) | mixed | 1,521,366 / 1,815,647 / 2,836,959 |
 | 2026-10-21 | TurboWarp scratch-vm 2.1.46 compiler (headless) | alu | 1,246,298 / 1,879,019 / 3,277,531 |
+| 2026-10-27 | stock scratch-vm 5.0.300 (interpreter), after v0.2/v0.3/paging work | mixed | 25,198 / 26,299 / 27,467 |
+
+The 2026-10-27 row is ~24% below v0.1: every access now carries segment-descriptor, stack-limit and fault checks, and every handler re-checks the pending-fault flag after fetches/decodes/pops. These are correctness costs; recovering them (fast paths, check elision, predecoding) is v0.8 work. TurboWarp was not re-measured in this session.
 
 Not measured: browser Scratch with/without Turbo Mode, the packaged TurboWarp web build, display redraw cost, startup time, host RAM. Headless runs have no renderer, so pen-stamp cost is excluded. TurboWarp timings are in node, not in the browser.

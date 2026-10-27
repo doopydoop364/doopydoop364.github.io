@@ -28,6 +28,10 @@ Large OS images and product keys live in `media/` (git-ignored). Scratch/log fil
 5. LOCK prefix validity (#UD on non-lockable), 0F 1F NOP hints, SALC, ICEBP.
 6. Visual verification of the renderer in TurboWarp; browser benchmark (docs/DEVELOPMENT_STATUS.md "Not verified").
 
+## v0.4 status (paging started)
+Paging implemented and tested (docs/memory.md): 10 directed tests, paged differential 2000 programs (1 oracle-limit-class false positive fixed in the harness classification), full suite 101 passed (11.5 min). Remaining for v0.4: RAM sizes 2-128 MiB (sparse/packed representation, runtime init), ROM/MMIO regions, PSE/global pages (Pentium), TLB tuning.
+Performance note: stock-VM throughput fell ~24% (see docs/benchmarks.md) - schedule for v0.8.
+
 ## v0.3 status
 Slice A (segmentation, system instructions) and slice B (IDT delivery, privilege transitions, IRET/RETF outer, I/O bitmap,
 #DF/triple fault) are implemented and tested (see docs/cpu.md). Remaining for the v0.3 acceptance criteria:

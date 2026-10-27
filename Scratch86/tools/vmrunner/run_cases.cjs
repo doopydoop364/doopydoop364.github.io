@@ -75,6 +75,7 @@ function peekByte(vm, addr) { const l = ramList(vm, addr >> 16); return l ? l[ad
             res.eip = lib.getVar(vm, 'EIP');
             res.state = lib.getVar(vm, 'CPU_STATE (0=off 1=run 2=halted 3=fault)');
             res.cr0 = lib.getVar(vm, 'CR0');
+            res.cr2 = lib.getVar(vm, 'CR2');
             res.shutdown = lib.getVar(vm, 'CPU shut down (triple fault)');
             res.cpl = lib.getVar(vm, 'current privilege level');
             res.fault = {vec: lib.getVar(vm, 'FAULT vector (6=#UD 0=#DE)'),

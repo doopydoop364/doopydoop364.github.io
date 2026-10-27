@@ -159,6 +159,7 @@ def build_math(p, S, mem, P, new, set_size, fchk):
     with pr.body() as (b,):
         set_size(b, S.OSZ)
         b.call(P.modrm_decode)
+        fchk(b)
         b.call(P.rm_get, S.OPSZ)
         fchk(b)
         b.set(S.H3, S.RMV)
@@ -168,9 +169,11 @@ def build_math(p, S, mem, P, new, set_size, fchk):
         with b.else_() as t:
             with t.if_(eq(S.OPCODE, 0x69)) as u:
                 u.call(P.fetch_imm, S.OPSZ)
+                fchk(u)
                 u.set(S.H4, S.IMM)
             with t.else_() as u:
                 u.call(P.fetch8)
+                fchk(u)
                 u.set(S.H4, (S.FB - 256 * floor(S.FB / 128) + S.OP_M) % S.OP_M)
         b.call(P.smul, S.H3, S.H4)
         b.set(S.ALU_R, S.ML)
@@ -246,8 +249,10 @@ def build_math(p, S, mem, P, new, set_size, fchk):
         with b.else_() as t:
             set_size(t, S.OSZ)
         b.call(P.modrm_decode)
+        fchk(b)
         with b.if_(S.OPCODE < 0xD0) as t:           # imm8 count (after displacement)
             t.call(P.fetch8)
+            fchk(t)
             t.set(S.H4, S.FB)
         with b.else_() as t:
             with t.if_(S.OPCODE < 0xD2) as u:
@@ -266,8 +271,10 @@ def build_math(p, S, mem, P, new, set_size, fchk):
     with pr.body() as (b,):
         set_size(b, S.OSZ)
         b.call(P.modrm_decode)
+        fchk(b)
         with b.if_(eq(S.OPCODE % 2, 0)) as t:
             t.call(P.fetch8)
+            fchk(t)
             t.set(S.H4, S.FB)
         with b.else_() as t:
             t.call(P.reg_get, 1, 1)

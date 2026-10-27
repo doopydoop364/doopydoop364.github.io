@@ -14,12 +14,21 @@ def make_case(seed, allow32=True, pm=False):
     init = g.init_state()
     if pm:
         import pmprog
-        full = pmprog.wrap(src, init)
+        paged = pm == "paged"
+        full = pmprog.wrap(src, init, paged=paged)
         code = list(assemble(full))
         # registers/flags/segments are established by the bootstrap itself; only memory is preloaded
-        run_init = {"mem": init["mem"]}
+        mem, peek = init["mem"], Gen.PEEK
+        if paged:       # windows live at other physical addresses; the stack window straddles two non-contiguous pages
+            lin = {0x10000: 0x80000, 0x20000: 0x81000, 0x30000: 0x82000}
+            mem = [{"addr": lin[m["addr"]], "bytes": m["bytes"]} for m in init["mem"][:3]]
+            w4 = init["mem"][3]["bytes"]                       # linear 0x30C00..0x310FF
+            mem += [{"addr": 0x82C00, "bytes": w4[:0x400]}, {"addr": 0x90000, "bytes": w4[0x400:]}]
+            peek = [{"addr": 0x80000, "len": 0x400}, {"addr": 0x81000, "len": 0x400}, {"addr": 0x82000, "len": 0x400},
+                    {"addr": 0x82C00, "len": 0x400}, {"addr": 0x90000, "len": 0x100}]
+        run_init = {"mem": mem}
         return {"name": "pm%d" % seed, "src": src, "code": code, "init": run_init, "ref_init": run_init,
-                "peek": Gen.PEEK, "limit": 8000, "mask": list(g.mask), "pm": True}
+                "peek": peek, "limit": 8000, "mask": list(g.mask), "pm": True}
     code = list(assemble(src))
     return {"name": "seed%d" % seed, "src": src, "code": code, "init": init, "peek": Gen.PEEK, "limit": 5000,
             "mask": list(g.mask)}
@@ -37,7 +46,8 @@ def compare(case, res, masks=None):
         # Unicorn reports stale (lazily evaluated) arithmetic flags when a helper raises #BR/#TS/#NP/#SS/#GP; verified
         # against the same program without BOUND. Registers, memory, EIP and vector still compared.
         masks = set(masks) | {"CF", "PF", "AF", "ZF", "SF", "OF"}
-    if res["state"] == 3 and res["fault"]["vec"] in (12, 13) and not (exc and exc["vec"] == res["fault"]["vec"]):
+    if res["state"] == 3 and res["fault"]["vec"] in (12, 13) and not (
+            exc and exc["vec"] == res["fault"]["vec"] and exc["eip"] == res["fault"]["eip"]):
         # Intel parts fault accesses beyond the segment limit; QEMU (the oracle) does not check data
         # limits, so a #GP/#SS here that the oracle did not raise cannot be compared (directed tests
         # cover the limit logic).

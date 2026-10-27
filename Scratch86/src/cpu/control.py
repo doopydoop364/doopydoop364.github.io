@@ -69,6 +69,7 @@ def build(p, S, mem, P):
     with pr.body() as (b,):
         b.set(S.EIP_START, S.EIP)
         b.set(S.TF_START, S.TF)
+        b.set(S.SUPACC, 0)
         b.set(S.ESP_START, S.GPR[5])
         b.set(S.LAST_FETCH, (S.SEGBASE[2] + S.EIP) % 4294967296)
         b.set(S.PFX_SEG, -1)
@@ -97,7 +98,7 @@ def build(p, S, mem, P):
                 with t.if_(S.PFX_COUNT > 14) as u:
                     u.call(P.cpu_fault, 6)
                     u.set(S.PFX_MORE, 0)
-        with b.if_(eq(S.CPU_STATE, 1)) as t:
+        with b.if_(AND(eq(S.CPU_STATE, 1), S.FAULT_PEND < 0)) as t:     # a fault in the prefix/opcode fetch skips the handler
             t.set(S.LAST_OPCODE, S.OPCODE)
             with t.if_(S.DIAG_TRACE) as u:          # ring buffer of the last 8 instructions
                 u.replace(S.TRACE_CS, S.TRACE_POS + 1, S.SEG[2])
@@ -136,6 +137,9 @@ def build(p, S, mem, P):
         b.set(S.CPU_MODE, 0)
         b.set(S.CPL, 0)
         b.set(S.CR4, 0)
+        b.set(S.PG, 0)
+        b.set(S.SUPACC, 0)
+        b.call(mem.tlb_flush)
         b.set(S.GDTR_BASE, 0)
         b.set(S.GDTR_LIM, 65535)
         b.set(S.IDTR_BASE, 0)
