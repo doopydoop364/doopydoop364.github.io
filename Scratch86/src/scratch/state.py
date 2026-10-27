@@ -56,6 +56,12 @@ def declare(p, ram_banks=RAM_BANKS):
     # ---- CPU run control ----------------------------------------------------
     S.CPU_STATE = v("CPU_STATE (0=off 1=run 2=halted 3=fault)")
     S.FAULT_VEC = v("FAULT vector (6=#UD 0=#DE)")
+    S.TF_START = v("TF at start of the current instruction")
+    S.FAULT_PEND = v("pending exception vector (-1 none)", -1)
+    S.FAULT_ERR = v("pending exception error code")
+    S.FAULT_TRAP = v("pending exception is a trap (EIP = next instruction)")
+    S.STOP_UNSET = v("diag: stop CPU when exception vector is unset (IVT 0000:0000)", 1)
+    S.SEGLIM = p.list("SEGLIM [ES CS SS DS FS GS] (hidden limit)", [65535] * 6)
     S.FAULT_OPC = v("FAULT opcode")
     S.FAULT_EIP = v("FAULT instruction EIP")
     S.INSN_COUNT = v("executed instructions")
@@ -106,6 +112,15 @@ def declare(p, ram_banks=RAM_BANKS):
     S.H2 = v("handler temp 2")
     S.H3 = v("handler temp 3")
     S.H4 = v("handler temp 4")
+    S.POW2 = p.list("POW2 (2^0 .. 2^34)", [2 ** i for i in range(35)])
+    for i in range(1, 9):
+        setattr(S, "X%d" % i, v("math temp %d" % i))
+    S.ML = v("mul/div result low")
+    S.MH = v("mul/div result high")
+    S.MFIT = v("signed multiply fits in one operand")
+    S.QQ = v("division quotient")
+    S.RR = v("division remainder")
+    S.IOV = v("I/O port read value")
     S.SZ_M = p.list("SIZE modulus by bytes", [256, 65536, 16777216, 4294967296])
     S.SZ_SGN = p.list("SIZE sign bit by bytes", [128, 32768, 8388608, 2147483648])
 

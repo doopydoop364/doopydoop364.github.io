@@ -3,7 +3,7 @@
 TEST-ONLY.  Used to compute expected results for differential testing; it is
 never part of the Scratch86 runtime.
 """
-from unicorn import Uc, UC_ARCH_X86, UC_MODE_16, UcError
+from unicorn import Uc, UC_ARCH_X86, UC_MODE_16, UC_HOOK_INTR, UcError
 from unicorn.x86_const import *
 
 GPRS = [("EAX", UC_X86_REG_EAX), ("ECX", UC_X86_REG_ECX), ("EDX", UC_X86_REG_EDX),
@@ -32,6 +32,16 @@ def run_reference(code, init, peek, max_insns=10000):
             efl |= 1 << bit
     uc.reg_write(UC_X86_REG_EFLAGS, efl)
     end = LOAD + len(code) - 1            # address of the trailing HLT
+    exc = []
+
+    def on_intr(u, intno, _):
+        # Unicorn reports faults (EIP = faulting insn) and traps (EIP = next insn) here
+        # without vectoring through the IVT; the first event is the architectural one.
+        if not exc:
+            exc.append({"vec": intno, "eip": u.reg_read(UC_X86_REG_EIP)})
+        u.emu_stop()
+
+    uc.hook_add(UC_HOOK_INTR, on_intr)
     try:
         uc.emu_start(LOAD, end, count=max_insns)
     except UcError as e:
@@ -41,5 +51,6 @@ def run_reference(code, init, peek, max_insns=10000):
     e = uc.reg_read(UC_X86_REG_EFLAGS)
     res["flags"] = {f: (e >> b) & 1 for f, b in FLAGBITS.items()}
     res["eip"] = uc.reg_read(UC_X86_REG_EIP)
+    res["exc"] = exc[0] if exc else None
     res["mem"] = [{"addr": pk["addr"], "bytes": list(uc.mem_read(pk["addr"], pk["len"]))} for pk in peek]
     return res

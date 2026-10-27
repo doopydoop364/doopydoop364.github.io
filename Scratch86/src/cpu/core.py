@@ -52,6 +52,15 @@ def build(p, S, mem):
             b.set(S.OP_M, S.SZ_M[sz])
             b.set(S.OP_SGN, S.SZ_SGN[sz])
 
+    def limit_chk(b, size):
+        """Segment-limit check for EA_SEG:EA_OFF (#SS for SS, else #GP); returns from the caller."""
+        with b.if_(S.EA_OFF + size - 1 > S.SEGLIM[S.EA_SEG + 1]) as t:
+            with t.if_(eq(S.EA_SEG, 2)) as u:
+                u.call(P.cpu_fault, 12)
+            with t.else_() as u:
+                u.call(P.cpu_fault, 13)
+            t.stop_script()
+
     # ======================================================================
     # registers
     # ======================================================================
@@ -91,6 +100,7 @@ def build(p, S, mem):
         # that it can slot in here.
         b.replace(S.SEG, idx + 1, sel)
         b.replace(S.SEGBASE, idx + 1, sel * 16)
+        b.replace(S.SEGLIM, idx + 1, 65535)
 
     # ======================================================================
     # fetch
@@ -118,13 +128,23 @@ def build(p, S, mem):
     # ======================================================================
     # faults (v0.1: stop the CPU with a diagnostic; vectoring arrives in v0.2)
     # ======================================================================
+    # Convention: a faulting helper calls cpu_fault and returns early (stop this
+    # script).  Callers re-check FAULT_PEND before modifying architectural state;
+    # cpu_step delivers the pending exception after the handler returns
+    # (control.py: exc_deliver).  The first fault of an instruction wins.
     pr = new("cpu_fault", ["vec"])
     with pr.body() as (b, vec):
-        b.set(S.CPU_STATE, 3)
-        b.set(S.FAULT_VEC, vec)
-        b.set(S.FAULT_OPC, S.OPCODE)
-        b.set(S.FAULT_EIP, S.EIP_START)
-        b.set(S.EIP, S.EIP_START)      # faults report the faulting instruction
+        with b.if_(S.FAULT_PEND < 0) as t:
+            t.set(S.FAULT_PEND, vec)
+            t.set(S.FAULT_ERR, 0)
+            t.set(S.FAULT_TRAP, 0)
+
+    pr = new("cpu_trap", ["vec"])      # software interrupt / trap: pushes the *next* EIP
+    with pr.body() as (b, vec):
+        with b.if_(S.FAULT_PEND < 0) as t:
+            t.set(S.FAULT_PEND, vec)
+            t.set(S.FAULT_ERR, 0)
+            t.set(S.FAULT_TRAP, 1)
 
     # ======================================================================
     # stack
@@ -247,6 +267,7 @@ def build(p, S, mem):
             t.call(P.reg_get, size, S.RM)
             t.set(S.RMV, S.RV)
         with b.else_() as t:
+            limit_chk(t, size)
             with t.if_(eq(size, 1)) as u:
                 u.call(mem.mem_rb, S.EA_LIN)
             with t.else_() as u:
@@ -261,6 +282,7 @@ def build(p, S, mem):
         with b.if_(S.EA_REG) as t:
             t.call(P.reg_set, size, S.RM, val)
         with b.else_() as t:
+            limit_chk(t, size)
             with t.if_(eq(size, 1)) as u:
                 u.call(mem.mem_wb, S.EA_LIN, val)
             with t.else_() as u:

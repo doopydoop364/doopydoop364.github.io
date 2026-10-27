@@ -18,10 +18,45 @@ def build(p, S, mem, P):
         setattr(P, name, proc)
         return proc
 
+    # ---------------------------------------------------- exception delivery --
+    # Real-mode delivery through the IVT (vector*4: IP, CS).  Faults restart the
+    # instruction (EIP_START), traps / INT n resume after it.  Pushes are always
+    # 16-bit in real mode.  A fault while pushing is a double fault -> shutdown.
+    pr = new("exc_deliver")
+    with pr.body() as (b,):
+        b.set(S.H4, S.FAULT_PEND)              # vector
+        b.set(S.FAULT_PEND, -1)
+        b.set(S.FAULT_VEC, S.H4)
+        b.set(S.FAULT_OPC, S.OPCODE)
+        b.set(S.FAULT_EIP, S.EIP_START)
+        with b.if_(eq(S.FAULT_TRAP, 0)) as t:
+            t.set(S.EIP, S.EIP_START)
+        b.call(mem.mem_rw, S.H4 * 4)
+        b.set(S.H3, S.MEMV)                    # new IP
+        b.call(mem.mem_rw, S.H4 * 4 + 2)
+        b.set(S.H2, S.MEMV)                    # new CS
+        with b.if_(AND(S.STOP_UNSET, eq(S.H3, 0), eq(S.H2, 0))) as t:
+            t.set(S.CPU_STATE, 3)              # debugger-style stop: no handler installed
+            t.stop_script()
+        b.call(P.flags_pack)
+        b.set(S.H1, S.EIP % 65536)             # saved IP (push helpers clobber TA..TD only)
+        b.call(P.push, 2, S.EFL % 65536)
+        b.call(P.push, 2, S.SEG[2])
+        b.call(P.push, 2, S.H1)
+        with b.if_(S.FAULT_PEND > -1) as t:    # fault while delivering: shutdown
+            t.set(S.FAULT_PEND, -1)
+            t.set(S.CPU_STATE, 3)
+            t.stop_script()
+        b.set(S.IF, 0)
+        b.set(S.TF, 0)
+        b.call(P.seg_load, 1, S.H2)
+        b.set(S.EIP, S.H3)
+
     # ---------------------------------------------------------------- step --
     pr = new("cpu_step")
     with pr.body() as (b,):
         b.set(S.EIP_START, S.EIP)
+        b.set(S.TF_START, S.TF)
         b.set(S.LAST_FETCH, (S.SEGBASE[2] + S.EIP) % 4294967296)
         b.set(S.PFX_SEG, -1)
         b.set(S.PFX_REP, 0)
@@ -58,8 +93,12 @@ def build(p, S, mem, P):
                 u.set(S.TRACE_POS, (S.TRACE_POS + 1) % 8)
             cases = [(lo, hi, (lambda u, nm=nm: u.call(getattr(P, nm)))) for lo, hi, nm in S.DISPATCH]
             t.dispatch(S.OPCODE, cases, default=lambda u: u.call(P.h_unsupported))
-            with t.if_(ne(S.CPU_STATE, 3)) as u:
-                u.change(S.INSN_COUNT, 1)
+            with t.if_(AND(ne(S.CPU_STATE, 3), OR(S.FAULT_PEND < 0, eq(S.FAULT_TRAP, 1)))) as u:
+                u.change(S.INSN_COUNT, 1)      # faulting instructions do not retire
+            with t.if_(AND(eq(S.TF_START, 1), S.FAULT_PEND < 0, eq(S.CPU_STATE, 1))) as u:
+                u.call(P.cpu_trap, 1)          # single-step trap after the instruction
+        with b.if_(S.FAULT_PEND > -1) as t:
+            t.call(P.exc_deliver)
 
     pr = new("cpu_run_batch", ["n"])
     with pr.body() as (b, n):
@@ -94,6 +133,7 @@ def build(p, S, mem, P):
         b.set(S.EIP, 0xFFF0)
         b.set(S.CPU_STATE, 1)
         b.set(S.FAULT_VEC, 0)
+        b.set(S.FAULT_PEND, -1)
         b.set(S.INSN_COUNT, 0)
         b.set(S.PFX_SEG, -1)
         b.set(S.LAST_FETCH, 0)

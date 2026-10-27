@@ -17,11 +17,16 @@ INTERESTING = [0, 1, 2, 0x7F, 0x80, 0xFF, 0x100, 0x7FFF, 0x8000, 0xFFFF, 0x10000
                0x80000000, 0xFFFFFFFF, 0x12345678, 0xDEADBEEF]
 
 
+ARITH = ["CF", "PF", "AF", "ZF", "SF", "OF"]
+
+
 class Gen:
-    def __init__(self, seed, allow32=True):
+    def __init__(self, seed, allow32=True, ext=True):
         self.r = random.Random(seed)
         self.allow32 = allow32
+        self.ext = ext
         self.label = 0
+        self.mask = set()       # flags left architecturally undefined by the final (special) instruction
 
     def val(self, bits):
         r = self.r
@@ -75,8 +80,11 @@ class Gen:
 
     def one(self):
         r = self.r
-        k = r.choice(["alu"] * 6 + ["incdec", "negnot", "test", "mov", "mov", "xchg", "lea", "stack",
-                                   "flags", "cbw", "branch", "loop", "movimm"])
+        pool = ["alu"] * 6 + ["incdec", "negnot", "test", "mov", "mov", "xchg", "lea", "stack",
+                              "flags", "cbw", "branch", "loop", "movimm"]
+        if self.ext:
+            pool += ["movx", "movx", "setcc", "bswap", "xaddcx", "pusha", "enterleave"]
+        k = r.choice(pool)
         bits = self.bits()
         if k == "alu":
             op = r.choice(ALU)
@@ -168,13 +176,33 @@ class Gen:
         if k == "loop":
             self.label += 1
             l = "L%d" % self.label
-            # LOOPNE is excluded: Unicorn 2.1.4 (QEMU) corrupts CF/AF around LOOPNE
+            # LOOPNE/LOOPE are excluded: Unicorn 2.1.4 (QEMU) corrupts CF/AF around them
             # (it reports CF=AF=0 after `sub`), so it cannot serve as a reference.
             # LOOPNE is covered by deterministic tests in tests/cpu instead.
-            kind = r.choice(["loop", "loope", "jcxz"])
+            kind = r.choice(["loop", "jcxz"])      # LOOPE also hits the Unicorn lazy-flag quirk (seeds 1044/1119/1586)
             if kind == "jcxz":
                 return "mov cx, %d\njcxz %s\n%s\n%s:" % (r.randrange(0, 3), l, self.one_simple(), l)
             return "mov cx, %d\n%s:\n%s\n%s %s" % (r.randrange(1, 5), l, self.one_simple(), kind, l)
+        if k == "movx":
+            op = r.choice(["movzx", "movsx"])
+            dst = r.choice([16, 32] if self.allow32 else [16])
+            src = r.choice([8, 16]) if dst == 32 else 8
+            srcop = self.reg(src) if r.random() < 0.5 else self.ptr(src) + self.mem()
+            return "%s %s, %s" % (op, self.reg(dst), srcop)
+        if k == "setcc":
+            return "set%s %s" % (r.choice(CC), self.rm(8))
+        if k == "bswap":
+            return "bswap %s" % self.reg(32)
+        if k == "xaddcx":
+            op = r.choice(["xadd", "cmpxchg"])
+            b = self.bits()
+            return "%s %s, %s" % (op, self.rm(b), self.reg(b))
+        if k == "pusha":
+            return r.choice(["pushaw", "popaw"] + (["pushad", "popad"] if self.allow32 else []))
+        if k == "enterleave":
+            if r.random() < 0.5:
+                return "leave"
+            return "enter %d, %d" % (r.randrange(0, 16) * 2, r.randrange(0, 3))
         raise AssertionError(k)
 
     def one_simple(self):
@@ -183,14 +211,139 @@ class Gen:
             s = self.one()
             if "\n" in s or "cx" in s or "loop" in s or "ecx" in s or "cl" in s or "ch" in s:
                 continue
-            if s.split()[0] in ("pushf", "popf", "pushfd", "popfd"):
+            if s.split()[0] in ("pushf", "popf", "pushfd", "popfd", "popaw", "popad"):   # popa* loads CX from memory
                 continue
             return s
         return "nop"
 
     def program(self, n=None):
         n = n or self.r.randrange(1, 6)
-        return "\n".join(self.one() for _ in range(n)) + "\nhlt"
+        parts = [self.one() for _ in range(n)]
+        if self.ext and self.r.random() < 0.6:
+            parts.append(self.special())
+        return "\n".join(parts) + "\nhlt"
+
+    # ---- instructions with architecturally undefined flags / faults (always last) ----
+    def special(self):
+        r = self.r
+        k = r.choice(["mul", "mul", "imul", "div", "div", "shift", "shift", "shift", "shxd", "bt", "bsx",
+                      "bcd", "string", "string", "string", "bound", "xlat", "lxs", "int"])
+        bits = self.bits()
+        acc = {8: "al", 16: "ax", 32: "eax"}[bits]
+        if k == "mul":
+            self.mask |= {"SF", "ZF", "AF", "PF"}
+            return "%s %s" % (r.choice(["mul", "imul"]), self.rm(bits))
+        if k == "imul":
+            self.mask |= {"SF", "ZF", "AF", "PF"}
+            b = r.choice([16, 32] if self.allow32 else [16])
+            f = r.choice(["rr", "rm", "rri", "rmi8"])
+            if f == "rr":
+                return "imul %s, %s" % (self.reg(b), self.reg(b))
+            if f == "rm":
+                return "imul %s, %s%s" % (self.reg(b), self.ptr(b), self.mem())
+            if f == "rri":
+                return "imul %s, %s, %d" % (self.reg(b), self.reg(b), self.val(b) if b == 16 else r.randrange(-2**31, 2**31))
+            return "imul %s, %s%s, %d" % (self.reg(b), self.ptr(b), self.mem(), r.randrange(-128, 128))
+        if k == "div":
+            self.mask |= set(ARITH)
+            op = r.choice(["div", "idiv"])
+            pre = ""
+            if r.random() < 0.7:               # usually give it a sane dividend/divisor
+                ext = {8: "xor ah, ah" if op == "div" else "cbw", 16: "xor dx, dx" if op == "div" else "cwd",
+                       32: "xor edx, edx" if op == "div" else "cdq"}[bits]
+                pre = "%s\n" % ext
+                if r.random() < 0.7:
+                    pre += "mov %s, %d\n" % ({8: "bl", 16: "bx", 32: "ebx"}[bits], max(1, self.val(bits)) if r.random() < 0.8 else r.randrange(1, 4))
+                    return pre + "%s %s" % (op, {8: "bl", 16: "bx", 32: "ebx"}[bits])
+            return pre + "%s %s" % (op, self.rm(bits))
+        if k == "shift":
+            op = r.choice(["shl", "shr", "sar", "rol", "ror", "rcl", "rcr", "sal"])
+            kind = r.choice(["imm", "one", "cl"])
+            size = bits
+            if kind == "one":
+                cnt = 1
+            else:
+                cnt = r.choice([0, 1, 2, 3, 7, 8, 9, 15, 16, 17, 31, 32, 33, 255, r.randrange(0, 40)])
+            c = cnt % 32
+            self.mask.add("AF") if op in ("shl", "shr", "sar", "sal") else None
+            if c != 1 and kind != "one":
+                self.mask.add("OF")
+            if op in ("shl", "shr", "sar", "sal") and c > size:
+                self.mask.add("CF")
+            if op in ("rol", "ror") and c % size == 0 and False:
+                pass
+            if kind == "cl":
+                return "mov cl, %d\n%s %s, cl" % (cnt, op, self.rm(bits))
+            if kind == "one":
+                return "%s %s, 1" % (op, self.rm(bits))
+            return "%s %s, %d" % (op, self.rm(bits), cnt)
+        if k == "shxd":
+            self.mask |= {"AF"}
+            b = r.choice([16, 32] if self.allow32 else [16])
+            cnt = r.randrange(1, b)
+            if cnt != 1:
+                self.mask.add("OF")
+            op = r.choice(["shld", "shrd"])
+            if r.random() < 0.5:
+                return "%s %s, %s, %d" % (op, self.rm(b), self.reg(b), cnt)
+            return "mov cl, %d\n%s %s, %s, cl" % (cnt, op, self.rm(b), self.reg(b))
+        if k == "bt":
+            self.mask |= {"OF", "SF", "AF", "PF"}
+            b = r.choice([16, 32] if self.allow32 else [16])
+            op = r.choice(["bt", "bts", "btr", "btc"])
+            if r.random() < 0.5:
+                return "%s %s, %d" % (op, self.rm(b), r.randrange(0, 256))
+            # register bit offset: keep the effective address inside the preloaded window
+            off = r.randrange(-40, 120)
+            tmp = "esi" if b == 32 else "si"
+            return "mov %s, %d\n%s %s%s, %s" % (tmp, off & ((1 << b) - 1), op, self.ptr(b), self.mem().replace("si", "bp") if False else self.mem_nosi(), tmp)
+        if k == "bsx":
+            self.mask |= {"OF", "SF", "AF", "PF", "CF"}
+            b = r.choice([16, 32] if self.allow32 else [16])
+            src = {16: "cx", 32: "ecx"}[b]
+            val = (self.val(b) | (1 << r.randrange(0, b)))
+            return "mov %s, %d\n%s %s, %s" % (src, val, r.choice(["bsf", "bsr"]), self.reg(b), src)
+        if k == "bcd":
+            which = r.choice(["daa", "das", "aaa", "aas", "aam", "aad"])
+            self.mask |= {"daa": {"OF"}, "das": {"OF"}, "aaa": {"OF", "SF", "ZF", "PF"}, "aas": {"OF", "SF", "ZF", "PF"},
+                          "aam": {"OF", "AF", "CF"}, "aad": {"OF", "AF", "CF"}}[which]
+            if which in ("aam", "aad"):
+                return "%s %d" % (which, r.choice([10, 10, r.randrange(1, 256), 0 if which == "aam" and r.random() < 0.2 else 7]))
+            return which
+        if k == "string":
+            op = r.choice(["movs", "cmps", "stos", "lods", "scas"])
+            sz = r.choice(["b", "w", "d"] if self.allow32 else ["b", "w"])
+            rep = r.choice(["", "rep ", "repe ", "repne "]) if op in ("cmps", "scas") else r.choice(["", "rep "])
+            n = r.randrange(0, 6)
+            setup = "cld\n" if r.random() < 0.5 else "std\n"
+            a32 = r.random() < 0.2 and self.allow32
+            si, di, cx = ("esi", "edi", "ecx") if a32 else ("si", "di", "cx")
+            setup += "mov %s, %d\nmov %s, %d\nmov %s, %d\n" % (si, r.randrange(0x50, 0xB0), di, r.randrange(0x50, 0xB0), cx, n)
+            if a32:
+                setup += ".byte 0x67\n"
+            seg = r.choice(["", "", "es:", "ss:"]) if op in ("movs", "cmps", "lods") else ""
+            if seg:
+                setup += {"es:": ".byte 0x26\n", "ss:": ".byte 0x36\n"}[seg]
+            return setup + "%s%s%s" % (rep, op, sz)
+        if k == "bound":
+            b = r.choice([16, 32] if self.allow32 else [16])
+            return "bound %s, %s%s" % (self.reg(b), "dword ptr " if b == 16 else "qword ptr ", self.mem())
+        if k == "xlat":
+            return "xlatb"
+        if k == "lxs":
+            b = r.choice([16, 32] if self.allow32 else [16])
+            return "%s %s, %s" % (r.choice(["les", "lds", "lss", "lfs", "lgs"]), self.reg(b), ("dword ptr " if b == 16 else "fword ptr ") + self.mem())
+        if k == "int":
+            return r.choice(["int3", "int 0x21", "int 0", "into", "int 255"])
+        raise AssertionError(k)
+
+    def mem_nosi(self):
+        """Memory operand that does not use SI/ESI (they hold the bit offset)."""
+        for _ in range(50):
+            m = self.mem()
+            if "si" not in m:
+                return m
+        return "[bx]"
 
     def init_state(self):
         r = self.r

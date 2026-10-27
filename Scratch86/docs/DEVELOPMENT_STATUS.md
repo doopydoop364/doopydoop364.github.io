@@ -1,5 +1,7 @@
 # Development status
 
+> Superseded for day-to-day tracking by `docs/DEVELOPMENT_PROGRESS.md`. This file describes the v0.1 release snapshot.
+
 **Version:** 0.1.0 (CPU foundation). **Milestone:** v0.1 complete except items under "Not verified".
 
 ## Completed

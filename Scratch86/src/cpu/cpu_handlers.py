@@ -37,11 +37,21 @@ def abs_(x):
 
 def build_handlers(p, S, mem, P, new, set_size):
     H = {}
+    from cpu_math import build_math
+    from cpu_handlers2 import build_handlers2
+
+    def fchk(b):
+        """Return from the handler if a helper raised an exception (see core.cpu_fault)."""
+        with b.if_(S.FAULT_PEND > -1) as t:
+            t.stop_script()
 
     def handler(name):
         pr = new(name)
         H[name] = pr
         return pr.body()
+
+    build_math(p, S, mem, P, new, set_size, fchk)
+    extra = build_handlers2(p, S, mem, P, new, set_size, fchk)
 
     def jump_rel(b, disp):
         b.set(S.EIP, (S.EIP + disp + S.CODE_MASK) % S.CODE_MASK)
@@ -58,15 +68,18 @@ def build_handlers(p, S, mem, P, new, set_size):
             t.call(P.modrm_decode)
             with t.if_(S.H2 < 2) as u:             # r/m <- r/m op reg
                 u.call(P.rm_get, S.OPSZ)
+                fchk(u)
                 u.set(S.H3, S.RMV)
                 u.call(P.reg_get, S.OPSZ, S.REG)
                 u.call(P.alu, S.H1, S.H3, S.RV)
                 with u.if_(ne(S.H1, 7)) as w:
                     w.call(P.rm_set, S.OPSZ, S.ALU_R)
+                    fchk(w)
             with t.else_() as u:                   # reg <- reg op r/m
                 u.call(P.reg_get, S.OPSZ, S.REG)
                 u.set(S.H3, S.RV)
                 u.call(P.rm_get, S.OPSZ)
+                fchk(u)
                 u.call(P.alu, S.H1, S.H3, S.RMV)
                 with u.if_(ne(S.H1, 7)) as w:
                     w.call(P.reg_set, S.OPSZ, S.REG, S.ALU_R)
@@ -98,9 +111,11 @@ def build_handlers(p, S, mem, P, new, set_size):
             with t.if_(eq(S.OPCODE, 128)) as u:
                 u.set(S.H3, S.FB)
         b.call(P.rm_get, S.OPSZ)
+        fchk(b)
         b.call(P.alu, S.REG, S.RMV, S.H3)
         with b.if_(ne(S.REG, 7)) as t:
             t.call(P.rm_set, S.OPSZ, S.ALU_R)
+            fchk(t)
 
     with handler("h_test_rm") as (b,):             # 84 85
         with b.if_(eq(S.OPCODE, 132)) as t:
@@ -109,6 +124,7 @@ def build_handlers(p, S, mem, P, new, set_size):
             set_size(t, S.OSZ)
         b.call(P.modrm_decode)
         b.call(P.rm_get, S.OPSZ)
+        fchk(b)
         b.set(S.H3, S.RMV)
         b.call(P.reg_get, S.OPSZ, S.REG)
         b.call(P.alu, 4, S.H3, S.RV)
@@ -134,8 +150,10 @@ def build_handlers(p, S, mem, P, new, set_size):
         b.call(P.modrm_decode)
         with b.if_(S.REG < 2) as t:
             t.call(P.rm_get, 1)
+            fchk(t)
             t.call(P.incdec, S.REG, S.RMV)
             t.call(P.rm_set, 1, S.ALU_R)
+            fchk(t)
         with b.else_() as t:
             t.call(P.cpu_fault, 6)
 
@@ -144,24 +162,32 @@ def build_handlers(p, S, mem, P, new, set_size):
         b.call(P.modrm_decode)
         with b.if_(S.REG < 2) as t:
             t.call(P.rm_get, S.OPSZ)
+            fchk(t)
             t.call(P.incdec, S.REG, S.RMV)
             t.call(P.rm_set, S.OPSZ, S.ALU_R)
+            fchk(t)
         with b.else_() as t:
             with t.if_(eq(S.REG, 2)) as u:         # CALL near r/m
                 u.call(P.rm_get, S.OSZ)
+                fchk(u)
                 u.set(S.H3, S.RMV)
                 u.call(P.push, S.OSZ, S.EIP)
                 u.set(S.EIP, S.H3 % S.CODE_MASK)
             with t.else_() as u:
                 with u.if_(eq(S.REG, 4)) as w:     # JMP near r/m
                     w.call(P.rm_get, S.OSZ)
+                    fchk(w)
                     w.set(S.EIP, S.RMV % S.CODE_MASK)
                 with u.else_() as w:
                     with w.if_(eq(S.REG, 6)) as x: # PUSH r/m
                         x.call(P.rm_get, S.OSZ)
+                        fchk(x)
                         x.call(P.push, S.OSZ, S.RMV)
-                    with w.else_() as x:           # far CALL/JMP (3,5), /7: later
-                        x.call(P.cpu_fault, 6)
+                    with w.else_() as x:           # far CALL/JMP (3,5); /7 is #UD
+                        with x.if_(OR(eq(S.REG, 3), eq(S.REG, 5))) as y:
+                            y.call(P.grp5_far)
+                        with x.else_() as y:
+                            y.call(P.cpu_fault, 6)
 
     with handler("h_group3") as (b,):              # F6 F7
         with b.if_(eq(S.OPCODE, 246)) as t:
@@ -171,20 +197,25 @@ def build_handlers(p, S, mem, P, new, set_size):
         b.call(P.modrm_decode)
         with b.if_(S.REG < 2) as t:                # TEST r/m, imm
             t.call(P.rm_get, S.OPSZ)
+            fchk(t)
             t.set(S.H3, S.RMV)
             t.call(P.fetch_imm, S.OPSZ)
             t.call(P.alu, 4, S.H3, S.IMM)
         with b.else_() as t:
             with t.if_(eq(S.REG, 2)) as u:         # NOT (no flags)
                 u.call(P.rm_get, S.OPSZ)
+                fchk(u)
                 u.call(P.rm_set, S.OPSZ, S.OP_M - 1 - S.RMV)
+                fchk(u)
             with t.else_() as u:
                 with u.if_(eq(S.REG, 3)) as w:     # NEG = 0 - x
                     w.call(P.rm_get, S.OPSZ)
+                    fchk(w)
                     w.call(P.alu, 5, 0, S.RMV)
                     w.call(P.rm_set, S.OPSZ, S.ALU_R)
-                with u.else_() as w:               # MUL/IMUL/DIV/IDIV: v0.2
-                    w.call(P.cpu_fault, 6)
+                    fchk(w)
+                with u.else_() as w:               # MUL/IMUL/DIV/IDIV
+                    w.call(P.grp3_muldiv)
 
     # ------------------------------------------------------------------ MOV --
     with handler("h_mov_rm") as (b,):              # 88 89 8A 8B
@@ -196,8 +227,10 @@ def build_handlers(p, S, mem, P, new, set_size):
         with b.if_(S.OPCODE < 138) as t:           # 88/89: r/m <- reg
             t.call(P.reg_get, S.OPSZ, S.REG)
             t.call(P.rm_set, S.OPSZ, S.RV)
+            fchk(t)
         with b.else_() as t:                       # 8A/8B: reg <- r/m
             t.call(P.rm_get, S.OPSZ)
+            fchk(t)
             t.call(P.reg_set, S.OPSZ, S.REG, S.RMV)
 
     with handler("h_mov_sreg") as (b,):            # 8C 8E
@@ -208,13 +241,16 @@ def build_handlers(p, S, mem, P, new, set_size):
             with t.if_(eq(S.OPCODE, 140)) as u:    # MOV r/m, Sreg
                 with u.if_(S.EA_REG) as w:
                     w.call(P.rm_set, S.OSZ, S.SEG[S.REG + 1])
+                    fchk(w)
                 with u.if_(eq(S.EA_REG, 0)) as w:
                     w.call(P.rm_set, 2, S.SEG[S.REG + 1])
+                    fchk(w)
             with t.else_() as u:                   # MOV Sreg, r/m
                 with u.if_(eq(S.REG, 1)) as w:     # MOV CS is #UD
                     w.call(P.cpu_fault, 6)
                 with u.else_() as w:
                     w.call(P.rm_get, 2)
+                    fchk(w)
                     w.call(P.seg_load, S.REG, S.RMV)
 
     with handler("h_lea") as (b,):                 # 8D
@@ -228,6 +264,7 @@ def build_handlers(p, S, mem, P, new, set_size):
                 u.call(P.reg_set, 4, S.REG, S.EA_OFF)
 
     with handler("h_pop_rm") as (b,):              # 8F /0
+        b.set(S.H4, S.GPR[5])                      # ESP before the pop (restored if the store faults)
         b.call(P.pop, S.OSZ)
         b.set(S.H3, S.PV)
         b.call(P.modrm_decode)
@@ -235,6 +272,8 @@ def build_handlers(p, S, mem, P, new, set_size):
             t.call(P.cpu_fault, 6)
         with b.else_() as t:
             t.call(P.rm_set, S.OSZ, S.H3)
+            with t.if_(S.FAULT_PEND > -1) as u:
+                u.replace(S.GPR, 5, S.H4)
 
     with handler("h_xchg_rm") as (b,):             # 86 87
         with b.if_(eq(S.OPCODE, 134)) as t:
@@ -243,10 +282,12 @@ def build_handlers(p, S, mem, P, new, set_size):
             set_size(t, S.OSZ)
         b.call(P.modrm_decode)
         b.call(P.rm_get, S.OPSZ)
+        fchk(b)
         b.set(S.H3, S.RMV)
         b.call(P.reg_get, S.OPSZ, S.REG)
         b.set(S.H4, S.RV)
         b.call(P.rm_set, S.OPSZ, S.H4)
+        fchk(b)
         b.call(P.reg_set, S.OPSZ, S.REG, S.H3)
 
     with handler("h_xchg_acc") as (b,):            # 90-97 (90 = NOP)
@@ -277,6 +318,7 @@ def build_handlers(p, S, mem, P, new, set_size):
         with b.else_() as t:
             t.call(P.fetch_imm, S.OPSZ)
             t.call(P.rm_set, S.OPSZ, S.IMM)
+            fchk(t)
 
     with handler("h_mov_moffs") as (b,):           # A0-A3
         with b.if_(eq(S.OPCODE % 2, 0)) as t:
@@ -467,20 +509,43 @@ def build_handlers(p, S, mem, P, new, set_size):
         (0xFE, 0xFE, "h_group4"),
         (0xFF, 0xFF, "h_group5"),
     ]
-    # Prefix opcodes inside 00-3F are consumed by the prefix loop and never get here.
-    # Within 00-3F, only low3 in 0..5 are ALU forms; others (06 07 0E 0F 16 17 1E 1F
-    # 27 2F 37 3F) must fault.  The ALU handler would mis-decode them, so carve
-    # them out explicitly.
-    carve = []
-    for base in range(0x00, 0x40, 8):
-        carve.append((base + 6, base + 7))
-    alu_ranges = []
-    lo = 0x00
-    for a, bnd in carve:
-        if a > lo:
-            alu_ranges.append((lo, a - 1, "h_alu_family"))
-        alu_ranges.append((a, bnd, "h_unsupported"))
-        lo = bnd + 1
-    ranges = alu_ranges + [r for r in ranges if r[0] >= 0x40]
-    S.DISPATCH = ranges
+    # Per-opcode map (existing handlers, then the v0.2 ones override), compressed to ranges.
+    table = {}
+    for lo, hi, nm in ranges:
+        for o in range(lo, hi + 1):
+            table[o] = nm
+    for base in range(0x00, 0x40, 8):          # carve non-ALU slots of 00-3F; they get explicit handlers
+        for o in (base + 6, base + 7):
+            table[o] = "h_unsupported"
+    for lo, hi, nm in [(a, b, n) for a, b, n in extra if b < 0x100]:
+        for o in range(lo, hi + 1):
+            table[o] = nm
+    table[0x6B] = table[0x69] = "h_imul"
+    for o in (0xC0, 0xC1, 0xD0, 0xD1, 0xD2, 0xD3):
+        table[o] = "h_shift"
+    S.DISPATCH = compress(table)
+    two = {}
+    for lo, hi, nm in [(a, b, n) for a, b, n in extra if b >= 0x100]:
+        for o in range(lo, hi + 1):
+            two[o] = nm
+    two[0x1AF] = "h_imul"
+    for o in (0x1A4, 0x1A5, 0x1AC, 0x1AD):
+        two[o] = "h_shxd"
+    S.DISPATCH2 = compress(two)
+    with new("h_0f").body() as (b,):                 # two-byte opcode escape; OPCODE becomes 0x100 + byte
+        b.call(P.fetch8)
+        b.set(S.OPCODE, S.FB + 256)
+        cases = [(lo, hi, (lambda u, nm=nm: u.call(getattr(P, nm)))) for lo, hi, nm in S.DISPATCH2]
+        b.dispatch(S.OPCODE, cases, default=lambda u: u.call(P.h_unsupported))
+    S.DISPATCH = compress({**table, 0x0F: "h_0f"})
     return H
+
+
+def compress(table):
+    out = []
+    for o in sorted(table):
+        if out and out[-1][1] == o - 1 and out[-1][2] == table[o]:
+            out[-1] = (out[-1][0], o, table[o])
+        else:
+            out.append((o, o, table[o]))
+    return out
