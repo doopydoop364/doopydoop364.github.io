@@ -44,7 +44,7 @@ def build_pm(p, S, mem, P, new, set_size, fchk):
             t.set(S.TA, S.GDTR_BASE)
             t.set(S.TB, S.GDTR_LIM)
         with b.if_(floor(sel / 8) * 8 + 7 > S.TB) as t:
-            fault_sel(t, 13, sel)
+            t.call(P.cpu_fault_err, S.DESC_VEC, sel - sel % 4 + S.DESC_EXT)
             t.stop_script()
         b.set(S.D_LIN, (S.TA + floor(sel / 8) * 8) % 4294967296)
         b.call(mem.mem_rd, S.D_LIN)
@@ -536,6 +536,8 @@ def build_pm(p, S, mem, P, new, set_size, fchk):
             t.set(S.ZF, 0)
     ents.append((0x63, 0x63, "h_arpl"))
 
+    from cpu_pm_int import build_pm_int
+    build_pm_int(p, S, mem, P, new, fchk, (commit, set_accessed))
     return ents
 
 

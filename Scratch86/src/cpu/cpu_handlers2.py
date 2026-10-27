@@ -114,17 +114,20 @@ def build_handlers2(p, S, mem, P, new, set_size, fchk):
 
     # ----------------------------------------------------------- INT etc. --
     with handler("h_int3", 0xCC) as (b,):
-        b.call(P.cpu_trap, 3)
+        b.call(P.cpu_trap, 3, 1)
 
     with handler("h_int", 0xCD) as (b,):
         b.call(P.fetch8)
-        b.call(P.cpu_trap, S.FB)
+        b.call(P.cpu_trap, S.FB, 1)
 
     with handler("h_into", 0xCE) as (b,):
         with b.if_(eq(S.OF, 1)) as t:
-            t.call(P.cpu_trap, 4)
+            t.call(P.cpu_trap, 4, 1)
 
     with handler("h_iret", 0xCF) as (b,):
+        with b.if_(eq(S.CR0 % 2, 1)) as t:
+            t.call(P.ret_far_pm, 1, 0)
+            t.stop_script()
         b.set(S.H4, S.GPR[5])
         b.call(P.pop, S.OSZ)
         b.set(S.H1, S.PV)
@@ -184,6 +187,9 @@ def build_handlers2(p, S, mem, P, new, set_size, fchk):
             t.set(S.H2, S.IMM)
         with b.else_() as t:
             t.set(S.H2, 0)
+        with b.if_(eq(S.CR0 % 2, 1)) as t:
+            t.call(P.ret_far_pm, 0, S.H2)
+            t.stop_script()
         b.set(S.X7, S.GPR[5])
         b.call(P.pop, S.OSZ)
         b.set(S.H1, S.PV)
@@ -335,6 +341,8 @@ def build_handlers2(p, S, mem, P, new, set_size, fchk):
             t.set(S.X8, 1)
         with b.else_() as t:
             t.set(S.X8, S.OSZ)
+        b.call(P.io_check, S.FB, S.X8)
+        fchk(b)
         b.call(P.io_in, S.FB, S.X8)
         b.call(P.reg_set, S.X8, 0, S.IOV)
 
@@ -345,6 +353,8 @@ def build_handlers2(p, S, mem, P, new, set_size, fchk):
             t.set(S.X8, 1)
         with b.else_() as t:
             t.set(S.X8, S.OSZ)
+        b.call(P.io_check, S.H3, S.X8)
+        fchk(b)
         b.call(P.reg_get, S.X8, 0)
         b.call(P.io_out, S.H3, S.X8, S.RV)
 
@@ -355,6 +365,8 @@ def build_handlers2(p, S, mem, P, new, set_size, fchk):
             t.set(S.X8, 1)
         with b.else_() as t:
             t.set(S.X8, S.OSZ)
+        b.call(P.io_check, S.H3, S.X8)
+        fchk(b)
         b.call(P.io_in, S.H3, S.X8)
         b.call(P.reg_set, S.X8, 0, S.IOV)
 
@@ -365,6 +377,8 @@ def build_handlers2(p, S, mem, P, new, set_size, fchk):
             t.set(S.X8, 1)
         with b.else_() as t:
             t.set(S.X8, S.OSZ)
+        b.call(P.io_check, S.H3, S.X8)
+        fchk(b)
         b.call(P.reg_get, S.X8, 0)
         b.call(P.io_out, S.H3, S.X8, S.RV)
 
@@ -631,6 +645,8 @@ def ins_outs_body(b, S, P, set_size, fchk):
     b.set(S.H3, S.RV)
     b.call(P.reg_get, S.ASZ, 7)
     b.set(S.H4, S.RV)
+    b.call(P.io_check, S.H1, S.OPSZ)
+    fchk(b)
     b.set(S.X1, S.OPSZ - 2 * S.DF * S.OPSZ)
     with b.if_(S.OPCODE < 0x6E) as t:                   # INS
         t.set(S.EA_SEG, 0)

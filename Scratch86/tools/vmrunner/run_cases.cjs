@@ -75,10 +75,11 @@ function peekByte(vm, addr) { const l = ramList(vm, addr >> 16); return l ? l[ad
             res.eip = lib.getVar(vm, 'EIP');
             res.state = lib.getVar(vm, 'CPU_STATE (0=off 1=run 2=halted 3=fault)');
             res.cr0 = lib.getVar(vm, 'CR0');
+            res.shutdown = lib.getVar(vm, 'CPU shut down (triple fault)');
             res.cpl = lib.getVar(vm, 'current privilege level');
             res.fault = {vec: lib.getVar(vm, 'FAULT vector (6=#UD 0=#DE)'),
                          opc: lib.getVar(vm, 'FAULT opcode'), eip: lib.getVar(vm, 'FAULT instruction EIP'),
-                         err: lib.getVar(vm, 'pending exception error code')};
+                         err: lib.getVar(vm, 'error code of the first (original) exception')};
             res.insns = lib.getVar(vm, 'executed instructions');
             res.mem = [];
             for (const pk of (c.peek || [])) {

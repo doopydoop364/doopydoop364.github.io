@@ -51,10 +51,20 @@ non-conforming rules, same privilege level); LGDT LIDT SGDT SIDT (16-bit operand
 LLDT SLDT LTR STR VERR VERW LAR LSL ARPL SMSW LMSW CLTS MOV CRn (CR0 write mask depends on the CPU profile
 variable; default 386); returning to real mode keeps the hidden limits (unreal mode works).
 Real-mode segment loads never touch the hidden limit/attributes, matching hardware.
-Not yet (they raise vector 256 and stop visibly, never silently): IDT delivery of exceptions in protected mode,
-privilege transitions (TSS stack switch, call gates, IRET/RETF to outer levels), task gates/TSS switching, V86,
-I/O permission checks, debug registers, paging. See DEVELOPMENT_PROGRESS.md for the v0.3 plan.
 
+## Protected-mode interrupts, exceptions and privilege (v0.3 slice B)
+Implemented: IDT lookup for every event; 16- and 32-bit interrupt and trap gates (interrupt gates clear IF; TF, NT,
+RF, VM always cleared); gate DPL check for software interrupts (INT n/INT3/INTO); error codes (selector index + IDT/EXT
+bits) pushed for #DF #TS #NP #SS #GP #PF #AC; same-privilege frames and inner-privilege frames with the SS:ESP
+switch through the TSS (16- and 32-bit TSS layouts, TSS limit and new-SS validity checks, #TS/#SS); IRET and RETF to the
+same or an outer privilege level (pops SS:ESP, validates it, nulls data segments the new level may not use, releases RETF n
+parameters on both stacks); POPF/IRET flag rules (IF only when CPL <= IOPL, IOPL only at CPL 0); CLI/STI/HLT privilege;
+IN/OUT/INS/OUTS permission via IOPL and the TSS I/O bitmap (#GP(0)); double-fault classification (contributory/#PF rules)
+and triple-fault shutdown (CPU stops with vector 257); every fault restores ESP and EIP to their pre-instruction values.
+Still missing (vector 256, visible stop): task gates and task switching (NT, TSS jumps/calls), call gates, return to
+virtual-8086 mode, V86 itself, debug registers, paging, hardware interrupt delivery (needs the PIC, v0.5).
+
+## Exceptions
 ## Exceptions
 `cpu_fault(vec)` / `cpu_trap(vec)` record a pending exception; the faulting helper returns early and the
 handler re-checks `FAULT_PEND` before changing architectural state. `cpu_step` then calls `exc_deliver`:

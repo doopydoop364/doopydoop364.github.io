@@ -137,6 +137,7 @@ def build(p, S, mem):
             t.set(S.FAULT_PEND, vec)
             t.set(S.FAULT_ERR, 0)
             t.set(S.FAULT_TRAP, 0)
+            t.set(S.FAULT_SOFT, 0)
 
     pr = new("cpu_fault_err", ["vec", "err"])
     with pr.body() as (b, vec, err):
@@ -144,6 +145,7 @@ def build(p, S, mem):
             t.set(S.FAULT_PEND, vec)
             t.set(S.FAULT_ERR, err)
             t.set(S.FAULT_TRAP, 0)
+            t.set(S.FAULT_SOFT, 0)
 
     # EA_SEG:EA_OFF access check against the hidden descriptor cache.  Fast path: ordinary
     # read/write expand-up segment (SEGPERM == 7) whose limit is not exceeded.
@@ -176,12 +178,13 @@ def build(p, S, mem):
         with b.if_(OR(ne(S.SEGPERM[S.EA_SEG + 1], 7), S.EA_OFF + size - 1 > S.SEGLIM[S.EA_SEG + 1])) as t:
             t.call(P.ea_slow, size, wr)
 
-    pr = new("cpu_trap", ["vec"])      # software interrupt / trap: pushes the *next* EIP
-    with pr.body() as (b, vec):
+    pr = new("cpu_trap", ["vec", "soft"])      # software interrupt / trap: pushes the *next* EIP
+    with pr.body() as (b, vec, soft):
         with b.if_(S.FAULT_PEND < 0) as t:
             t.set(S.FAULT_PEND, vec)
             t.set(S.FAULT_ERR, 0)
             t.set(S.FAULT_TRAP, 1)
+            t.set(S.FAULT_SOFT, soft)
 
     # ======================================================================
     # stack
@@ -190,9 +193,16 @@ def build(p, S, mem):
     with pr.body() as (b, size, val):
         with b.if_(S.STK32) as t:
             t.set(S.SPW, (S.GPR[5] - size + 4294967296) % 4294967296)
-            t.replace(S.GPR, 5, S.SPW)
         with b.else_() as t:
             t.set(S.SPW, (S.GPR[5] % 65536 - size + 65536) % 65536)
+        b.set(S.EA_SEG, 2)
+        b.set(S.EA_OFF, S.SPW)
+        b.call(P.ea_chk, size, 1)
+        with b.if_(S.FAULT_PEND > -1) as t:
+            t.stop_script()
+        with b.if_(S.STK32) as t:
+            t.replace(S.GPR, 5, S.SPW)
+        with b.else_() as t:
             t.replace(S.GPR, 5, S.GPR[5] - S.GPR[5] % 65536 + S.SPW)
         b.set(S.TD, (S.SEGBASE[3] + S.SPW) % 4294967296)
         with b.if_(eq(size, 2)) as t:
@@ -206,6 +216,11 @@ def build(p, S, mem):
             t.set(S.SPW, S.GPR[5])
         with b.else_() as t:
             t.set(S.SPW, S.GPR[5] % 65536)
+        b.set(S.EA_SEG, 2)
+        b.set(S.EA_OFF, S.SPW)
+        b.call(P.ea_chk, size, 0)
+        with b.if_(S.FAULT_PEND > -1) as t:
+            t.stop_script()
         b.set(S.TD, (S.SEGBASE[3] + S.SPW) % 4294967296)
         with b.if_(eq(size, 2)) as t:
             t.call(mem.mem_rw, S.TD)
@@ -344,14 +359,19 @@ def build(p, S, mem):
         b.set(S.ZF, floor(val / 64) % 2)
         b.set(S.SF, floor(val / 128) % 2)
         b.set(S.TF, floor(val / 256) % 2)
-        b.set(S.IF, floor(val / 512) % 2)
+        # protected mode: IF changes only when CPL <= IOPL, IOPL only at CPL 0
+        with b.if_(OR(eq(S.CR0 % 2, 0), S.CPL < floor(S.EFL_OTHER / 4096) % 4 + 1)) as t:
+            t.set(S.IF, floor(val / 512) % 2)
         b.set(S.DF, floor(val / 1024) % 2)
         b.set(S.OF, floor(val / 2048) % 2)
-        # bits 12-15 (IOPL, NT) are writable; VM(17)/RF(16) are preserved by POPF.
+        b.set(S.TB, floor(val / 4096) % 16)                  # bits 12-15: IOPL(2) NT(1) bit 15
+        with b.if_(AND(eq(S.CR0 % 2, 1), ne(S.CPL, 0))) as t:
+            t.set(S.TB, S.TB - S.TB % 4 + floor(S.EFL_OTHER / 4096) % 4)
+        # VM(17)/RF(16) are preserved by POPF/IRET here
         with b.if_(eq(size, 2)) as t:
-            t.set(S.EFL_OTHER, S.EFL_OTHER - S.EFL_OTHER % 65536 + floor(val / 4096) % 16 * 4096)
+            t.set(S.EFL_OTHER, S.EFL_OTHER - S.EFL_OTHER % 65536 + S.TB * 4096)
         with b.else_() as t:
-            t.set(S.EFL_OTHER, floor(S.EFL_OTHER / 65536) % 4 * 65536 + floor(val / 4096) % 16 * 4096 +
+            t.set(S.EFL_OTHER, floor(S.EFL_OTHER / 65536) % 4 * 65536 + S.TB * 4096 +
                   floor(val / 262144) * 262144)
 
     pr = new("cond_eval", ["cc"])

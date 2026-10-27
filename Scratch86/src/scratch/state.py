@@ -82,6 +82,17 @@ def declare(p, ram_banks=RAM_BANKS):
     # ---- CPU run control ----------------------------------------------------
     S.CPU_STATE = v("CPU_STATE (0=off 1=run 2=halted 3=fault)")
     S.FAULT_VEC = v("FAULT vector (6=#UD 0=#DE)")
+    S.FAULT_ERR1 = v("error code of the first (original) exception")
+    S.SHUTDOWN = v("CPU shut down (triple fault)")
+    S.FAULT_SOFT = v("pending exception is a software interrupt (INT n / INT3 / INTO)")
+    S.ESP_START = v("ESP at start of the current instruction")
+    S.DESC_VEC = v("vector raised by descriptor-table limit violations", 13)
+    S.DESC_EXT = v("EXT bit added to descriptor-fetch error codes")
+    for _n in ("E_VEC", "E_SOFT", "E_EXT", "E_ERR", "E_HAS", "E_IDT", "E_TYPE", "E_SEL", "E_OFF", "E_SZ", "E_SERR",
+               "E_CATTR", "E_CBASE", "E_CLIM", "E_CLIN", "E_NCPL", "E_EFL", "E_OSS", "E_OESP", "E_TERR", "E_NESP",
+               "E_NSS", "E_NATTR", "X_DEPTH", "X_VEC", "X_ERR", "X_SOFT", "X_DONE", "X_NV", "X_NE", "R_EIP", "R_CS",
+               "R_EFL", "R_RPL", "R_ESP", "R_SS"):
+        setattr(S, _n, v("pm temp " + _n))
     S.TF_START = v("TF at start of the current instruction")
     S.FAULT_PEND = v("pending exception vector (-1 none)", -1)
     S.FAULT_ERR = v("pending exception error code")

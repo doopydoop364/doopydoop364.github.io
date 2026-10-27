@@ -34,12 +34,14 @@ def build(p, S, mem, P):
             t.set(S.CPU_STATE, 3)
             t.stop_script()
         b.set(S.FAULT_VEC, S.H4)
+        b.set(S.FAULT_ERR1, S.FAULT_ERR)
         b.set(S.FAULT_OPC, S.OPCODE)
         b.set(S.FAULT_EIP, S.EIP_START)
         with b.if_(eq(S.FAULT_TRAP, 0)) as t:
             t.set(S.EIP, S.EIP_START)
-        with b.if_(eq(S.CR0 % 2, 1)) as t:     # protected-mode IDT delivery: v0.3 slice B (visible stop meanwhile)
-            t.set(S.CPU_STATE, 3)
+            t.replace(S.GPR, 5, S.ESP_START)   # a faulting instruction leaves no partial stack effects
+        with b.if_(eq(S.CR0 % 2, 1)) as t:     # protected mode: IDT gates, privilege switch, #DF rules
+            t.call(P.pm_exc, S.H4)
             t.stop_script()
         b.call(mem.mem_rw, S.H4 * 4)
         b.set(S.H3, S.MEMV)                    # new IP
@@ -67,6 +69,7 @@ def build(p, S, mem, P):
     with pr.body() as (b,):
         b.set(S.EIP_START, S.EIP)
         b.set(S.TF_START, S.TF)
+        b.set(S.ESP_START, S.GPR[5])
         b.set(S.LAST_FETCH, (S.SEGBASE[2] + S.EIP) % 4294967296)
         b.set(S.PFX_SEG, -1)
         b.set(S.PFX_REP, 0)
@@ -106,7 +109,7 @@ def build(p, S, mem, P):
             with t.if_(AND(ne(S.CPU_STATE, 3), OR(S.FAULT_PEND < 0, eq(S.FAULT_TRAP, 1)))) as u:
                 u.change(S.INSN_COUNT, 1)      # faulting instructions do not retire
             with t.if_(AND(eq(S.TF_START, 1), S.FAULT_PEND < 0, eq(S.CPU_STATE, 1))) as u:
-                u.call(P.cpu_trap, 1)          # single-step trap after the instruction
+                u.call(P.cpu_trap, 1, 0)          # single-step trap after the instruction
         with b.if_(S.FAULT_PEND > -1) as t:
             t.call(P.exc_deliver)
 
@@ -157,6 +160,7 @@ def build(p, S, mem, P):
         b.set(S.CPU_STATE, 1)
         b.set(S.FAULT_VEC, 0)
         b.set(S.FAULT_PEND, -1)
+        b.set(S.SHUTDOWN, 0)
         b.set(S.INSN_COUNT, 0)
         b.set(S.PFX_SEG, -1)
         b.set(S.LAST_FETCH, 0)

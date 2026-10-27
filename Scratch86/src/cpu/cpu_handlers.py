@@ -412,6 +412,10 @@ def build_handlers(p, S, mem, P, new, set_size):
             t.call(P.reg_set, 1, 4, S.SF * 128 + S.ZF * 64 + S.AF * 16 + S.PF * 4 + 2 + S.CF)
 
     with handler("h_flagops") as (b,):             # F5 F8-FD
+        with b.if_(AND(OR(eq(S.OPCODE, 0xFA), eq(S.OPCODE, 0xFB)), eq(S.CR0 % 2, 1),
+                       S.CPL > floor(S.EFL_OTHER / 4096) % 4)) as t:      # CLI/STI need CPL <= IOPL
+            t.call(P.cpu_fault_err, 13, 0)
+            t.stop_script()
         b.dispatch(S.OPCODE, [
             (0xF5, 0xF5, lambda t: t.set(S.CF, 1 - S.CF)),
             (0xF8, 0xF8, lambda t: t.set(S.CF, 0)),
@@ -480,6 +484,9 @@ def build_handlers(p, S, mem, P, new, set_size):
                 jump_rel(u, S.H3)
 
     with handler("h_hlt") as (b,):                 # F4
+        with b.if_(AND(eq(S.CR0 % 2, 1), ne(S.CPL, 0))) as t:
+            t.call(P.cpu_fault_err, 13, 0)
+            t.stop_script()
         b.set(S.CPU_STATE, 2)
 
     with handler("h_unsupported") as (b,):

@@ -10,7 +10,7 @@ Large OS images and product keys live in `media/` (git-ignored). Scratch/log fil
 * Exceptions: pending-fault convention + real-mode IVT delivery + TF trap done. Segment-limit checks done for r/m, string, XLAT, BOUND, far-pointer accesses (not yet for stack pushes/pops, moffs, instruction fetch).
 * OS Palooza drive present but **unmounted** -> docs/os-media-inventory.md (needs user approval to mount read-only).
 
-* **v0.3 slice A (protected-mode segmentation) done**: 20 directed PM tests + 2000-program PM differential (0 mismatches). Slice B (IDT delivery, privilege transitions, IRET/RETF outer, gates, TSS, V86) next; draft in `src/cpu/cpu_pm_int.py.new`.
+* **v0.3 slices A+B done**: 36 directed protected-mode tests, 2000-program PM differential (0 mismatches), real-mode differential re-run (0 mismatches).
 
 ## Decisions
 * Fault convention: a faulting helper calls `cpu_fault` and `stop_script`s (returns from the helper); handlers call `fchk` after rm_get/rm_set etc. and before modifying state; `cpu_step` delivers after the handler (control.py `exc_deliver`).
@@ -28,10 +28,26 @@ Large OS images and product keys live in `media/` (git-ignored). Scratch/log fil
 5. LOCK prefix validity (#UD on non-lockable), 0F 1F NOP hints, SALC, ICEBP.
 6. Visual verification of the renderer in TurboWarp; browser benchmark (docs/DEVELOPMENT_STATUS.md "Not verified").
 
-## Next tasks
-1. Commit/push v0.2 slice; run big differential (S86_DIFF_N=3000) in CI-equivalent form.
-2. v0.3: CPU profile variable, CR0/CR2/CR3/CR4-less control registers, hidden segment descriptor cache (base, limit, attributes), GDT/LDT/IDT, protected-mode segment loads with checks, far transfers/gates, privilege and TSS stack switch, protected-mode IDT delivery with error codes, system instructions (LGDT LIDT LLDT LTR LMSW SMSW MOV CRn CLTS ARPL LAR LSL VERR VERW INVLPG), then #GP/#SS/#NP/#PF/#DF semantics.
-3. Test strategy for v0.3: Unicorn supports protected mode (UC_MODE_32) with descriptor tables set up by the test; build a protected-mode program generator + directed privilege tests.
+## v0.3 status
+Slice A (segmentation, system instructions) and slice B (IDT delivery, privilege transitions, IRET/RETF outer, I/O bitmap,
+#DF/triple fault) are implemented and tested (see docs/cpu.md). Remaining for the v0.3 acceptance criteria:
+1. Call gates, task gates and TSS task switching (far CALL/JMP to TSS, INT through task gate, IRET with NT, #DF task gate) - currently vector 256.
+2. Virtual-8086 mode (VM flag, IRET to V86, V86 interrupt redirection through the IVT/IOPL, #GP monitor traps).
+3. CPU profiles (8086/286/386/486 gating of opcodes and flag behaviour) - `PROFILE` variable exists, only CR0 write mask and INVD/INVLPG use it.
+4. Debug registers (MOV DRn currently vector 256), alignment check (#AC), #NM/#MF placeholders for the FPU.
+5. Randomised protected-mode privilege tests against Unicorn (needs ring-3 execution in the oracle); today privilege logic is covered by directed tests only.
+
+## Next tasks (highest first)
+1. v0.3 remaining items above (1-2 matter for Windows 9x/NT; call gates for Win9x thunks, task gates for #DF).
+2. v0.4: paging (see plan below), then RAM sizes 2-128 MiB, ROM/MMIO regions.
+3. v0.5 hardware (PIC/PIT/CMOS/8042/FDC/IDE/VGA) and v0.6 BIOS.
+
+### Paging plan (v0.4)
+* Translation inside the memory procs (`_xlate` in memory.py): when CR0.PG, linear -> physical via a direct-mapped TLB (list-based), page walk on miss with A/D bit updates, U/S and R/W checks (CR0.WP for supervisor writes), #PF with CR2 + error code (P, W/R, U/S, RSVD, I/D).
+* Page-crossing accesses fall back to byte-wise paths after probing both pages (no partial writes).
+* Every caller must check `FAULT_PEND` after memory access: rm_get/rm_set already do (fchk). To add: fchk after every `pop`, `fetch8`, `fetch_imm`, `modrm_decode` call in the handlers (regex pass), and a fetch-fault check in the prefix loop of cpu_step.
+* RMW instructions need a write-probe before any flag change (use a `rm_get_w` variant) so a restarted instruction sees the original flags.
+* INVLPG, MOV CR3, MOV CR0 (PG/WP changes) flush the TLB.
 
 ## Blockers
 * OS Palooza unmounted (needs user approval).
