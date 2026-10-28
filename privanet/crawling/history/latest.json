@@ -164,13 +164,13 @@
       },
       {
         "blocked": 0,
-        "done": 46,
+        "done": 47,
         "failed": 0,
         "failures": 0,
         "frontier_total": 1922,
         "host": "www.espn.com",
         "in_flight": 0,
-        "pending": 1876
+        "pending": 1875
       },
       {
         "blocked": 0,
@@ -347,10 +347,10 @@
         "done": 0,
         "failed": 0,
         "failures": 0,
-        "frontier_total": 769,
+        "frontier_total": 770,
         "host": "facebook.com",
         "in_flight": 0,
-        "pending": 769
+        "pending": 770
       },
       {
         "blocked": 0,
@@ -704,13 +704,13 @@
       },
       {
         "blocked": 0,
-        "done": 23,
+        "done": 24,
         "failed": 0,
         "failures": 0,
         "frontier_total": 470,
         "host": "stackoverflow.com",
         "in_flight": 0,
-        "pending": 447
+        "pending": 446
       },
       {
         "blocked": 0,
@@ -754,13 +754,13 @@
       },
       {
         "blocked": 0,
-        "done": 31,
+        "done": 32,
         "failed": 0,
         "failures": 0,
         "frontier_total": 454,
         "host": "gitlab.com",
         "in_flight": 0,
-        "pending": 423
+        "pending": 422
       },
       {
         "blocked": 0,
@@ -884,13 +884,13 @@
       },
       {
         "blocked": 0,
-        "done": 22,
+        "done": 21,
         "failed": 0,
         "failures": 0,
         "frontier_total": 370,
         "host": "www.patreon.com",
         "in_flight": 0,
-        "pending": 348
+        "pending": 349
       },
       {
         "blocked": 0,
@@ -984,6 +984,16 @@
       },
       {
         "blocked": 0,
+        "done": 19,
+        "failed": 0,
+        "failures": 4,
+        "frontier_total": 330,
+        "host": "amzn.to",
+        "in_flight": 0,
+        "pending": 311
+      },
+      {
+        "blocked": 0,
         "done": 28,
         "failed": 0,
         "failures": 0,
@@ -991,16 +1001,6 @@
         "host": "www.rfc-editor.org",
         "in_flight": 0,
         "pending": 302
-      },
-      {
-        "blocked": 0,
-        "done": 19,
-        "failed": 0,
-        "failures": 4,
-        "frontier_total": 329,
-        "host": "amzn.to",
-        "in_flight": 0,
-        "pending": 310
       },
       {
         "blocked": 0,
@@ -1054,12 +1054,12 @@
       },
       {
         "blocked": 0,
-        "done": 15,
+        "done": 16,
         "failed": 0,
         "failures": 0,
         "frontier_total": 303,
         "host": "sourceforge.net",
-        "in_flight": 1,
+        "in_flight": 0,
         "pending": 287
       },
       {
@@ -1134,13 +1134,13 @@
       },
       {
         "blocked": 0,
-        "done": 29,
+        "done": 30,
         "failed": 0,
         "failures": 0,
         "frontier_total": 264,
         "host": "huggingface.co",
         "in_flight": 0,
-        "pending": 235
+        "pending": 234
       },
       {
         "blocked": 0,
@@ -1234,13 +1234,13 @@
       },
       {
         "blocked": 0,
-        "done": 27,
+        "done": 28,
         "failed": 0,
         "failures": 0,
         "frontier_total": 249,
         "host": "www.barnesandnoble.com",
         "in_flight": 0,
-        "pending": 222
+        "pending": 221
       },
       {
         "blocked": 0,
@@ -1494,13 +1494,13 @@
       },
       {
         "blocked": 0,
-        "done": 24,
+        "done": 25,
         "failed": 0,
         "failures": 0,
         "frontier_total": 214,
         "host": "www.genome.gov",
         "in_flight": 0,
-        "pending": 190
+        "pending": 189
       },
       {
         "blocked": 0,
@@ -1604,13 +1604,13 @@
       },
       {
         "blocked": 0,
-        "done": 22,
+        "done": 23,
         "failed": 0,
         "failures": 0,
         "frontier_total": 199,
         "host": "www.wired.com",
         "in_flight": 0,
-        "pending": 177
+        "pending": 176
       },
       {
         "blocked": 0,
@@ -1724,13 +1724,13 @@
       },
       {
         "blocked": 0,
-        "done": 24,
+        "done": 25,
         "failed": 0,
         "failures": 0,
         "frontier_total": 184,
         "host": "www.anantara.com",
         "in_flight": 0,
-        "pending": 160
+        "pending": 159
       },
       {
         "blocked": 0,
@@ -2474,13 +2474,13 @@
       },
       {
         "blocked": 0,
-        "done": 16,
+        "done": 17,
         "failed": 0,
         "failures": 0,
         "frontier_total": 142,
         "host": "git-scm.com",
         "in_flight": 0,
-        "pending": 126
+        "pending": 125
       },
       {
         "blocked": 0,
@@ -2503,7 +2503,7 @@
         "pending": 115
       }
     ],
-    "total": 143306
+    "total": 143315
   },
   "errors": {
     "returned": 100,
@@ -3709,746 +3709,746 @@
         "url": "https://travis-ci.org/broadinstitute/picard"
       }
     ],
-    "total": 25738
+    "total": 25757
   },
-  "generated_at": "2026-10-28T19:44:29.529056+00:00",
+  "generated_at": "2026-10-28T23:38:12.944875+00:00",
   "health": {
-    "dashboard_uptime_sec": 2156838,
-    "data_age_sec": 1.382616,
+    "dashboard_uptime_sec": 2170862,
+    "data_age_sec": 0.387578,
     "failed_polls": 415,
     "last_error": null,
     "last_poll_ms": 1,
-    "last_success": "2026-10-28T19:44:24.837574+00:00",
-    "successful_polls": 693797
+    "last_success": "2026-10-28T23:38:09.274959+00:00",
+    "successful_polls": 698361
   },
   "quality": {
-    "duplicate_ratio": 0.06714457321130729,
-    "failed_frontier_ratio": 0.05017026858968486,
+    "duplicate_ratio": 0.06713494121024649,
+    "failed_frontier_ratio": 0.05020113979215555,
     "host_share_note": "Calculated from the host rows included in this response.",
-    "top_host_frontier_share": 0.017652492217166707
+    "top_host_frontier_share": 0.017652190274190512
   },
   "recent": {
     "returned": 100,
     "rows": [
       {
-        "fetched_at": 1793216603320,
-        "host": "www.citroen.com",
+        "fetched_at": 1793230669638,
+        "host": "www.codersnotes.com",
         "http_status": 200,
-        "title": "Politique de cookies | Citro\u00ebn France",
-        "url": "https://www.citroen.com/en/tools/cookies-policy.html"
+        "title": "What The Hell Was The Microsoft Network?",
+        "url": "http://www.codersnotes.com/notes/the-microsoft-network"
       },
       {
-        "fetched_at": 1793216523166,
-        "host": "cxotoday.com",
+        "fetched_at": 1793230659066,
+        "host": "www.sarahlawrence.edu",
         "http_status": 200,
-        "title": "AI Glossary: A Ready-Reckoner for Getting a Hang on the AI Ecosystem",
-        "url": "https://cxotoday.com/ai/the-ai-jargon-everyone-should-know-opaque-recurrence-and-recurrent-depth/"
+        "title": "LC Home | Sarah Lawrence College",
+        "url": "https://www.sarahlawrence.edu/library/learningcommons/"
       },
       {
-        "fetched_at": 1793216519704,
-        "host": "tech.eu",
+        "fetched_at": 1793230654822,
+        "host": "wonkhe.com",
         "http_status": 200,
-        "title": "AI study platform StudyStash acquired by Kortext after rapid global expansion - Tech.eu",
-        "url": "https://tech.eu/2026/10/02/ai-study-platform-studystash-acquired-by-kortext-after-rapid-global-expansion/"
+        "title": "Unlocking the potential of working with charity and community groups \u2013 Wonkhe",
+        "url": "https://wonkhe.com/blogs/unlocking-the-potential-of-working-with-charity-and-community-groups"
       },
       {
-        "fetched_at": 1793216515470,
-        "host": "trailheaddirect.org",
+        "fetched_at": 1793230654815,
+        "host": "livemontaireslc.com",
         "http_status": 200,
-        "title": "Uncategorized \u2013 Trailhead Direct",
-        "url": "https://trailheaddirect.org/category/uncategorized/"
+        "title": "Neighborhood | Apartments Near University Of Utah | Montaire",
+        "url": "https://livemontaireslc.com/neighborhood/"
       },
       {
-        "fetched_at": 1793216515034,
-        "host": "fortherecordarchive.org",
+        "fetched_at": 1793230654791,
+        "host": "www.ificlaims.com",
         "http_status": 200,
-        "title": "How Yesi Yahme Uses Music To Explore Truth",
-        "url": "https://fortherecordarchive.org/story/yesi-yahme-black-musician/"
+        "title": "IFI CLAIMS: AI Patents Break 100,000 Grants Milestone - IFI CLAIMS",
+        "url": "https://www.ificlaims.com/news/ifi-claims-ai-patents-break-100000-grants-milestone/"
       },
       {
-        "fetched_at": 1793216514832,
-        "host": "simpleflying.com",
+        "fetched_at": 1793230654734,
+        "host": "prri.org",
         "http_status": 200,
-        "title": "GE9X Vs. Trent XWB: The Engines Behind The Boeing 777X & Airbus A350",
-        "url": "https://simpleflying.com/ge9x-trent-xwb-engines-behind-boeing-777x-airbus-a350/"
+        "title": "Generations - PRRI",
+        "url": "https://prri.org/prri-research/prri-issues/generations/"
       },
       {
-        "fetched_at": 1793216478687,
-        "host": "www.restobiz.ca",
+        "fetched_at": 1793230610017,
+        "host": "justfeedback.com",
         "http_status": 200,
-        "title": "sexual assault Archives - RestobizUntitled DocumentUntitled DocumentUntitled Document",
-        "url": "https://www.restobiz.ca/tag/sexual-assault/"
+        "title": "JustFeedback - Blog",
+        "url": "https://justfeedback.com/blog/"
       },
       {
-        "fetched_at": 1793216453234,
-        "host": "www.wtm.com",
+        "fetched_at": 1793230599463,
+        "host": "wonkhe.com",
         "http_status": 200,
-        "title": "About ATM | Leading International Middle East Tourism Expo",
-        "url": "https://www.wtm.com/atm/en-gb/about.html"
+        "title": "Write for Wonkhe \u2013 Wonkhe",
+        "url": "https://wonkhe.com/write-for-wonkhe"
       },
       {
-        "fetched_at": 1793216449796,
-        "host": "interconnected.org",
+        "fetched_at": 1793230595106,
+        "host": "www.fathom.global",
         "http_status": 200,
-        "title": "Interconnected",
-        "url": "https://interconnected.org/home/tagged/5-most-popular-in-2023"
+        "title": "Global Terrain Data - FathomDEM+ | Fathom",
+        "url": "https://www.fathom.global/product/fathomdem-global-terrain-data/"
       },
       {
-        "fetched_at": 1793216449791,
-        "host": "flathub.org",
+        "fetched_at": 1793230591505,
+        "host": "www.androidheadlines.com",
         "http_status": 200,
-        "title": "Install Gaphor on Linux | Flathub",
-        "url": "https://flathub.org/apps/org.gaphor.Gaphor"
+        "title": "Google Pixel 11: Ultimate Buyers Guide",
+        "url": "https://www.androidheadlines.com/google-pixel-11"
       },
       {
-        "fetched_at": 1793216445462,
-        "host": "abell.org",
+        "fetched_at": 1793230586663,
+        "host": "cdla.dev",
         "http_status": 200,
-        "title": "Who We Are - The Abell Foundation",
-        "url": "https://abell.org/who-we-are/"
+        "title": "Compatibility - CDLA",
+        "url": "https://cdla.dev/faq-resources/compatibility/"
       },
       {
-        "fetched_at": 1793216445447,
-        "host": "codeless.io",
+        "fetched_at": 1793230579409,
+        "host": "flowplay-llc.breezy.hr",
         "http_status": 200,
-        "title": "Hospitality Marketing Agency for More Direct Demand\u2014and a System Your Team Owns - Codeless",
-        "url": "https://codeless.io/hospitality-marketing-agency/"
+        "title": "Openings at Flowplay, LLC",
+        "url": "https://flowplay-llc.breezy.hr/"
       },
       {
-        "fetched_at": 1793216445433,
-        "host": "landworkersalliance.org.uk",
+        "fetched_at": 1793230550061,
+        "host": "www.safer-ai.org",
         "http_status": 200,
-        "title": "5-Year Strategy (2026-2030) - Landworkers Alliance",
-        "url": "https://landworkersalliance.org.uk/5-year-strategy/"
+        "title": "Careers \u2013 SaferAI",
+        "url": "https://www.safer-ai.org/careers"
       },
       {
-        "fetched_at": 1793216421664,
-        "host": "levamo.com",
+        "fetched_at": 1793230549509,
+        "host": "wonkhe.com",
         "http_status": 200,
-        "title": "Hosting for MemberPress - Fast, Scalable Membership Hosting for WordPress",
-        "url": "https://levamo.com/memberpress-hosting/"
+        "title": "Daily Briefing \u2013 Wonkhe",
+        "url": "https://wonkhe.com/subscriptions/wonkhe-daily"
       },
       {
-        "fetched_at": 1793216397371,
-        "host": "www.coastaldiscovery.org",
+        "fetched_at": 1793230548100,
+        "host": "inkgiant.co",
         "http_status": 200,
-        "title": "Exhibits | Coastal Discovery Museum",
-        "url": "https://www.coastaldiscovery.org/explore/exhibits/gallery-exhibits/"
+        "title": "Origin Screen Print \u2013 24\u2033 x 36\u2033 \u2013 Ink Giant",
+        "url": "https://inkgiant.co/product/origin-limited-edition-screen-print/"
       },
       {
-        "fetched_at": 1793216397324,
-        "host": "www.energyimpactpartners.com",
+        "fetched_at": 1793230547663,
+        "host": "www.edwardrosten.com",
         "http_status": 200,
-        "title": "approach - approach -",
-        "url": "https://www.energyimpactpartners.com/partners/"
+        "title": "FAST Corner Detection -- Edward Rosten",
+        "url": "https://www.edwardrosten.com/work/fast.html"
       },
       {
-        "fetched_at": 1793216386804,
-        "host": "www.bproautoparts.com",
+        "fetched_at": 1793230546741,
+        "host": "rethinkingremovals.org",
         "http_status": 200,
-        "title": "Fuel pump modules | bproautoparts",
-        "url": "https://www.bproautoparts.com/parts/air-and-fuel-delivery/fuel-pump-module-assembly"
+        "title": "Rules - Rethinking Removals",
+        "url": "https://rethinkingremovals.org/focus-areas-2/policy/"
       },
       {
-        "fetched_at": 1793216379215,
-        "host": "atc.org.uk",
+        "fetched_at": 1793230546616,
+        "host": "scwrun.com",
         "http_status": 200,
-        "title": "Partner Associations | Association of Translation Companies",
-        "url": "https://atc.org.uk/member-directory/association-partners/"
+        "title": "SCW Run",
+        "url": "https://scwrun.com/"
       },
       {
-        "fetched_at": 1793216379170,
-        "host": "www.fandm.edu",
+        "fetched_at": 1793230539123,
+        "host": "mullvad.net",
         "http_status": 200,
-        "title": "Community and Belonging",
-        "url": "https://www.fandm.edu/community-and-belonging/index.html"
+        "title": "Mullvad Browser Extension (beta)",
+        "url": "https://mullvad.net/en/download/browser/extension"
       },
       {
-        "fetched_at": 1793216362444,
-        "host": "www.prattlibrary.org",
+        "fetched_at": 1793230473588,
+        "host": "mathieu.agopian.info",
         "http_status": 200,
-        "title": "Library Cards & Policies - Enoch Pratt Free Library",
-        "url": "https://www.prattlibrary.org/library-cards"
+        "title": "mnmlist : Vivre pour tous les autres",
+        "url": "http://mathieu.agopian.info/mnmlist/vivre-pour-tous-les-autres.html"
       },
       {
-        "fetched_at": 1793216362341,
-        "host": "abell.org",
+        "fetched_at": 1793230463702,
+        "host": "humanprogress.org",
         "http_status": 200,
-        "title": "Abell History - The Abell Foundation",
-        "url": "https://abell.org/abell-history/"
+        "title": "Heroes of Progress - Human Progress",
+        "url": "https://humanprogress.org/projects/heroes-of-progress/"
       },
       {
-        "fetched_at": 1793216358797,
-        "host": "www.captainmorgan.com",
+        "fetched_at": 1793230462727,
+        "host": "learn.java",
         "http_status": 200,
-        "title": "Spicy Lemonade | Captain Morgan",
-        "url": "https://www.captainmorgan.com/en-us/cocktails/spicy-lemonade"
+        "title": "Why Java? - Learn.java",
+        "url": "https://learn.java/why"
       },
       {
-        "fetched_at": 1793216358776,
-        "host": "www.donjulio.com",
+        "fetched_at": 1793230462492,
+        "host": "annualreport.buhlergroup.com",
         "http_status": 200,
-        "title": "Don Julio 1942\u00ae Tequila | Don Julio Tequila | Tequilas | Don Julio",
-        "url": "https://www.donjulio.com/our-tequilas/don-julio-1942-tequila"
+        "title": "Annual Report 2025 | B\u00fchler Group",
+        "url": "https://annualreport.buhlergroup.com/"
       },
       {
-        "fetched_at": 1793216334716,
-        "host": "www.ukca.ac.uk",
+        "fetched_at": 1793230461856,
+        "host": "www.fidelity.com",
         "http_status": 200,
-        "title": "UKCA - UKCA",
-        "url": "http://www.ukca.ac.uk/"
+        "title": "Fidelity Go | Automated Investing with Robo Advisor | Fidelity Investments",
+        "url": "https://www.fidelity.com/managed-accounts/fidelity-go/overview"
       },
       {
-        "fetched_at": 1793216326342,
-        "host": "semgrep.dev",
+        "fetched_at": 1793230414161,
+        "host": "xboxrepublika.com",
         "http_status": 200,
-        "title": "Shift from Snyk | Semgrep",
-        "url": "https://semgrep.dev/shift-from-snyk/"
+        "title": "AI diskusija - Tech - XboxRepublika",
+        "url": "https://xboxrepublika.com/t/ai-diskusija/22402"
       },
       {
-        "fetched_at": 1793216326334,
-        "host": "jamesandantonia.blogspot.com",
+        "fetched_at": 1793230410513,
+        "host": "otavio.cc",
         "http_status": 200,
-        "title": "james & antonia's travels: 2015",
-        "url": "http://jamesandantonia.blogspot.com/2015/"
+        "title": "Subscriptions in December 2025 \u2013 Ot\u00e1vio C.",
+        "url": "https://otavio.cc/subscriptions-in-december-2025/"
       },
       {
-        "fetched_at": 1793216323017,
-        "host": "sam.gov",
+        "fetched_at": 1793230403753,
+        "host": "jenkov.com",
         "http_status": 200,
-        "title": "Help | SAM.gov",
-        "url": "https://sam.gov/content/help"
+        "title": "Slipped Conditions",
+        "url": "https://jenkov.com/tutorials/java-concurrency/slipped-conditions.html"
       },
       {
-        "fetched_at": 1793216318962,
-        "host": "vuejs.org",
+        "fetched_at": 1793230400257,
+        "host": "www.wk.com",
         "http_status": 200,
-        "title": "Composition API FAQ | Vue.js",
-        "url": "https://vuejs.org/guide/extras/composition-api-faq.html"
+        "title": "About us | Wieden+Kennedy",
+        "url": "https://www.wk.com/about/office/new-york"
       },
       {
-        "fetched_at": 1793216318939,
-        "host": "abell.org",
+        "fetched_at": 1793230366173,
+        "host": "floridaphoenix.com",
         "http_status": 200,
-        "title": "Home Page - The Abell Foundation",
-        "url": "https://abell.org/"
+        "title": "Education Archives \u2022 Florida Phoenix",
+        "url": "https://floridaphoenix.com/education/"
       },
       {
-        "fetched_at": 1793216298642,
-        "host": "visitkzn-sa.com",
+        "fetched_at": 1793230362689,
+        "host": "skigirdwood.org",
         "http_status": 200,
-        "title": "Places to Film | KwaZulu-Natal Tourism & Film",
-        "url": "https://visitkzn-sa.com/film"
+        "title": "Girdwood Nordic Ski Club | Cross Country Skiing Girdwood Alaska",
+        "url": "https://skigirdwood.org/projects/"
       },
       {
-        "fetched_at": 1793216283899,
-        "host": "baltimore-berc.org",
+        "fetched_at": 1793230358578,
+        "host": "weechat.org",
         "http_status": 200,
-        "title": "Baltimore BERC | The Baltimore Education Research Consortium",
-        "url": "https://baltimore-berc.org/"
+        "title": "WeeChat :: documentation :: security",
+        "url": "https://weechat.org/doc/weechat/security/"
       },
       {
-        "fetched_at": 1793216283891,
-        "host": "www.prattlibrary.org",
+        "fetched_at": 1793230358570,
+        "host": "wonkhe.com",
         "http_status": 200,
-        "title": "Home - Enoch Pratt Free Library",
-        "url": "https://www.prattlibrary.org/"
+        "title": "Quality enhancement needs student engagement \u2013 Wonkhe",
+        "url": "https://wonkhe.com/blogs/quality-enhancement-needs-student-engagement/"
       },
       {
-        "fetched_at": 1793216280423,
-        "host": "www.neighborhoodindicators.org",
+        "fetched_at": 1793230351634,
+        "host": "golf.com",
         "http_status": 200,
-        "title": "Home | NNIP",
-        "url": "http://www.neighborhoodindicators.org/"
+        "title": "Style | GOLF.com",
+        "url": "https://golf.com/lifestyle/style/"
       },
       {
-        "fetched_at": 1793216276991,
-        "host": "www.aecf.org",
+        "fetched_at": 1793230344830,
+        "host": "enspireforenterprise.com",
         "http_status": 200,
-        "title": "Ensuring the Future of Youth - The Annie E. Casey Foundation",
-        "url": "https://www.aecf.org/"
+        "title": "Local Listing Management | Enspire For Enterprise",
+        "url": "https://enspireforenterprise.com/local-listing-management/"
       },
       {
-        "fetched_at": 1793216259732,
-        "host": "research.csiro.au",
+        "fetched_at": 1793230341369,
+        "host": "www.wpbpepsi.com",
         "http_status": 200,
-        "title": "Climate Chemistry \u2013 Atmospheric Composition & Chemistry",
-        "url": "https://research.csiro.au/acc/research-themes/climate-chemistry/"
+        "title": "WP Beverages :: Donations",
+        "url": "https://www.wpbpepsi.com/donations/"
       },
       {
-        "fetched_at": 1793216239395,
-        "host": "www.abc.org.uk",
+        "fetched_at": 1793230264158,
+        "host": "plex-gear.myshopify.com",
         "http_status": 200,
-        "title": "EDAA Trust Seal - ABC UK",
-        "url": "https://www.abc.org.uk/assurance/data-privacy/edaa-trust-seal"
+        "title": "Geek Life &ndash; Plex Gear",
+        "url": "https://plex-gear.myshopify.com/collections/geek-life"
       },
       {
-        "fetched_at": 1793216235891,
-        "host": "80000hours.org",
+        "fetched_at": 1793230264117,
+        "host": "wonkhe.com",
         "http_status": 200,
+        "title": "20 years of the quality enhancement framework \u2013 Wonkhe",
+        "url": "https://wonkhe.com/blogs/20-years-of-the-quality-enhancement-framework/"
+      },
+      {
+        "fetched_at": 1793230243590,
+        "host": "www.attero.nl",
+        "http_status": 200,
+        "title": "Position: circulair economy policy - Our positions - About Attero - Attero // The Circular Company",
+        "url": "https://www.attero.nl/en/about-attero/our-positions/position-circulair-economy-policy/"
+      },
+      {
+        "fetched_at": 1793230229873,
+        "host": "velvetshark.com",
+        "http_status": 200,
+        "title": "AI and agents \u2022 VelvetShark",
+        "url": "https://velvetshark.com/articles/category/ai"
+      },
+      {
+        "fetched_at": 1793230228916,
+        "host": "kawerak.org",
+        "http_status": 200,
+        "title": "Podcast \u2013 Kawerak",
+        "url": "https://kawerak.org/podcast/"
+      },
+      {
+        "fetched_at": 1793230105187,
+        "host": "www.csir.co.za",
+        "http_status": 200,
+        "title": "Executive Management | CSIR",
+        "url": "https://www.csir.co.za/about-us/organisational-structure/our-leadership/executive-management"
+      },
+      {
+        "fetched_at": 1793230096015,
+        "host": "lfenergy.org",
+        "http_status": 200,
+        "title": "Ambassadors | LF Energy",
+        "url": "https://lfenergy.org/ambassadors/"
+      },
+      {
+        "fetched_at": 1793230088770,
+        "host": "inria.github.io",
+        "http_status": 200,
+        "title": "\ud83d\udcc3 Solution for Exercise M1.01 \u2014 Scikit-learn course",
+        "url": "https://inria.github.io/scikit-learn-mooc/python_scripts/01_tabular_data_exploration_sol_01.html"
+      },
+      {
+        "fetched_at": 1793230070773,
+        "host": "alabamareflector.com",
+        "http_status": 200,
+        "title": "Education Archives | Alabama Reflector",
+        "url": "https://alabamareflector.com/category/education/"
+      },
+      {
+        "fetched_at": 1793230070766,
+        "host": "kawerak.org",
+        "http_status": 200,
+        "title": "Kawerak",
+        "url": "https://kawerak.org/"
+      },
+      {
+        "fetched_at": 1793230070759,
+        "host": "www.exurbe.com",
+        "http_status": 200,
+        "title": "Effortless Duck \u2013 Ex Urbe",
+        "url": "https://www.exurbe.com/recipes-cooking/unreasonably-easy-perfect-duck/"
+      },
+      {
+        "fetched_at": 1793230058445,
+        "host": "www.givemore24.org",
+        "http_status": 200,
+        "title": "Fundraise solutions | Give More 24!",
+        "url": "https://www.givemore24.org/fundraise/start?flow_type=fundraiser&org_urn=Kxrw&org_name=KXRW%20FM%20-%20Support%20Vancouver%27s%20Voice!&org_id=3503375&redirect_path=organization%2FKxrw"
+      },
+      {
+        "fetched_at": 1793230055300,
+        "host": "www.iceland.co.uk",
+        "http_status": 200,
+        "title": "Online Food Shopping | Iceland Groceries",
+        "url": "https://www.iceland.co.uk/"
+      },
+      {
+        "fetched_at": 1793229960395,
+        "host": "entringo.com",
+        "http_status": 200,
+        "title": "Timber Production yard management at Kohila Plywood factory - Entringo",
+        "url": "https://entringo.com/timber-production-yard-management-at-kohila-plywood-factory/"
+      },
+      {
+        "fetched_at": 1793229953529,
+        "host": "arkansasadvocate.com",
+        "http_status": 200,
+        "title": "News | Arkansas Advocate",
+        "url": "https://arkansasadvocate.com/news"
+      },
+      {
+        "fetched_at": 1793229953522,
+        "host": "cowboy.com",
+        "http_status": 200,
+        "title": "Cowboy Classic - The Connected Electric Bike",
+        "url": "https://cowboy.com/products/e-bike-cowboy-classic"
+      },
+      {
+        "fetched_at": 1793229953514,
+        "host": "www.stellantis-fs.com",
+        "http_status": 200,
+        "title": "Stellantis Financial ServicesBusiness Lending | Stellantis Financial Services",
+        "url": "https://www.stellantis-fs.com/BusinessLending"
+      },
+      {
+        "fetched_at": 1793229936582,
+        "host": "repository.lboro.ac.uk",
+        "http_status": 202,
         "title": "",
-        "url": "https://80000hours.org/podcast/episodes/ai-extinction-explained/"
+        "url": "https://repository.lboro.ac.uk/"
       },
       {
-        "fetched_at": 1793216215289,
-        "host": "www.aaronandpartners.com",
+        "fetched_at": 1793229932081,
+        "host": "idahocapitalsun.com",
         "http_status": 200,
-        "title": "Skilled Worker visa",
-        "url": "https://www.aaronandpartners.com/business/business-immigration/skilled-worker-visa/"
+        "title": "Lava Hot Springs to serve as Idaho\u2019s \u2018Capital for a Day\u2019 with Gov. Little, state officials \u2022 Idaho Capital Sun",
+        "url": "https://idahocapitalsun.com/2026/09/17/lava-hot-springs-to-serve-as-idahos-capital-for-a-day-with-gov-little-state-officials/"
       },
       {
-        "fetched_at": 1793216208269,
-        "host": "acmcompass.org",
+        "fetched_at": 1793229931204,
+        "host": "stuart.com",
         "http_status": 200,
-        "title": "Spiral Model - ComAcm Pass",
-        "url": "https://acmcompass.org/spiral-model/"
+        "title": "Stuart partners with Iceland Foods",
+        "url": "https://stuart.com/resources/news/iceland-stuart-partnership/"
       },
       {
-        "fetched_at": 1793216204837,
-        "host": "trust.1password.io",
+        "fetched_at": 1793229931179,
+        "host": "sfey.com",
         "http_status": 200,
-        "title": "1Password Trust Center | Powered by SafeBase",
-        "url": "https://trust.1password.io/?amp%3Bamp%3BitemUid=2895b7a4-3e67-4740-be44-fbd30f21faef&itemName=internal_practices&itemUid=6dc2e33e-13b5-48d4-9a97-8a77b113542f&source=click"
+        "title": "Blog | Sfey \u2013 Open Loop Payment Solutions for Smarter, Greener Cities",
+        "url": "https://sfey.com/blog/"
       },
       {
-        "fetched_at": 1793216201396,
-        "host": "osm2pgsql.org",
+        "fetched_at": 1793229910379,
+        "host": "bestsolutions.ee",
         "http_status": 200,
-        "title": "Raster Tiles - Examples - osm2pgsql",
-        "url": "https://osm2pgsql.org/examples/raster-tiles/"
+        "title": "EU-Funded Development Projects \u2013 B.EST Solutions",
+        "url": "https://bestsolutions.ee/european-regional-development-fund/"
       },
       {
-        "fetched_at": 1793216201382,
-        "host": "store.playstation.com",
+        "fetched_at": 1793229910369,
+        "host": "www.bigmile.eu",
         "http_status": 200,
-        "title": "Latest | Official PlayStation\u2122Store US",
-        "url": "https://store.playstation.com/en-us/pages/latest"
+        "title": "Emissions API | BigMile",
+        "url": "https://www.bigmile.eu/solution/emissions-api"
       },
       {
-        "fetched_at": 1793216177577,
-        "host": "www.fisher.edu",
+        "fetched_at": 1793229893178,
+        "host": "www.eduardomorais.com",
         "http_status": 200,
-        "title": "Mission & Vision - Fisher College",
-        "url": "https://www.fisher.edu/about/mission-vision"
+        "title": "Future Days / CV",
+        "url": "https://www.eduardomorais.com/cv/"
       },
       {
-        "fetched_at": 1793216172222,
-        "host": "longnow.org",
+        "fetched_at": 1793229893170,
+        "host": "www.cybasque.eus",
         "http_status": 200,
-        "title": "The Council \u2014 LONG NOW PEOPLE",
-        "url": "https://longnow.org/people/council/"
+        "title": "Cybasque associate form | CYBASQUE Website",
+        "url": "https://www.cybasque.eus/en/cybasque/associate-form"
       },
       {
-        "fetched_at": 1793216172216,
-        "host": "ironarray.io",
+        "fetched_at": 1793229875218,
+        "host": "www.giac.org",
         "http_status": 200,
-        "title": "ironArray SLU",
-        "url": "https://ironarray.io/team"
+        "title": "GIAC Cyber Threat Intelligence (GCTI) | Cybersecurity Certification",
+        "url": "https://www.giac.org/certifications/cyber-threat-intelligence-gcti"
       },
       {
-        "fetched_at": 1793216172208,
-        "host": "revealmobile.com",
+        "fetched_at": 1793229871572,
+        "host": "www.bio-itworldeurope.com",
         "http_status": 200,
-        "title": "Awards & Accolades - Reveal",
-        "url": "https://revealmobile.com/awards"
+        "title": "Speaker Proposal | Bio-IT World Conference & Expo Europe | 29-30 November 2023",
+        "url": "https://www.bio-itworldeurope.com/speaker-proposal"
       },
       {
-        "fetched_at": 1793216165165,
-        "host": "www.soe-townsville.org",
+        "fetched_at": 1793229857147,
+        "host": "rdfportal.org",
         "http_status": 200,
-        "title": "Townsville SOE - State of the Environment Report",
-        "url": "http://www.soe-townsville.org/creekwatch/index.html"
+        "title": "Datasets - RDF Portal",
+        "url": "https://rdfportal.org/datasets/"
       },
       {
-        "fetched_at": 1793216165109,
-        "host": "openzl.org",
+        "fetched_at": 1793229848805,
+        "host": "curveballproductions.co.uk",
         "http_status": 200,
-        "title": "Concepts - OpenZL",
-        "url": "https://openzl.org/getting-started/concepts/"
+        "title": "Cookie Policy - Curveball Productions",
+        "url": "https://curveballproductions.co.uk/cookies-policy/"
       },
       {
-        "fetched_at": 1793216165046,
-        "host": "sclawyersweekly.com",
+        "fetched_at": 1793229848527,
+        "host": "plutosec.ca",
         "http_status": 200,
-        "title": "As AI hallucinations hit court filings, new tech tools aim to keep lawyers out of trouble - South Carolina Lawyers Weekly",
-        "url": "https://sclawyersweekly.com/news/2026/09/14/as-ai-hallucinations-hit-court-filings-new-tech-tools-aim-to-keep-lawyers-out-of-trouble/"
+        "title": "Advanced Threat Detection Services In Canada | Behavioral Analytics",
+        "url": "https://plutosec.ca/services/threat-detection"
       },
       {
-        "fetched_at": 1793216161350,
-        "host": "status.edis.global",
+        "fetched_at": 1793229847884,
+        "host": "deathnotethemusical.com",
         "http_status": 200,
-        "title": "January 2025 | History | EDIS Global Status | EDBB Status",
-        "url": "https://status.edis.global/history/2025/january"
+        "title": "Privacy Policy - Death Note The Musical",
+        "url": "https://deathnotethemusical.com/privacy-policy"
       },
       {
-        "fetched_at": 1793216161342,
-        "host": "quansight-labs.github.io",
+        "fetched_at": 1793229846599,
+        "host": "cmmanagement.co.uk",
         "http_status": 200,
-        "title": "Introduction: What is an Index? - ndindex documentationMenuExpandLight modeDark modeAuto light/dark, in light modeAuto light/dark, in dark mode",
-        "url": "https://quansight-labs.github.io/ndindex/indexing-guide/intro.html"
+        "title": "Kate Donnachie - Corrie McGuire Management",
+        "url": "https://cmmanagement.co.uk/artist/kate-donnachie/"
       },
       {
-        "fetched_at": 1793216161324,
-        "host": "venturecafephoenix.org",
+        "fetched_at": 1793229806173,
+        "host": "www.weather.gov",
         "http_status": 200,
-        "title": "Join the Mentorship Network - Venture Caf\u00e9 Phoenix",
-        "url": "https://venturecafephoenix.org/connect-with-innovators/get-involved/join-mentorship-network/"
+        "title": "NOAA Weather Radio",
+        "url": "http://www.weather.gov/nwr/"
       },
       {
-        "fetched_at": 1793216154144,
-        "host": "entryzero.ai",
+        "fetched_at": 1793229795806,
+        "host": "plutosec.uk",
         "http_status": 200,
-        "title": "Der n\u00e4chste Schritt zu vertrauensw\u00fcrdiger KI: ENTRYZERO tritt Trust4Good \u2026",
-        "url": "https://entryzero.ai/blog/trust4good-member/"
+        "title": "Penetration Testing for the Education Sector",
+        "url": "https://plutosec.uk/industries/penetration-testing-for-education"
       },
       {
-        "fetched_at": 1793216154050,
-        "host": "cyberleadershipinstitute.com",
+        "fetched_at": 1793229784673,
+        "host": "denvillehall.org.uk",
         "http_status": 200,
-        "title": "The Cyber Leadership Imperative | Cyber Leadership Institute",
-        "url": "https://cyberleadershipinstitute.com/the-cyber-leadership-imperative/"
+        "title": "Residential Care - Denville Hall",
+        "url": "https://denvillehall.org.uk/about-denville-hall/care/residential-care/"
       },
       {
-        "fetched_at": 1793216150209,
-        "host": "www.magnite.com",
+        "fetched_at": 1793229777782,
+        "host": "elproductions.co.uk",
         "http_status": 200,
-        "title": "Magnite Advances Agentic Vision as Major Media Owners, Buyers and Technology Players Leverage Orchestration Layer - Magnite",
-        "url": "https://www.magnite.com/press/magnite-advances-agentic-vision-as-major-media-owners-buyers-and-technology-players-leverage-orchestration-layer/"
+        "title": "Press - Eleanor Lloyd Productions",
+        "url": "https://elproductions.co.uk/press/"
       },
       {
-        "fetched_at": 1793216149666,
-        "host": "www.msdformothers.com",
+        "fetched_at": 1793229773791,
+        "host": "heathersthemusical.com",
         "http_status": 200,
-        "title": "Where We Work &mdash; MSD for Mothers",
-        "url": "https://www.msdformothers.com/where-we-work/global-grants.html"
+        "title": "Media - Heathers The Musical",
+        "url": "https://heathersthemusical.com/new-york/media-ny/"
       },
       {
-        "fetched_at": 1793216050893,
-        "host": "kleinkleinklein.com",
+        "fetched_at": 1793229770293,
+        "host": "primafacieplay.com",
         "http_status": 200,
-        "title": "SEMINARS | Explore Media Theory \u2013 Enroll Today &mdash; MATT KLEIN",
-        "url": "https://kleinkleinklein.com/understanding-media-seminar"
+        "title": "Prima Facie | Starring Jodie Comer",
+        "url": "https://primafacieplay.com/book-tickets/"
       },
       {
-        "fetched_at": 1793216026921,
-        "host": "mountainofink.com",
+        "fetched_at": 1793229766280,
+        "host": "www.ramseylawpc.com",
         "http_status": 200,
-        "title": "Diplomat Ink &mdash; Mountain of Ink",
-        "url": "https://mountainofink.com/blog/diplomat-ink"
+        "title": "Houston Brain Injury Attorney | Ramsey Law Group",
+        "url": "https://www.ramseylawpc.com/houston-brain-injury-lawyer/"
       },
       {
-        "fetched_at": 1793216014371,
-        "host": "www.railbaltica.org",
+        "fetched_at": 1793229765401,
+        "host": "www.mrsdoubtfiremusical.co.uk",
         "http_status": 200,
-        "title": "Jonas Treinys - RB",
-        "url": "https://www.railbaltica.org/stories/jonas-treinys/"
+        "title": "Privacy Policy - Mrs Doubtfire Musical",
+        "url": "https://www.mrsdoubtfiremusical.co.uk/privacy-policy/"
       },
       {
-        "fetched_at": 1793216011016,
-        "host": "nintendoeverything.com",
+        "fetched_at": 1793229748411,
+        "host": "boyharnessedwindmusical.com",
         "http_status": 200,
-        "title": "The Jackbox Party Pack 12 gets Nintendo Switch 2 and Switch release date, new trailer [update: gameplay trailer]",
-        "url": "https://nintendoeverything.com/the-jackbox-party-pack-12-gets-nintendo-switch-2-and-switch-release-date-new-trailer/"
+        "title": "Privacy Policy - The Boy Who Harnessed the Wind | Official Website",
+        "url": "https://boyharnessedwindmusical.com/privacy-policy-2/"
       },
       {
-        "fetched_at": 1793216007590,
-        "host": "www.maptrove.com",
+        "fetched_at": 1793229745017,
+        "host": "www.abilmente.org",
         "http_status": 200,
-        "title": "World Time Zone Map | Digital Maps",
-        "url": "https://www.maptrove.com/world-time-zone-map.html"
+        "title": "Press releases Abilmente Vicenza: news and media kit",
+        "url": "https://www.abilmente.org/en/vicenza/media-room/news-press-releases"
       },
       {
-        "fetched_at": 1793215973341,
-        "host": "hitchcoxaesthetics.com",
+        "fetched_at": 1793229732729,
+        "host": "classicfilmjerks.libsyn.com",
         "http_status": 200,
-        "title": "Injectables Knoxville | Sarah Hitchcox Aesthetics",
-        "url": "https://hitchcoxaesthetics.com/injectables"
+        "title": "Classic Film JerksLibsyn Podcast Page",
+        "url": "https://classicfilmjerks.libsyn.com/"
       },
       {
-        "fetched_at": 1793215969889,
-        "host": "www.meranerland.org",
+        "fetched_at": 1793229725761,
+        "host": "www.fame.so",
         "http_status": 200,
-        "title": "Val Passiria - Merano and surroundings - Italy",
-        "url": "https://www.meranerland.org/en/meranos-valleys/val-passiria/"
+        "title": "Beyond Conventional Marketing by Breinify | Fame",
+        "url": "https://www.fame.so/shows/beyond-conventional-marketing"
       },
       {
-        "fetched_at": 1793215969792,
-        "host": "english.court.gov.cn",
+        "fetched_at": 1793229722225,
+        "host": "www.gpms-vt.com",
         "http_status": 200,
-        "title": "Top News",
-        "url": "https://english.court.gov.cn/topnews.html"
+        "title": "HUMS for Bell 407 GX, 407 GXP, and 407 GXi : GPMS",
+        "url": "https://www.gpms-vt.com/hums/bell407-2-2/"
       },
       {
-        "fetched_at": 1793215962814,
-        "host": "captimes.itemorder.com",
+        "fetched_at": 1793229718476,
+        "host": "ezads.hearst.com",
         "http_status": 200,
-        "title": "The Capital Times - Apparel | Mid-City Sales",
-        "url": "https://captimes.itemorder.com/shop/product/62706154/"
+        "title": "Adportal Self Service Advertising Why Advertise",
+        "url": "https://ezads.hearst.com/obits/sfchronicle/static/advertise.html"
       },
       {
-        "fetched_at": 1793215958790,
-        "host": "www.bwproductionsllc.com",
+        "fetched_at": 1793229718468,
+        "host": "www.dangermouse.net",
         "http_status": 200,
-        "title": "Product Photography Utah | E-Commerce, Catalog & Branding Photos \u2013 BW Productions",
-        "url": "https://www.bwproductionsllc.com/photography-product"
+        "title": "February &laquo; 2019 &laquo; Carpe DMM",
+        "url": "https://www.dangermouse.net/blog/2019/02/"
       },
       {
-        "fetched_at": 1793215906655,
-        "host": "www.gra.gi",
+        "fetched_at": 1793229687545,
+        "host": "www.champcable.com",
         "http_status": 200,
-        "title": "Guidance Notes",
-        "url": "https://www.gra.gi/data-protection/guidance"
+        "title": "We Are Champlain Cable - High Performance Wire & Cable",
+        "url": "https://www.champcable.com/"
       },
       {
-        "fetched_at": 1793215901822,
-        "host": "www.dtxstudio.com",
+        "fetched_at": 1793229679985,
+        "host": "co-dx.com",
         "http_status": 200,
-        "title": "Home | DTX Studio suite",
-        "url": "https://www.dtxstudio.com/en-int"
+        "title": "Research Logix Smart COVID-19 RUO - Co-DxTop Navigation with Mega Menu",
+        "url": "https://co-dx.com/research-logix-smart-covid-19-ruo/"
       },
       {
-        "fetched_at": 1793215898363,
-        "host": "french.peopledaily.com.cn",
+        "fetched_at": 1793229676525,
+        "host": "www.ndigital.com",
         "http_status": 200,
-        "title": "Chine--People's Daily Online",
-        "url": "http://french.peopledaily.com.cn/Chine/index.html"
+        "title": "About NDI | Precision Tracking for Medical OEMs",
+        "url": "https://www.ndigital.com/about/"
       },
       {
-        "fetched_at": 1793215858878,
-        "host": "eagleeyebooks.com",
+        "fetched_at": 1793229671327,
+        "host": "www.ypo.org",
         "http_status": 200,
-        "title": "Cory Doctorow Event Ticket | Eagle Eye Book Shop - A Great Eye For Good Books",
-        "url": "https://eagleeyebooks.com/product/cory-doctorow-event-ticket?v=340615&ic_referral=u4l7SmxcJyp_ODKzOT9O-__z1yHrtwDsZovJQ7Ue-0IwM6UQu5Zwxa9S5wZXKu0ipVyXDrAe4r6CTWagOY5NZzfyTlrQdPtxMlwCra0XHb0BAKtHwLmjNbTdlDuMhpQ4ea1g"
+        "title": "YPO | Explore YPO\u2019s Global Impact Report",
+        "url": "https://www.ypo.org/ypo-reports/global-impact-report/"
       },
       {
-        "fetched_at": 1793215831643,
-        "host": "www.pagerduty.com",
+        "fetched_at": 1793229671320,
+        "host": "ideal.nl",
         "http_status": 200,
-        "title": "PagerDuty: The AI-First Operations Platform",
-        "url": "https://www.pagerduty.com/"
+        "title": "iDEAL | Wero Partner worden",
+        "url": "https://ideal.nl/ideal-partner-worden"
       },
       {
-        "fetched_at": 1793215799063,
-        "host": "www.tomorrowblueconomy.com",
+        "fetched_at": 1793229671311,
+        "host": "visitchamporcher.com",
         "http_status": 200,
-        "title": "Legal notice | Tomorrow.Blue Economy World Congress",
-        "url": "https://www.tomorrowblueconomy.com/aviso-legal/"
+        "title": "La Trottola Champorcher | Visit Champorcher - Winter",
+        "url": "https://visitchamporcher.com/en/stores/la-trottola-champorcher-27685"
       },
       {
-        "fetched_at": 1793215797629,
-        "host": "venueless.org",
+        "fetched_at": 1793229671305,
+        "host": "www.philips.com",
         "http_status": 200,
-        "title": "Venueless - The Platform For Your Digital Events - Venueless",
-        "url": "https://venueless.org/en/"
+        "title": "Innovation | Philips",
+        "url": "https://www.philips.com/a-w/about/innovation.html"
       },
       {
-        "fetched_at": 1793215797608,
-        "host": "matterandinteractions.org",
+        "fetched_at": 1793229671299,
+        "host": "yellowpeach.co.uk",
         "http_status": 200,
-        "title": "Instructors | Matter & Interactions",
-        "url": "https://matterandinteractions.org/instructors/"
+        "title": "Design Systems for Websites: Why They Matter - Yellow Peach",
+        "url": "https://yellowpeach.co.uk/why-design-systems-matter-for-websites/"
       },
       {
-        "fetched_at": 1793215690900,
-        "host": "www.whitefusion.studio",
+        "fetched_at": 1793229671292,
+        "host": "www.claudnyc.com",
         "http_status": 200,
-        "title": "Portfolio | Whitefusion",
-        "url": "https://www.whitefusion.studio/portfolio"
+        "title": "Contact Us | Claud in New York, NY",
+        "url": "https://www.claudnyc.com/contact-us"
       },
       {
-        "fetched_at": 1793215687023,
-        "host": "conda.org",
+        "fetched_at": 1793229671274,
+        "host": "hawaiianchipcompany.com",
         "http_status": 200,
-        "title": "55 posts tagged with \"conda\" | conda.org",
-        "url": "https://conda.org/blog/tags/conda"
+        "title": "Sauces & Dressings &ndash; Hawaiian Chip Company",
+        "url": "https://hawaiianchipcompany.com/collections/sauces-and-dressings"
       },
       {
-        "fetched_at": 1793215680134,
-        "host": "www.upliftuk.org",
+        "fetched_at": 1793229579482,
+        "host": "www.atomixnyc.com",
         "http_status": 200,
-        "title": "Jackdaw approved. Rosebank? - Media Brief from Uplift (News)",
-        "url": "https://www.upliftuk.org/post/jackdaw-approved-rosebank"
+        "title": "Kjolle 2024 &mdash; atomix",
+        "url": "https://www.atomixnyc.com/kjolle-2024"
       },
       {
-        "fetched_at": 1793215672896,
-        "host": "www.ornotbike.com",
+        "fetched_at": 1793229565942,
+        "host": "www.penny-nyc.com",
         "http_status": 200,
-        "title": "Men\u2019s Cycling Apparel | Jerseys, Bibs, Pants & More \u2013 Ornot &ndash; Ornot Online Store",
-        "url": "https://www.ornotbike.com/collections/mens"
+        "title": "Careers | Penny in New York City",
+        "url": "https://www.penny-nyc.com/careers/"
       },
       {
-        "fetched_at": 1793215672865,
-        "host": "www.edwardjones.com",
+        "fetched_at": 1793229547084,
+        "host": "www.antonsnyc.com",
         "http_status": 200,
-        "title": "Stephen V Spaulding IV, Financial Advisor | Edward Jones",
-        "url": "http://www.edwardjones.com/us-en/financial-advisor/stephen-spaulding"
+        "title": "Contact | Anton's in New York, NY",
+        "url": "https://www.antonsnyc.com/contact/"
       },
       {
-        "fetched_at": 1793215672838,
-        "host": "www.vanderwal.net",
+        "fetched_at": 1793229547043,
+        "host": "www.aquavit.org",
         "http_status": 200,
-        "title": "Personal :: Off the Top :: vanderwal.net",
-        "url": "https://www.vanderwal.net/random/category.php?cat=116"
+        "title": "Info &mdash; Aquavit",
+        "url": "https://www.aquavit.org/info"
       },
       {
-        "fetched_at": 1793215672594,
-        "host": "www.acistampa.com",
+        "fetched_at": 1793229545813,
+        "host": "www.bulletcreative.com",
         "http_status": 200,
-        "title": "Archivio di notizie",
-        "url": "https://www.acistampa.com/archive"
+        "title": "Bullet Creative - award winning design studio based in London",
+        "url": "https://www.bulletcreative.com/"
       },
       {
-        "fetched_at": 1793215672551,
-        "host": "www.best-charities.org",
+        "fetched_at": 1793229545488,
+        "host": "heritagedeclares.org",
         "http_status": 200,
-        "title": "",
-        "url": "http://www.best-charities.org/find/charitypage.php?id=4&ein=52-1573446&key=american+indian+college+fund"
+        "title": "Home - Heritage Declares",
+        "url": "https://heritagedeclares.org/"
       },
       {
-        "fetched_at": 1793215558373,
-        "host": "www.balfourbeatty.com",
+        "fetched_at": 1793229544305,
+        "host": "www.letterstotheearth.com",
         "http_status": 200,
-        "title": "Right First Time",
-        "url": "https://www.balfourbeatty.com/about-us/how-we-operate/right-first-time/"
+        "title": "Home | Letters to the Earth",
+        "url": "https://www.letterstotheearth.com/"
       },
       {
-        "fetched_at": 1793215506376,
-        "host": "visitcentraloregon.com",
+        "fetched_at": 1793229442426,
+        "host": "wordsfromthebirds.uk",
         "http_status": 200,
-        "title": "Redmond, Oregon Events Calendar | Visit Central Oregon",
-        "url": "https://visitcentraloregon.com/calendar-of-events/redmond/"
-      },
-      {
-        "fetched_at": 1793215473639,
-        "host": "html.energy",
-        "http_status": 200,
-        "title": "bill wurtz (\u2602) on \u2727 html energy",
-        "url": "https://html.energy/bill.html"
-      },
-      {
-        "fetched_at": 1793215473623,
-        "host": "www.pressnet.or.jp",
-        "http_status": 200,
-        "title": "\u82e5\u8005\u306e\u300c\u9811\u5f35\u308a\u305f\u3044\u300d\u3092\u652f\u3048\u308b\u300c\u65b0\u805e\u5968\u5b66\u751f\u300d\u306f\u7d20\u6674\u3089\u3057\u3044\u5236\u5ea6\uff5c\u65e5\u672c\u65b0\u805e\u5354\u4f1a",
-        "url": "https://www.pressnet.or.jp/haitatsu/interview/05/"
-      },
-      {
-        "fetched_at": 1793215473589,
-        "host": "www.scistarteraustralia.au",
-        "http_status": 200,
-        "title": "Enjoy Workshop Reflections & Videos!",
-        "url": "https://www.scistarteraustralia.au/post/reflecting-on-the-success-of-our-november-2024-workshop-from-science-engagement-to-discovery-succ"
-      },
-      {
-        "fetched_at": 1793215472413,
-        "host": "jeremy.codes",
-        "http_status": 200,
-        "title": "",
-        "url": "https://jeremy.codes/"
-      },
-      {
-        "fetched_at": 1793215375395,
-        "host": "abookapart.com",
-        "http_status": 200,
-        "title": "Responsible JavaScript, A Book Apart",
-        "url": "https://abookapart.com/products/responsible-javascript"
-      },
-      {
-        "fetched_at": 1793215371850,
-        "host": "www.barebones.com",
-        "http_status": 200,
-        "title": "BBEdit 16 is here! | Bare Bones Software",
-        "url": "https://www.barebones.com/products/bbedit/bbedit16.html"
-      },
-      {
-        "fetched_at": 1793215367663,
-        "host": "www.endoscopy.com",
-        "http_status": 200,
-        "title": "UPS Ground From ESS, Inc. (New York State) - Endoscopy Support Services, Inc.",
-        "url": "https://www.endoscopy.com/store/pc/UPS-Ground-From-ESS-Inc-New-York-State-d38.htm"
-      },
-      {
-        "fetched_at": 1793215364239,
-        "host": "www.29news.com",
-        "http_status": 200,
-        "title": "UVA Center for Public Safety and Justice helps advance \u2018Not on Our Watch\u2019 policing initiative",
-        "url": "https://www.29news.com/2026/08/24/uva-center-public-safety-justice-helps-advance-not-our-watch-policing-initiative/"
-      },
-      {
-        "fetched_at": 1793215360397,
-        "host": "www.eastbaytimes.com",
-        "http_status": 200,
-        "title": "World News \u2013 East Bay Times",
-        "url": "https://www.eastbaytimes.com/news/world/"
-      },
-      {
-        "fetched_at": 1793215360373,
-        "host": "tigerjython4kids.ch",
-        "http_status": 200,
-        "title": "mbrobot",
-        "url": "https://tigerjython4kids.ch/mbrobot"
-      },
-      {
-        "fetched_at": 1793215360370,
-        "host": "www.tmz.com",
-        "http_status": 200,
-        "title": "Celebrity News | Entertainment News | TMZ.com",
-        "url": "https://www.tmz.com/sitemaps/watch/index"
-      },
-      {
-        "fetched_at": 1793215360353,
-        "host": "www.barebones.com",
-        "http_status": 200,
-        "title": "BBEdit Comparison Chart | Bare Bones Software",
-        "url": "https://www.barebones.com/products/bbedit/comparison.html"
-      },
-      {
-        "fetched_at": 1793215360296,
-        "host": "donate.greenpeace.be",
-        "http_status": 200,
-        "title": "Samen voor een leefbare planeet | Greenpeace",
-        "url": "https://donate.greenpeace.be/nl/samen-voor-onze-toekomst/"
-      },
-      {
-        "fetched_at": 1793215356117,
-        "host": "www.tjgroup.ch",
-        "http_status": 200,
-        "title": "tjgroup",
-        "url": "https://www.tjgroup.ch/"
-      },
-      {
-        "fetched_at": 1793215356106,
-        "host": "www.poynton.ca",
-        "http_status": 200,
-        "title": "About - Charles Poynton, PhD",
-        "url": "https://www.poynton.ca/"
-      },
-      {
-        "fetched_at": 1793215323068,
-        "host": "python-exemplarisch.ch",
-        "http_status": 200,
-        "title": "Python Exemplarisch",
-        "url": "https://python-exemplarisch.ch/"
+        "title": "The Drugs Don\u2019t Work, But the coffee does \u2013 Words from the Birds",
+        "url": "https://wordsfromthebirds.uk/2023/01/26/the-drugs-dont-work-but-the-coffee-does/"
       }
     ],
-    "total": 462853
+    "total": 463261
   },
   "schema_version": 1,
   "status": {
     "blocked": 43,
     "crawling": true,
-    "documents": 462852,
-    "done": 487275,
-    "duplicates": 31078,
-    "failed": 25738,
-    "hosts": 143306,
-    "in_flight": 7,
-    "indexed": 433548,
-    "links": 20320508,
-    "pending": 500013,
+    "documents": 463261,
+    "done": 487319,
+    "duplicates": 31101,
+    "failed": 25757,
+    "hosts": 143315,
+    "in_flight": 8,
+    "indexed": 433946,
+    "links": 20341453,
+    "pending": 500052,
     "pending_demand": 0,
-    "pending_public": 500013,
-    "recrawls_due": 370922,
-    "uptime_sec": 2052419
+    "pending_public": 500052,
+    "recrawls_due": 371877,
+    "uptime_sec": 2066444
   }
 }
