@@ -1,0 +1,24 @@
+{
+  "sourceName": "Aether (Test Fix)",
+  "iconUrl": "https://aether.bar/favicon.ico",
+  "author": {
+    "name": "xdfkenny & MXFia19",
+    "icon": "https://yt3.googleusercontent.com/NHr6Y6qhYIUeoyIBdgeEYArXI1_ebVcLAuf562jPB6WSFTunOwPVuWC90eAG1zmeD6_Wy9_0mTs=s160-c-k-c0x00ffffff-no-rj",
+    "url": "https://github.com/xdfkenny"
+  },
+  "version": "1.2.3-test.2",
+  "language": "English",
+  "streamType": "HLS",
+  "quality": "1080p",
+  "baseUrl": "https://aether.bar/",
+  "searchBaseUrl": "https://api.themoviedb.org/3/search/multi",
+  "scriptUrl": "https://raw.githubusercontent.com/doopydoop364/doopydoop364.github.io/aether-test-fix/aether/aether.js",
+  "type": "shows/movies/anime",
+  "downloadSupport": true,
+  "asyncJS": true,
+  "softsub": true,
+  "supportsSora": true,
+  "supportsLuna": true,
+  "changelog": "Experimental test: isolated provider failures, validated URLs, no URL forcing, no analytics",
+  "scriptURL": "https://raw.githubusercontent.com/doopydoop364/doopydoop364.github.io/aether-test-fix/aether/aether.js"
+}
